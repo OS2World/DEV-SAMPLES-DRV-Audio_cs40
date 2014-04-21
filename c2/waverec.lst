@@ -1,0 +1,628 @@
+
+Module: D:\dev\csrc\os2dd\scd\waverec.c
+Group: 'DGROUP' CONST,CONST2,_DATA,_BSS,_INITDATA
+
+Segment: _TEXT  PARA   000001f3 bytes  
+
+//
+// waverec.c
+// 1-Feb-99
+//
+// USHORT waverecStart(WAVESTREAM *wsPtr);
+// USHORT waverecStop(WAVESTREAM *wsPtr);
+// USHORT waverecEnable(WAVESTREAM *wsPtr);
+// USHORT waverecInit(USHORT dmaChannel, USHORT flags, USHORT irq) {
+
+#include "cs40.h"
+
+
+WAVEAUDIO war;  // ** global **  The heart of it all, hardware-wise
+
+// ---------------------------------
+// in: wsPtr -> WAVESTREAM structure
+//out: 0 if okay, else error
+//nts:
+
+USHORT waverecStart(WAVESTREAM *wsPtr) {
+
+ USHORT rc = 0;
+ UCHAR data;
+ STREAM *tstreamPtr = 0; // original typed this as WAVESTREAM*, but FindActiveStream() is STREAM
+ USHORT isFD = wsPtr->waPtr->flags & FLAGS_WAVEAUDIO_FULLDUPLEX;
+
+// !!!
+ 0000  53                waverecStart_   push    bx
+ 0001  51                                push    cx
+ 0002  52                                push    dx
+ 0003  56                                push    si
+ 0004  57                                push    di
+ 0005  55                                push    bp
+ 0006  89 e5                             mov     bp,sp
+ 0008  83 ec 02                          sub     sp,0002H
+ 000b  89 c6                             mov     si,ax
+
+if (gCLflags & FLAGS_CL_DDPRINT) ddprintf("@ waverecStart, isFD=%u\n",isFD);
+
+ // need to know if playing now (only care if full duplex capable)
+
+ 000d  8a 26 01 00                       mov     ah,_gCLflags+1H
+ 0011  8b 5c 02                          mov     bx,[si+2H]
+ 0014  31 d2                             xor     dx,dx
+ 0016  8b 3f                             mov     di,[bx]
+ 0018  89 56 fe                          mov     [bp-2H],dx
+ 001b  83 e7 01                          and     di,0001H
+ 001e  f6 c4 40                          test    ah,40H
+ 0021  74 0b                             je      L1
+ 0023  57                                push    di
+ 0024  1e                                push    ds
+ 0025  68 00 00                          push    offset L12
+ 0028  e8 00 00                          call    _ddprintf
+ 002b  83 c4 06                          add     sp,0006H
+
+ if (isFD) tstreamPtr = streamFindActive(STREAM_WAVE_PLAY);
+
+ // whoa! now this is hardware specific -- ensure record not active, and if not FD, off play
+ // this will be moved into a hardware-specific module eventually
+
+ 002e  85 ff             L1              test    di,di
+ 0030  74 09                             je      L2
+ 0032  b8 11 00                          mov     ax,0011H
+ 0035  e8 00 00                          call    streamFindActive_
+ 0038  89 46 fe                          mov     [bp-2H],ax
+
+ data = chipsetGET('i', INTERFACE_CONFIG_REG);
+ 003b  ba 09 00          L2              mov     dx,0009H
+ 003e  b8 69 00                          mov     ax,0069H
+ 0041  e8 00 00                          call    chipsetGET_
+
+ if (isFD) {
+ 0044  85 ff                             test    di,di
+ 0046  74 07                             je      L3
+
+    data = data & 0xFD;  // off CEN
+ }
+ 0048  88 c3                             mov     bl,al
+ 004a  80 e3 fd                          and     bl,0fdH
+
+ else {
+ 004d  eb 05                             jmp     L4
+
+    data = data & 0xFC;  // off CEN, and PEN since not full duplex
+ }
+
+ 004f  88 c3             L3              mov     bl,al
+ 0051  80 e3 fc                          and     bl,0fcH
+
+ _cli_();
+ 0054  9c                L4              pushf   
+ 0055  fa                                cli     
+
+ dmaWaitForChannel(DMA_WAIT, &wsPtr->waPtr->ab);
+ 0056  8b 54 02                          mov     dx,[si+2H]
+ 0059  b8 6a 01                          mov     ax,016aH
+ 005c  83 c2 0c                          add     dx,000cH
+ 005f  e8 00 00                          call    dmaWaitForChannel_
+
+ chipsetSet('i', INTERFACE_CONFIG_REG, data);
+ _sti_();
+
+ // mute the dac output
+ // MIXER_SOURCE_WAVE is the correct mixer line to send the
+ // query and set controls command to...
+ // copy the current mute and volume values to temp variables then
+ // set the volume to 0 and mute the output
+
+ //- pDACOutput->QueryControl(MIX_MUTE, (ULONG FAR *)&DACMute);
+ //- pDACOutput->QueryControl(MIX_VOLUME, (ULONG FAR *)&DACVolume);
+ //- pDACOutput->SetControl(MIX_MUTE, MUTE_ON);
+ //- pDACOutput->SetControl(MIX_VOLUME,0);
+ //
+ // need to ensure digital loopback muted (...) here, too, eventually
+
+ 0062  88 d8                             mov     al,bl
+ 0064  30 e4                             xor     ah,ah
+ 0066  ba 09 00                          mov     dx,0009H
+ 0069  89 c3                             mov     bx,ax
+ 006b  b8 69 00                          mov     ax,0069H
+ 006e  e8 00 00                          call    chipsetSet_
+
+ chipsetMCE(1); // turn on MCE
+
+ // set up interface config reg
+
+ 0071  b8 01 00                          mov     ax,0001H
+ 0074  9d                                popf    
+ 0075  e8 00 00                          call    chipsetMCE_
+
+ if (isFD == 0) {
+ 0078  85 ff                             test    di,di
+ 007a  75 04                             jne     L5
+
+    data = 0x44;        // capture gets dma play into pio
+ }
+ 007c  b0 44                             mov     al,44H
+
+ else {
+ 007e  eb 0b                             jmp     L6
+
+    data = chipsetGET('i', INTERFACE_CONFIG_REG) & 1; // preserve PEN
+ }
+ 0080  ba 09 00          L5              mov     dx,0009H
+ 0083  b8 69 00                          mov     ax,0069H
+ 0086  e8 00 00                          call    chipsetGET_
+ 0089  24 01                             and     al,01H
+
+ chipsetSet('i', INTERFACE_CONFIG_REG, data);
+
+ // set the Clock and data format reg
+ // full-duplex concern:
+ // "to set the clock info we need to read the Fs and Playback Data Format
+ // reg. We must preserve the playback format bits or we could switch
+ // the playback data format on the fly.... very bad.."
+ // (see waveplay.c for the concern for playback since this is done differently than playback)
+
+ 008b  30 e4             L6              xor     ah,ah
+ 008d  ba 09 00                          mov     dx,0009H
+ 0090  89 c3                             mov     bx,ax
+ 0092  b8 69 00                          mov     ax,0069H
+ 0095  e8 00 00                          call    chipsetSet_
+
+ data = chipsetGET('i', PLAYBACK_DATA_FORMAT_REG) & 0xF0; // preserve playback format
+ 0098  ba 08 00                          mov     dx,0008H
+ 009b  b8 69 00                          mov     ax,0069H
+ 009e  e8 00 00                          call    chipsetGET_
+
+ data = data | wsPtr->waPtr->clockSelectData;
+ 00a1  8b 5c 02                          mov     bx,[si+2H]
+ 00a4  24 f0                             and     al,0f0H
+ 00a6  0a 47 08                          or      al,[bx+8H]
+
+ chipsetSet('i', PLAYBACK_DATA_FORMAT_REG, data);
+ 00a9  30 e4                             xor     ah,ah
+ 00ab  ba 08 00                          mov     dx,0008H
+ 00ae  89 c3                             mov     bx,ax
+ 00b0  b8 69 00                          mov     ax,0069H
+ 00b3  e8 00 00                          call    chipsetSet_
+
+ chipsetSet('i', CAPTURE_DATA_FORMAT_REG, wsPtr->waPtr->formatData);
+
+ // wait for the chip to settle down
+
+ 00b6  8b 5c 02                          mov     bx,[si+2H]
+ 00b9  8a 47 09                          mov     al,[bx+9H]
+ 00bc  30 e4                             xor     ah,ah
+ 00be  ba 1c 00                          mov     dx,001cH
+ 00c1  89 c3                             mov     bx,ax
+ 00c3  b8 69 00                          mov     ax,0069H
+ 00c6  e8 00 00                          call    chipsetSet_
+
+ chipsetWaitInit();
+ 00c9  e8 00 00                          call    chipsetWaitInit_
+
+ chipsetMCE(0); // turn MCE off
+
+ // Just in case the CAL0 and CAL1 bits are set to anything other than 0b00
+ // or if this is the first start since we reset the codec
+ // wait for init complete and aci in process to turn off
+
+ chipsetWaitInit();
+ chipsetWaitACI();
+
+ 00cc  31 c0                             xor     ax,ax
+
+ iodelay(WAIT_2MS);
+
+ // if this is a dual dma environment (full-duplex) and a
+ // playback stream is active turn PEN back on
+
+ 00ce  b9 a0 0f                          mov     cx,0fa0H
+ 00d1  e8 00 00                          call    chipsetMCE_
+ 00d4  e8 00 00                          call    chipsetWaitInit_
+ 00d7  e8 00 00                          call    chipsetWaitACI_
+ 00da  e8 00 00                          call    iodelay_
+
+ if (isFD && tstreamPtr) {
+ 00dd  85 ff                             test    di,di
+ 00df  74 1e                             je      L7
+ 00e1  83 7e fe 00                       cmp     word ptr [bp-2H],0000H
+ 00e5  74 18                             je      L7
+
+    data = chipsetGET('i', INTERFACE_CONFIG_REG) | 1;  // turn on PEN
+ 00e7  ba 09 00                          mov     dx,0009H
+ 00ea  b8 69 00                          mov     ax,0069H
+ 00ed  e8 00 00                          call    chipsetGET_
+ 00f0  0c 01                             or      al,01H
+
+    chipsetSet('i', INTERFACE_CONFIG_REG, data);
+ }
+
+ // set the base count registers (to *_PLAYBACK_* if not full-duplex)
+
+ 00f2  30 e4                             xor     ah,ah
+ 00f4  ba 09 00                          mov     dx,0009H
+ 00f7  89 c3                             mov     bx,ax
+ 00f9  b8 69 00                          mov     ax,0069H
+ 00fc  e8 00 00                          call    chipsetSet_
+
+ if (isFD) {
+ 00ff  85 ff             L7              test    di,di
+ 0101  74 20                             je      L8
+
+    chipsetSet('i', LOWER_CAPTURE_COUNT, (UCHAR)wsPtr->waPtr->countData);
+ 0103  8b 5c 02                          mov     bx,[si+2H]
+ 0106  8a 47 0a                          mov     al,[bx+0aH]
+ 0109  30 e4                             xor     ah,ah
+ 010b  ba 1f 00                          mov     dx,001fH
+ 010e  89 c3                             mov     bx,ax
+ 0110  b8 69 00                          mov     ax,0069H
+ 0113  e8 00 00                          call    chipsetSet_
+
+    chipsetSet('i', UPPER_CAPTURE_COUNT, (UCHAR)(wsPtr->waPtr->countData >> 8));
+ }
+ 0116  8b 5c 02                          mov     bx,[si+2H]
+ 0119  8a 47 0b                          mov     al,[bx+0bH]
+ 011c  30 e4                             xor     ah,ah
+ 011e  ba 1e 00                          mov     dx,001eH
+
+ else {
+ 0121  eb 1e                             jmp     L9
+
+    chipsetSet('i', LOWER_PLAYBACK_COUNT, (UCHAR)wsPtr->waPtr->countData);
+ 0123  8b 5c 02          L8              mov     bx,[si+2H]
+ 0126  8a 47 0a                          mov     al,[bx+0aH]
+ 0129  30 e4                             xor     ah,ah
+ 012b  ba 0f 00                          mov     dx,000fH
+ 012e  89 c3                             mov     bx,ax
+ 0130  b8 69 00                          mov     ax,0069H
+ 0133  e8 00 00                          call    chipsetSet_
+
+    chipsetSet('i', UPPER_PLAYBACK_COUNT, (UCHAR)(wsPtr->waPtr->countData >> 8));
+ }
+
+ // enable the ISR via DevHelp_SetIRQ
+
+ 0136  8b 5c 02                          mov     bx,[si+2H]
+ 0139  8a 47 0b                          mov     al,[bx+0bH]
+ 013c  30 e4                             xor     ah,ah
+ 013e  ba 0e 00                          mov     dx,000eH
+ 0141  89 c3             L9              mov     bx,ax
+ 0143  b8 69 00                          mov     ax,0069H
+ 0146  e8 00 00                          call    chipsetSet_
+
+ rc = irqEnable(wsPtr->waPtr->irq);
+ 0149  8b 5c 02                          mov     bx,[si+2H]
+ 014c  8b 47 04                          mov     ax,[bx+4H]
+ 014f  e8 00 00                          call    irqEnable_
+ 0152  89 c7                             mov     di,ax
+
+ if (rc) goto ExitNow;
+
+ // start up DMA
+
+ 0154  85 c0                             test    ax,ax
+ 0156  75 2c                             jne     L10
+
+ dmaStart(&wsPtr->waPtr->ab);
+
+ // ### unmute the DAC
+ //- pDACOutput->SetControl(MIX_MUTE, DACMute);
+ //- pDACOutput->SetControl(MIX_VOLUME,DACVolume);
+
+// original didn't toggle MCE when turning on CEN, but it did in waveplay.c...check that out..
+
+ 0158  8b 44 02                          mov     ax,[si+2H]
+ 015b  05 0c 00                          add     ax,000cH
+ 015e  e8 00 00                          call    dmaStart_
+
+ chipsetMCE(1); // turn MCE on (can probably remove this for just setting CEN!)
+
+ 0161  b8 01 00                          mov     ax,0001H
+
+ data = chipsetGET('i', INTERFACE_CONFIG_REG) | 2;  // turn on CEN
+ 0164  ba 09 00                          mov     dx,0009H
+ 0167  e8 00 00                          call    chipsetMCE_
+ 016a  b8 69 00                          mov     ax,0069H
+ 016d  e8 00 00                          call    chipsetGET_
+ 0170  0c 02                             or      al,02H
+
+ chipsetSet('i', INTERFACE_CONFIG_REG, data);
+
+ 0172  30 e4                             xor     ah,ah
+ 0174  ba 09 00                          mov     dx,0009H
+ 0177  89 c3                             mov     bx,ax
+ 0179  b8 69 00                          mov     ax,0069H
+ 017c  e8 00 00                          call    chipsetSet_
+
+ chipsetMCE(0); // turn MCE off (see above)
+
+ExitNow:
+ return rc;
+ 017f  31 c0                             xor     ax,ax
+ 0181  e8 00 00                          call    chipsetMCE_
+
+}
+
+
+// ---------------------------------
+// in: wsPtr -> WAVESTREAM structure
+//out: 0 if okay, else error
+//nts:
+
+ 0184  89 f8             L10             mov     ax,di
+ 0186  89 ec                             mov     sp,bp
+ 0188  5d                                pop     bp
+ 0189  5f                                pop     di
+ 018a  5e                                pop     si
+ 018b  5a                                pop     dx
+ 018c  59                                pop     cx
+ 018d  5b                                pop     bx
+ 018e  c3                                ret     
+ 018f  fc                                cld     
+
+USHORT waverecStop(WAVESTREAM *wsPtr) {
+
+ USHORT rc = 0;
+ UCHAR data;
+
+ // if CEN is on turn it off
+
+ 0190  53                waverecStop_    push    bx
+ 0191  52                                push    dx
+ 0192  56                                push    si
+ 0193  89 c6                             mov     si,ax
+
+ data = chipsetGET('i', INTERFACE_CONFIG_REG);
+
+// !!!
+//ddprintf("@ waverecStop, data=%u\n",(USHORT)data);
+
+ 0195  ba 09 00                          mov     dx,0009H
+ 0198  b8 69 00                          mov     ax,0069H
+ 019b  e8 00 00                          call    chipsetGET_
+
+ if (data & 2) {
+    data = data & 0xFE;
+ 019e  88 c2                             mov     dl,al
+ 01a0  80 e2 02                          and     dl,02H
+ 01a3  30 f6                             xor     dh,dh
+ 01a5  85 d2                             test    dx,dx
+ 01a7  74 1f                             je      L11
+
+ 01a9  9c                                pushf   
+ 01aa  fa                                cli     
+
+    _cli_();
+ 01ab  88 c3                             mov     bl,al
+
+    dmaWaitForChannel(DMA_WAIT, &wsPtr->waPtr->ab);
+ 01ad  8b 54 02                          mov     dx,[si+2H]
+ 01b0  b8 6a 01                          mov     ax,016aH
+ 01b3  83 c2 0c                          add     dx,000cH
+ 01b6  80 e3 fe                          and     bl,0feH
+ 01b9  e8 00 00                          call    dmaWaitForChannel_
+ 01bc  ba 09 00                          mov     dx,0009H
+ 01bf  b8 69 00                          mov     ax,0069H
+
+    chipsetSet('i', INTERFACE_CONFIG_REG, data);
+ 01c2  30 ff                             xor     bh,bh
+ 01c4  e8 00 00                          call    chipsetSet_
+
+    _sti_();
+ }
+
+ // stop DMA and disable irq (irq gets released only after last disable)
+
+ 01c7  9d                                popf    
+
+ dmaStop(&wsPtr->waPtr->ab);
+ 01c8  8b 44 02          L11             mov     ax,[si+2H]
+ 01cb  05 0c 00                          add     ax,000cH
+ 01ce  e8 00 00                          call    dmaStop_
+
+ rc = irqDisable(wsPtr->waPtr->irq);
+
+ 01d1  8b 5c 02                          mov     bx,[si+2H]
+ 01d4  8b 47 04                          mov     ax,[bx+4H]
+ 01d7  ba 18 00                          mov     dx,0018H
+ 01da  e8 00 00                          call    irqDisable_
+
+ chipsetSet('i', ALT_FEATURE_STATUS, CLEAR_CI); // turn int off (do before disabling irq?)
+
+ return rc;
+ 01dd  bb 5f 00                          mov     bx,005fH
+ 01e0  89 c6                             mov     si,ax
+ 01e2  b8 69 00                          mov     ax,0069H
+ 01e5  e8 00 00                          call    chipsetSet_
+
+}
+
+
+// ---------------------------------
+// in: wsPtr -> WAVESTREAM structure
+//out: 0 if okay, else error
+//nts: just adds WaveRec_Irq_Handler() to routine to call from interrupt handler
+//     since already is known just return 0 (see Dis/EnableIrqHandler() for more)
+
+ 01e8  89 f0                             mov     ax,si
+ 01ea  5e                                pop     si
+ 01eb  5a                                pop     dx
+ 01ec  5b                                pop     bx
+ 01ed  c3                                ret     
+ 01ee  89 c0                             mov     ax,ax
+
+USHORT waverecEnable(WAVESTREAM *wsPtr) {
+
+ USHORT rc = 0;
+
+ return rc;
+ wsPtr;
+}
+
+
+// ------------------
+// in: dmaChannel
+//     flags:
+//      FLAGS_WAVEAUDIO_FULLDUPLEX  1   // can do full-duplex (has separate DMA for play/rec)
+//      FLAGS_WAVEAUDIO_DMA16       2   // dma channel is 16-bit
+//      FLAGS_WAVEAUDIO_FTYPEDMA    4   // hardware support demand-mode dma
+//     irq = number of IRQ (only one...)
+//out: 0 if okay, else error
+//nts:
+
+#pragma code_seg ("_INITTEXT");
+#pragma data_seg ("_INITDATA","ENDDS");
+
+ 01f0  31 c0             waverecEnable_  xor     ax,ax
+ 01f2  c3                                ret     
+
+No disassembly errors
+
+List of external symbols
+
+Symbol
+----------------
+_gCLflags        0000000f
+_ddprintf        00000029
+streamFindActive_ 
+                 00000036
+chipsetGET_      0000019c 0000016e 000000ee 0000009f 00000087 00000042
+dmaWaitForChannel_ 
+                 000001ba 00000060
+chipsetSet_      000001e6 000001c5 0000017d 00000147 00000134 00000114 000000fd 000000c7 000000b4 00000096
+                 0000006f
+chipsetMCE_      00000182 00000168 000000d2 00000076
+chipsetWaitInit_ 
+                 000000d5 000000ca
+chipsetWaitACI_  000000d8
+iodelay_         000000db
+irqEnable_       00000150
+dmaStart_        0000015f
+dmaStop_         000001cf
+irqDisable_      000001db
+------------------------------------------------------------
+
+Segment: CONST  WORD   00000019 bytes  
+ 0000  40 20 77 61 76 65 72 65 L12             - @ wavere
+ 0008  63 53 74 61 72 74 2c 20                 - cStart, 
+ 0010  69 73 46 44 3d 25 75 0a                 - isFD=%u.
+ 0018  00                                      - .
+
+No disassembly errors
+
+------------------------------------------------------------
+
+Segment: _BSS  PARA   00000054 bytes  
+
+No disassembly errors
+
+------------------------------------------------------------
+
+Segment: _INITTEXT  PARA   00000087 bytes  
+
+USHORT waverecInit(USHORT dmaChannel, USHORT flags, USHORT irq) {
+
+ USHORT rc;
+
+ 0000  51                waverecInit_    push    cx
+ 0001  56                                push    si
+ 0002  57                                push    di
+ 0003  55                                push    bp
+ 0004  89 e5                             mov     bp,sp
+ 0006  83 ec 04                          sub     sp,0004H
+ 0009  89 c6                             mov     si,ax
+ 000b  89 56 fe                          mov     [bp-2H],dx
+ 000e  89 5e fc                          mov     [bp-4H],bx
+
+ MEMSET(&war,0,sizeof(war));
+
+ 0011  b9 54 00                          mov     cx,0054H
+ 0014  bf 00 00                          mov     di,offset _war
+ 0017  8c da                             mov     dx,ds
+ 0019  31 c0                             xor     ax,ax
+ 001b  8e c2                             mov     es,dx
+ 001d  fc                                cld     
+ 001e  85 c9                             test    cx,cx
+ 0020  74 43                             je      L17
+ 0022  83 f9 20                          cmp     cx,0020H
+ 0025  72 37                             jb      L16
+ 0027  f7 c1 01 00                       test    cx,0001H
+ 002b  74 02                             je      L13
+ 002d  88 c4                             mov     ah,al
+ 002f  89 c3             L13             mov     bx,ax
+ 0031  66 c1 e0 10                       shl     eax,10H
+ 0035  89 d8                             mov     ax,bx
+ 0037  f7 c7 03 00                       test    di,0003H
+ 003b  74 12                             je      L15
+ 003d  f7 c7 01 00                       test    di,0001H
+ 0041  74 08                             je      L14
+ 0043  aa                                stosb   
+ 0044  49                                dec     cx
+ 0045  f7 c7 02 00                       test    di,0002H
+ 0049  74 04                             je      L15
+ 004b  ab                L14             stosw   
+ 004c  83 e9 02                          sub     cx,0002H
+ 004f  88 cb             L15             mov     bl,cl
+ 0051  c1 e9 02                          shr     cx,02H
+ 0054  f3 66 ab                          repe    stosd    
+ 0057  80 e3 03                          and     bl,03H
+ 005a  74 09                             je      L17
+ 005c  88 d9                             mov     cl,bl
+ 005e  d1 e9             L16             shr     cx,1
+ 0060  f3 ab                             repe    stosw    
+ 0062  73 01                             jae     L17
+ 0064  aa                                stosb   
+
+ war.devType = AUDIOHW_WAVE_CAPTURE;
+ 0065  ba 10 00          L17             mov     dx,0010H
+
+ war.flags = flags;
+ 0068  8b 46 fe                          mov     ax,[bp-2H]
+ 006b  89 16 02 00                       mov     _war+2H,dx
+ 006f  a3 00 00                          mov     _war,ax
+
+ war.irq = irq;
+
+ // waSetup():
+ // sets up DMACHANNEL
+ // sets up war.irqHandlerPtr
+
+ 0072  8b 46 fc                          mov     ax,[bp-4H]
+
+ rc = waSetup(dmaChannel, &war);
+
+ return rc;
+ 0075  ba 00 00                          mov     dx,offset _war
+ 0078  a3 04 00                          mov     _war+4H,ax
+ 007b  89 f0                             mov     ax,si
+ 007d  e8 00 00                          call    waSetup_
+
+}
+
+ 0080  89 ec                             mov     sp,bp
+ 0082  5d                                pop     bp
+ 0083  5f                                pop     di
+ 0084  5e                                pop     si
+ 0085  59                                pop     cx
+ 0086  c3                                ret     
+
+No disassembly errors
+
+List of external symbols
+
+Symbol
+----------------
+_war             00000079 00000076 00000070 0000006d 00000015
+waSetup_         0000007e
+------------------------------------------------------------
+List of public symbols
+
+SYMBOL          GROUP           SEGMENT          ADDRESS
+---------------------------------------------------------
+_war            DGROUP          _BSS             00000000
+waverecEnable_                  _TEXT            000001f0
+waverecInit_                    _INITTEXT        00000000
+waverecStart_                   _TEXT            00000000
+waverecStop_                    _TEXT            00000190
+
+------------------------------------------------------------
+

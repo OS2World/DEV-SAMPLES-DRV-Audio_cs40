@@ -1,0 +1,700 @@
+
+Module: D:\dev\csrc\os2dd\scd\dma.c
+Group: 'DGROUP' CONST,CONST2,_DATA,_BSS
+
+Segment: _TEXT  PARA   00000248 bytes  
+
+//
+// dma.c
+// 25-Jan-99
+//
+// ULONG  dmaQueryDelta(AUDIOBUFFER *audioBufferPtr);
+// VOID   dmaWaitForChannel(USHORT count, AUDIOBUFFER *audioBufferPtr);
+// VOID   dmaStart(AUDIOBUFFER *audioBufferPtr);
+// VOID   dmaStop(AUDIOBUFFER *audioBufferPtr);
+// USHORT dmaSetModeType(AUDIOBUFFER *audioBufferPtr, USHORT mode);
+// USHORT dmaInit(USHORT dmaChannel, USHORT dmaType, AUDIOBUFFER *audioBufferPtr);
+// USHORT dmaDeinit(AUDIOBUFFER *audioBufferPtr);
+
+#include "cs40.h"
+
+//typedef struct _DMACHANNEL_INFO {
+// USHORT portAddr;       //  0
+// USHORT portCount;      //  2
+// USHORT portPage;       //  4
+// USHORT portMask;       //  6
+// USHORT portMode;       //  8
+// USHORT portFlipFlop;   // 10
+// USHORT portStatus;     // 12
+// UCHAR  maskStatus;     // 14
+// UCHAR  maskEnable;     // 15
+// UCHAR  maskDisable;    // 16
+// UCHAR  typeFdma;       // 17
+// USHORT rsv18;          // 18
+//} DMACHANNEL_INFO;      // 20 bytes
+//
+//typedef struct _DMACHANNEL {
+// USHORT status;         //  0
+// USHORT ch;             //  2 0-3, 5-7
+// USHORT type;           //  4 DMA_TYPE_*
+// UCHAR  mode;           //  6 data for DMA mode register
+// UCHAR  page;           //  7
+// UCHAR  addrHi;         //  8
+// UCHAR  addrLo;         //  9
+// UCHAR  countHi;        // 10
+// UCHAR  countLo;        // 11
+// DMACHANNEL_INFO chInfo;// 12 setup data (20 bytes)
+// ULONG  audioBufferSize;// 32
+// ULONG  lastPosition;   // 36
+//} DMACHANNEL;           // 40 bytes
+
+static DMACHANNEL_INFO dmaInfo[8] = {
+ {0x00,0x01,0x87,0x0A,0x0B,0x0C,0x08, 0x10,0x00,0x04,0,0},
+ {0x02,0x03,0x83,0x0A,0x0B,0x0C,0x08, 0x20,0x01,0x05,0,0},
+ {0x04,0x05,0x81,0x0A,0x0B,0x0C,0x08, 0x40,0x02,0x06,0,0},
+ {0x06,0x07,0x82,0x0A,0x0B,0x0C,0x08, 0x80,0x03,0x07,0,0},
+ {0xC0,0xC2,0x8F,0xD4,0xD6,0xD8,0xD0, 0x10,0x00,0x04,0,0},
+ {0xC4,0xC6,0x8B,0xD4,0xD6,0xD8,0xD0, 0x20,0x01,0x05,0,0},
+ {0xC8,0xCA,0x89,0xD4,0xD6,0xD8,0xD0, 0x40,0x02,0x06,0,0},
+ {0xCC,0xCE,0x8A,0xD4,0xD6,0xD8,0xD0, 0x80,0x03,0x07,0,0},
+};
+
+
+// type-F DMA has bits7/6 = 0, so instead of 0x5x for dma???Mode[ch], use 0x1x
+// selectively modified at runtime
+
+static UCHAR dmaPlayMode[]   = {0x58,0x59,0x5A,0x5B,0x58,0x59,0x5A,0x5B};
+static UCHAR dmaCaptureMode[]= {0x54,0x55,0x56,0x57,0x54,0x55,0x56,0x57};
+
+
+//-------------------
+// in: audioBufferPtr
+//out: change in data produced/consumed
+//nts: .lastPosition is set to 0 at start
+
+ULONG dmaQueryDelta(AUDIOBUFFER *audioBufferPtr) {
+
+ ULONG delta, lastPos, pos;
+ USHORT count;
+ USHORT countLo, countHi;  // use USHORT rather than UCHAR so can << 8
+
+ 0000  53                dmaQueryDelta_  push    bx
+ 0001  51                                push    cx
+ 0002  56                                push    si
+ 0003  57                                push    di
+ 0004  55                                push    bp
+ 0005  89 e5                             mov     bp,sp
+ 0007  83 ec 02                          sub     sp,0002H
+ 000a  89 c3                             mov     bx,ax
+
+ lastPos = audioBufferPtr->dmaCh.lastPosition;
+
+ //NOTE: if autoinit mode then count register will NEVER read FFFF since it gets
+ //      reloaded with the base count -- that means count reaches 0 as "lowest"
+ //      -- here's a sample frequency distribution over 8192 trips through a 32KB
+ //      dma buffer, where for x=n, x is the count value and n is the freq of that count
+ //      (so, count reg=0 came up 60 times out of 8192...interesting that 7FFE is 0...
+ //      ...which is probably caused by IRQ handler being active, see second freqdist)
+ //
+ //      irq on:  0=60, 1=72, 2=45, 3=259, 7FFE=0,  7FFF=45, 8000=0, FFFF=0
+ //      irq off: 0=62, 1=72, 2=46, 3=259, 7FFE=55, 7FFF=248, 8000=0, FFFF=0
+ //
+ //      if it were a random event (it's not!), expect count for each
+ //      would be 0.25 (8192 div 32768) -- see bottom of this file for count test tracker
+ //
+ // this gets the current position of the channel, from 0 to size of dma buffer-1
+ // the port count register is decremented after each xfer
+ // it goes from 0 to FFFF at the last byte to xfer (that's why it's setup with count-1)
+
+ 000c  8b 77 44                          mov     si,[bx+44H]
+ 000f  8b 4f 46                          mov     cx,[bx+46H]
+
+ _cli_();
+ 0012  9c                                pushf   
+ 0013  fa                                cli     
+ 0014  30 c0                             xor     al,al
+
+ outp(audioBufferPtr->dmaCh.chInfo.portFlipFlop, 0);  // set flipflop
+ 0016  8b 57 36                          mov     dx,[bx+36H]
+ 0019  ee                                out     dx,al
+
+ countLo = inp(audioBufferPtr->dmaCh.chInfo.portCount);
+ 001a  8b 57 2e                          mov     dx,[bx+2eH]
+ 001d  ec                                in      al,dx
+ 001e  88 46 fe                          mov     [bp-2H],al
+
+ countHi = inp(audioBufferPtr->dmaCh.chInfo.portCount);
+ 0021  8b 57 2e                          mov     dx,[bx+2eH]
+ 0024  30 e4                             xor     ah,ah
+ 0026  ec                                in      al,dx
+
+ _sti_();
+
+ 0027  9d                                popf    
+ 0028  88 66 ff                          mov     [bp-1H],ah
+
+ count = (countHi << 8) + countLo;
+
+ 002b  88 c4                             mov     ah,al
+ 002d  8b 56 fe                          mov     dx,[bp-2H]
+ 0030  30 c0                             xor     al,al
+
+ if (audioBufferPtr->dmaCh.ch > 3) count = count + count;  // count as words if 16-bit channel
+
+ 0032  8b 7f 22                          mov     di,[bx+22H]
+ 0035  01 d0                             add     ax,dx
+ 0037  83 ff 03                          cmp     di,0003H
+ 003a  76 02                             jbe     L1
+ 003c  01 c0                             add     ax,ax
+ 003e  8b 57 40          L1              mov     dx,[bx+40H]
+
+ pos = audioBufferPtr->dmaCh.audioBufferSize - (ULONG)count;
+
+ 0041  31 ff                             xor     di,di
+ 0043  29 c2                             sub     dx,ax
+ 0045  8b 47 42                          mov     ax,[bx+42H]
+ 0048  19 f8                             sbb     ax,di
+
+ if (pos >= lastPos) {
+ 004a  39 c8                             cmp     ax,cx
+ 004c  77 06                             ja      L2
+ 004e  75 12                             jne     L3
+ 0050  39 f2                             cmp     dx,si
+ 0052  72 0e                             jb      L3
+
+    delta = pos - lastPos;
+ }
+ 0054  89 d7             L2              mov     di,dx
+ 0056  29 f7                             sub     di,si
+ 0058  89 fe                             mov     si,di
+ 005a  89 c7                             mov     di,ax
+ 005c  19 cf                             sbb     di,cx
+ 005e  89 f9                             mov     cx,di
+
+ else {
+ 0060  eb 12                             jmp     L4
+
+    delta = (audioBufferPtr->dmaCh.audioBufferSize - lastPos) + pos;
+ }
+
+ 0062  8b 7f 40          L3              mov     di,[bx+40H]
+ 0065  29 f7                             sub     di,si
+ 0067  89 fe                             mov     si,di
+ 0069  8b 7f 42                          mov     di,[bx+42H]
+ 006c  19 cf                             sbb     di,cx
+ 006e  89 f9                             mov     cx,di
+ 0070  01 d6                             add     si,dx
+ 0072  11 c1                             adc     cx,ax
+
+ audioBufferPtr->dmaCh.lastPosition = pos;
+
+ return delta;
+ 0074  89 57 44          L4              mov     [bx+44H],dx
+ 0077  89 47 46                          mov     [bx+46H],ax
+
+}
+
+
+// ----------------------------------------
+// in: wait = uSecs to wait  (micro seconds)
+//     audioBufferPtr
+//out: n/a
+//nts: wait for the DRQ bit to turn off (de-assert) on this DMA channel
+//     since some DMA devices won't de-assert their DRQ line if they are stopped while active
+//
+//     might want to count number of loops spent here...?  but won't solve anything
+
+ 007a  89 f0                             mov     ax,si
+ 007c  89 ca                             mov     dx,cx
+ 007e  89 ec             L5              mov     sp,bp
+ 0080  5d                                pop     bp
+ 0081  5f                                pop     di
+ 0082  5e                                pop     si
+ 0083  59                                pop     cx
+ 0084  5b                                pop     bx
+ 0085  c3                                ret     
+ 0086  89 c0                             mov     ax,ax
+
+VOID dmaWaitForChannel(USHORT count, AUDIOBUFFER *audioBufferPtr) {
+
+ 0088                    dmaWaitForChannel_:
+ 0088  53                                push    bx
+ 0089  51                                push    cx
+ 008a  56                                push    si
+ 008b  57                                push    di
+ 008c  55                                push    bp
+ 008d  89 e5                             mov     bp,sp
+ 008f  83 ec 02                          sub     sp,0002H
+ 0092  89 c3                             mov     bx,ax
+ 0094  89 d7                             mov     di,dx
+
+ USHORT tPort = audioBufferPtr->dmaCh.chInfo.portStatus;
+ 0096  8b 75 38                          mov     si,[di+38H]
+
+ UCHAR tMask = audioBufferPtr->dmaCh.chInfo.maskStatus;
+ UCHAR tByte = inp(tPort);
+
+ 0099  8a 45 3a                          mov     al,[di+3aH]
+
+ while ((tByte & tMask) && count) {
+ 009c  bf 02 00                          mov     di,0002H
+ 009f  89 f2                             mov     dx,si
+ 00a1  88 46 fe                          mov     [bp-2H],al
+ 00a4  ec                L6              in      al,dx
+ 00a5  30 e4                             xor     ah,ah
+ 00a7  89 c2                             mov     dx,ax
+ 00a9  8a 46 fe                          mov     al,[bp-2H]
+ 00ac  85 c2                             test    dx,ax
+ 00ae  74 ce                             je      L5
+ 00b0  85 db                             test    bx,bx
+ 00b2  74 ca                             je      L5
+
+    count--;
+    iodelay(WAIT_1US);  // was DMA_IO_WAIT (which is the same thing: 2)
+ 00b4  4b                                dec     bx
+ 00b5  89 f9                             mov     cx,di
+
+    tByte = inp(tPort);
+ 00b7  89 f2                             mov     dx,si
+ 00b9  e8 00 00                          call    iodelay_
+
+ }
+
+ return;
+}
+
+
+// ----------------------------------------
+// in: audioBufferPtr
+//out: n/a
+//nts: starts the DMA channel (info setup in InitDMA())
+
+ 00bc  eb e6                             jmp     L6
+ 00be  89 c0                             mov     ax,ax
+
+VOID dmaStart(AUDIOBUFFER *audioBufferPtr) {
+
+ UCHAR mode;
+
+ 00c0  53                dmaStart_       push    bx
+ 00c1  52                                push    dx
+ 00c2  89 c3                             mov     bx,ax
+
+ audioBufferPtr->dmaCh.lastPosition = 0;
+
+ mode = audioBufferPtr->dmaCh.mode;
+ 00c4  c7 47 44 00 00                    mov     word ptr [bx+44H],0000H
+ 00c9  c7 47 46 00 00                    mov     word ptr [bx+46H],0000H
+
+ 00ce  8a 57 3d                          mov     dl,[bx+3dH]
+
+ if (audioBufferPtr->dmaCh.chInfo.typeFdma) mode = mode & 0x3F;  // use demand mode if typeF DMA
+
+ 00d1  8a 67 26                          mov     ah,[bx+26H]
+ 00d4  84 d2                             test    dl,dl
+ 00d6  74 03                             je      L7
+ 00d8  80 e4 3f                          and     ah,3fH
+
+ _cli_();
+ 00db  9c                L7              pushf   
+ 00dc  fa                                cli     
+
+ outp(audioBufferPtr->dmaCh.chInfo.portMask, audioBufferPtr->dmaCh.chInfo.maskDisable); // disable channel
+ 00dd  8a 47 3c                          mov     al,[bx+3cH]
+ 00e0  8b 57 32                          mov     dx,[bx+32H]
+ 00e3  ee                                out     dx,al
+ 00e4  88 e0                             mov     al,ah
+
+ outp(audioBufferPtr->dmaCh.chInfo.portMode, mode);  // set mode
+ 00e6  8b 57 34                          mov     dx,[bx+34H]
+ 00e9  ee                                out     dx,al
+
+ outp(audioBufferPtr->dmaCh.chInfo.portPage, audioBufferPtr->dmaCh.page); // set page
+ 00ea  8a 47 27                          mov     al,[bx+27H]
+ 00ed  8b 57 30                          mov     dx,[bx+30H]
+ 00f0  ee                                out     dx,al
+
+ outp(audioBufferPtr->dmaCh.chInfo.portFlipFlop, 0); // set flip-flop
+ 00f1  8b 57 36                          mov     dx,[bx+36H]
+ 00f4  30 c0                             xor     al,al
+ 00f6  ee                                out     dx,al
+
+ outp(audioBufferPtr->dmaCh.chInfo.portAddr, audioBufferPtr->dmaCh.addrLo); // set low address
+ 00f7  8a 47 29                          mov     al,[bx+29H]
+ 00fa  8b 57 2c                          mov     dx,[bx+2cH]
+ 00fd  ee                                out     dx,al
+
+ outp(audioBufferPtr->dmaCh.chInfo.portAddr, audioBufferPtr->dmaCh.addrHi); // set high
+ 00fe  8a 47 28                          mov     al,[bx+28H]
+ 0101  8b 57 2c                          mov     dx,[bx+2cH]
+ 0104  ee                                out     dx,al
+
+ outp(audioBufferPtr->dmaCh.chInfo.portFlipFlop, 0); // set flip-flop
+ 0105  8b 57 36                          mov     dx,[bx+36H]
+ 0108  30 c0                             xor     al,al
+ 010a  ee                                out     dx,al
+
+ outp(audioBufferPtr->dmaCh.chInfo.portCount, audioBufferPtr->dmaCh.countLo); // set low count
+ 010b  8a 47 2b                          mov     al,[bx+2bH]
+ 010e  8b 57 2e                          mov     dx,[bx+2eH]
+ 0111  ee                                out     dx,al
+
+ outp(audioBufferPtr->dmaCh.chInfo.portCount, audioBufferPtr->dmaCh.countHi); // set high
+ 0112  8a 47 2a                          mov     al,[bx+2aH]
+ 0115  8b 57 2e                          mov     dx,[bx+2eH]
+ 0118  ee                                out     dx,al
+
+ outp(audioBufferPtr->dmaCh.chInfo.portMask, audioBufferPtr->dmaCh.chInfo.maskEnable); // enable channel
+ 0119  8a 47 3b                          mov     al,[bx+3bH]
+ 011c  8b 57 32                          mov     dx,[bx+32H]
+ 011f  ee                                out     dx,al
+
+ _sti_();
+
+ return;
+ 0120  9d                                popf    
+
+}
+
+
+// ----------------------------------------
+// in: audioBufferPtr
+//out: n/a
+//nts: stops the DMA channel
+
+ 0121  5a                                pop     dx
+ 0122  5b                                pop     bx
+ 0123  c3                                ret     
+
+VOID dmaStop(AUDIOBUFFER *audioBufferPtr) {
+
+ 0124  53                dmaStop_        push    bx
+ 0125  52                                push    dx
+ 0126  89 c3                             mov     bx,ax
+
+ outp(audioBufferPtr->dmaCh.chInfo.portMask, audioBufferPtr->dmaCh.chInfo.maskDisable); // disable channel
+
+ return;
+ 0128  8a 47 3c                          mov     al,[bx+3cH]
+ 012b  8b 57 32                          mov     dx,[bx+32H]
+ 012e  ee                                out     dx,al
+
+}
+
+
+// ----------------------------------------
+// in: audioBufferPtr
+//     mode  0=single, 1=demand
+//out: last mode type
+//nts: sets DMA mode type (demand mode or single mode)
+
+ 012f  5a                                pop     dx
+ 0130  5b                                pop     bx
+ 0131  c3                                ret     
+ 0132  89 c0                             mov     ax,ax
+
+USHORT dmaSetModeType(AUDIOBUFFER *audioBufferPtr, USHORT mode) {
+
+ 0134  53                dmaSetModeType_ push    bx
+ 0135  89 c3                             mov     bx,ax
+
+ USHORT lastType = audioBufferPtr->dmaCh.chInfo.typeFdma;
+
+ 0137  8a 47 3d                          mov     al,[bx+3dH]
+ 013a  30 e4                             xor     ah,ah
+
+ if (mode) {
+    audioBufferPtr->dmaCh.chInfo.typeFdma = 1;
+ }
+ else {
+    audioBufferPtr->dmaCh.chInfo.typeFdma = 0;
+ }
+
+ return lastType;
+ 013c  85 d2                             test    dx,dx
+ 013e  0f 95 c2                          setne   dl
+ 0141  88 57 3d                          mov     [bx+3dH],dl
+
+}
+
+
+// ----------------------------------------
+// in: channel = 0-3,5-7
+//     dmaType = see cs40.h (also comes in with special flag here: bit8=1 to use type F dma)
+//     audioBufferPtr
+//out:
+//nts: dma constructor
+//     must be sure to always have dmaType piggy-backed with DMA_TYPE_FTYPE bit flag set as needed
+//     called more than just from init
+
+ 0144  5b                                pop     bx
+ 0145  c3                                ret     
+ 0146  89 c0                             mov     ax,ax
+
+USHORT dmaInit(USHORT dmaChannel, USHORT dmaType, AUDIOBUFFER *audioBufferPtr) {
+
+ ULONG bufferPhysAddr, count;
+ USHORT typeFdma;
+
+ 0148  51                dmaInit_        push    cx
+ 0149  56                                push    si
+ 014a  57                                push    di
+ 014b  55                                push    bp
+ 014c  89 e5                             mov     bp,sp
+ 014e  83 ec 06                          sub     sp,0006H
+ 0151  89 46 fe                          mov     [bp-2H],ax
+
+ typeFdma = dmaType & DMA_TYPE_FTYPE;   // bit8=1
+ 0154  89 d0                             mov     ax,dx
+ 0156  30 d0                             xor     al,dl
+ 0158  80 e4 01                          and     ah,01H
+
+ dmaType = dmaType & ~DMA_TYPE_FTYPE;
+
+ 015b  80 e6 fe                          and     dh,0feH
+ 015e  89 46 fc                          mov     [bp-4H],ax
+
+ if ((dmaType & DMA_TYPE_ISA) == 0) return 87;  // whatever
+ 0161  f6 c2 08                          test    dl,08H
+ 0164  75 06                             jne     L8
+ 0166  b8 57 00                          mov     ax,0057H
+ 0169  e9 c3 00                          jmp     L15
+
+ if (dmaChannel > 7 || dmaChannel == 2 || dmaChannel == 4) return 87;
+
+ 016c  8b 4e fe          L8              mov     cx,[bp-2H]
+ 016f  83 f9 07                          cmp     cx,0007H
+ 0172  77 0a                             ja      L9
+ 0174  83 f9 02                          cmp     cx,0002H
+ 0177  74 05                             je      L9
+ 0179  83 f9 04                          cmp     cx,0004H
+ 017c  75 0a                             jne     L10
+ 017e  b8 57 00          L9              mov     ax,0057H
+ 0181  89 ec                             mov     sp,bp
+ 0183  5d                                pop     bp
+ 0184  5f                                pop     di
+ 0185  5e                                pop     si
+ 0186  59                                pop     cx
+ 0187  c3                                ret     
+
+ audioBufferPtr->dmaCh.ch = dmaChannel;
+ 0188  89 ce             L10             mov     si,cx
+ 018a  89 4f 22                          mov     [bx+22H],cx
+ 018d  8c d8                             mov     ax,ds
+
+ audioBufferPtr->dmaCh.type = dmaType;
+
+ 018f  89 57 24                          mov     [bx+24H],dx
+
+ audioBufferPtr->dmaCh.chInfo = dmaInfo[dmaChannel]; // whoa! structure copy
+
+ 0192  c1 e6 02                          shl     si,02H
+ 0195  8e c0                             mov     es,ax
+
+ if ((dmaType & DMA_TYPE_DIRECTION) == DMA_TYPE_CAPTURE) {
+ 0197  30 f6                             xor     dh,dh
+ 0199  01 ce                             add     si,cx
+ 019b  8d 7f 2c                          lea     di,[bx+2cH]
+ 019e  c1 e6 02                          shl     si,02H
+ 01a1  b9 0a 00                          mov     cx,000aH
+ 01a4  8d b4 00 00                       lea     si,[si+_dmaInfo]
+ 01a8  80 e2 01                          and     dl,01H
+ 01ab  f3 a5                             repe    movsw    
+ 01ad  83 fa 01                          cmp     dx,0001H
+ 01b0  75 09                             jne     L11
+
+    audioBufferPtr->dmaCh.mode = dmaCaptureMode[dmaChannel];
+ }
+ 01b2  8b 76 fe                          mov     si,[bp-2H]
+ 01b5  8a 84 00 00                       mov     al,[si+_dmaCaptureMode]
+
+ else {
+ 01b9  eb 07                             jmp     L12
+
+    audioBufferPtr->dmaCh.mode = dmaPlayMode[dmaChannel];
+ }
+
+ // doing demand mode DMA instead of single improves performance a lot:
+ //    55% CPU use to 28% on 486
+ // this picked up each time dma is started, so can be changed at runtime
+ // just by chaning abPtr->dmaCh.chInfo.typeFdma (via dmaSetModeType())
+ // may also want to look at chipsetSetDTM(USHORT dtmFlag)
+
+ 01bb  8b 76 fe          L11             mov     si,[bp-2H]
+ 01be  8a 84 00 00                       mov     al,[si+_dmaPlayMode]
+ 01c2  88 47 26          L12             mov     [bx+26H],al
+
+ dmaSetModeType(audioBufferPtr, typeFdma);
+
+ // while it seems redundant to have both dmaCh.audioBufferSize and ab.bufferSize (and ws.bufferSize)
+ // it serves its purpose since dmaCh.audioBufferSize is only set here and so
+ // I can call here to re-size logical buffer size
+
+ 01c5  8b 56 fc                          mov     dx,[bp-4H]
+ 01c8  85 d2                             test    dx,dx
+ 01ca  0f 95 c0                          setne   al
+ 01cd  88 47 3d                          mov     [bx+3dH],al
+ 01d0  8b 57 12                          mov     dx,[bx+12H]
+
+ count = audioBufferPtr->bufferSize;
+ audioBufferPtr->dmaCh.audioBufferSize = count;
+
+ 01d3  8b 47 10                          mov     ax,[bx+10H]
+ 01d6  89 57 42                          mov     [bx+42H],dx
+
+ if (dmaChannel > 3) {
+ 01d9  8b 4e fe                          mov     cx,[bp-2H]
+ 01dc  89 47 40                          mov     [bx+40H],ax
+ 01df  83 f9 03                          cmp     cx,0003H
+ 01e2  76 06                             jbe     L13
+
+    count = count >> 1;  // word count (apparently don't need to -1 as do with 8 bit DMA channel)
+ }
+ 01e4  d1 ea                             shr     dx,1
+ 01e6  d1 d8                             rcr     ax,1
+
+ else {
+ 01e8  eb 06                             jmp     L14
+
+    count = count - 1;
+ }
+
+ 01ea  05 ff ff          L13             add     ax,0ffffH
+ 01ed  83 d2 ff                          adc     dx,0ffffH
+
+ audioBufferPtr->dmaCh.countHi = (UCHAR)(count >> 8);
+ 01f0  89 c6             L14             mov     si,ax
+ 01f2  89 d7                             mov     di,dx
+ 01f4  b1 08                             mov     cl,08H
+ 01f6  d3 ee                             shr     si,cl
+ 01f8  d3 cf                             ror     di,cl
+ 01fa  31 fe                             xor     si,di
+ 01fc  81 e7 ff 00                       and     di,00ffH
+ 0200  31 fe                             xor     si,di
+
+ audioBufferPtr->dmaCh.countLo = (UCHAR)count;
+
+ 0202  88 47 2b                          mov     [bx+2bH],al
+ 0205  89 f2                             mov     dx,si
+ 0207  88 57 2a                          mov     [bx+2aH],dl
+
+ bufferPhysAddr = audioBufferPtr->bufferPhysAddr;
+
+ 020a  8b 47 0c                          mov     ax,[bx+0cH]
+ 020d  8b 57 0e                          mov     dx,[bx+0eH]
+ 0210  89 46 fa                          mov     [bp-6H],ax
+
+ audioBufferPtr->dmaCh.page = (UCHAR)(bufferPhysAddr >> 16);
+ 0213  88 57 27                          mov     [bx+27H],dl
+
+ audioBufferPtr->dmaCh.addrHi = (UCHAR)(bufferPhysAddr >> 8);
+ 0216  b1 08                             mov     cl,08H
+ 0218  d3 e8                             shr     ax,cl
+ 021a  d3 ca                             ror     dx,cl
+ 021c  31 d0                             xor     ax,dx
+ 021e  81 e2 ff 00                       and     dx,00ffH
+ 0222  31 d0                             xor     ax,dx
+ 0224  88 47 28                          mov     [bx+28H],al
+
+ audioBufferPtr->dmaCh.addrLo = (UCHAR)bufferPhysAddr;
+
+ 0227  8a 46 fa                          mov     al,[bp-6H]
+ 022a  88 47 29                          mov     [bx+29H],al
+
+ return 0;
+ 022d  31 c0                             xor     ax,ax
+
+}
+
+
+// ----------------------------------------
+// in: audioBufferPtr
+//out:
+//nts: dma destructor
+//     assumes is running...probably doesn't matter if it isn't
+
+ 022f  89 ec             L15             mov     sp,bp
+ 0231  5d                                pop     bp
+ 0232  5f                                pop     di
+ 0233  5e                                pop     si
+ 0234  59                                pop     cx
+ 0235  c3                                ret     
+ 0236  89 c0                             mov     ax,ax
+
+USHORT dmaDeinit(AUDIOBUFFER *audioBufferPtr) {
+
+ 0238  53                dmaDeinit_      push    bx
+ 0239  52                                push    dx
+ 023a  89 c3                             mov     bx,ax
+
+ dmaStop(audioBufferPtr);
+
+ return 0;
+ 023c  8a 47 3c                          mov     al,[bx+3cH]
+ 023f  8b 57 32                          mov     dx,[bx+32H]
+ 0242  ee                                out     dx,al
+
+}
+
+ 0243  31 c0                             xor     ax,ax
+ 0245  5a                                pop     dx
+ 0246  5b                                pop     bx
+ 0247  c3                                ret     
+
+No disassembly errors
+
+List of external symbols
+
+Symbol
+----------------
+iodelay_         000000ba
+_dmaInfo         000001a6
+_dmaCaptureMode  000001b7
+_dmaPlayMode     000001c0
+------------------------------------------------------------
+
+Segment: _DATA  WORD   000000b0 bytes  
+ 0000  00 00 01 00 87 00 0a 00 _dmaInfo        - ........
+ 0008  0b 00 0c 00 08 00 10 00                 - ........
+ 0010  04 00 00 00 02 00 03 00                 - ........
+ 0018  83 00 0a 00 0b 00 0c 00                 - ........
+ 0020  08 00 20 01 05 00 00 00                 - .. .....
+ 0028  04 00 05 00 81 00 0a 00                 - ........
+ 0030  0b 00 0c 00 08 00 40 02                 - ......@.
+ 0038  06 00 00 00 06 00 07 00                 - ........
+ 0040  82 00 0a 00 0b 00 0c 00                 - ........
+ 0048  08 00 80 03 07 00 00 00                 - ........
+ 0050  c0 00 c2 00 8f 00 d4 00                 - ........
+ 0058  d6 00 d8 00 d0 00 10 00                 - ........
+ 0060  04 00 00 00 c4 00 c6 00                 - ........
+ 0068  8b 00 d4 00 d6 00 d8 00                 - ........
+ 0070  d0 00 20 01 05 00 00 00                 - .. .....
+ 0078  c8 00 ca 00 89 00 d4 00                 - ........
+ 0080  d6 00 d8 00 d0 00 40 02                 - ......@.
+ 0088  06 00 00 00 cc 00 ce 00                 - ........
+ 0090  8a 00 d4 00 d6 00 d8 00                 - ........
+ 0098  d0 00 80 03 07 00 00 00                 - ........
+ 00a0  58 59 5a 5b 58 59 5a 5b _dmaPlayMode    - XYZ[XYZ[
+ 00a8  54 55 56 57 54 55 56 57 _dmaCaptureMode - TUVWTUVW
+
+No disassembly errors
+
+------------------------------------------------------------
+List of public symbols
+
+SYMBOL          GROUP           SEGMENT          ADDRESS
+---------------------------------------------------------
+_dmaCaptureMode DGROUP          _DATA            000000a8
+_dmaInfo        DGROUP          _DATA            00000000
+_dmaPlayMode    DGROUP          _DATA            000000a0
+dmaDeinit_                      _TEXT            00000238
+dmaInit_                        _TEXT            00000148
+dmaQueryDelta_                  _TEXT            00000000
+dmaSetModeType_                 _TEXT            00000134
+dmaStart_                       _TEXT            000000c0
+dmaStop_                        _TEXT            00000124
+dmaWaitForChannel_ 
+                                _TEXT            00000088
+
+------------------------------------------------------------
+

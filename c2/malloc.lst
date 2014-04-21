@@ -1,0 +1,1661 @@
+
+Module: D:\dev\csrc\os2dd\scd\malloc.c
+Group: 'DGROUP' CONST,CONST2,_DATA,_BSS
+
+Segment: _TEXT  PARA   0000060f bytes  
+
+//
+// malloc.c
+// 25-Jan-99
+//
+// static void dumpheap(void);
+// static void SignatureCheck ( PMEMBLOCK p, PSZ idText );
+// static void HeapCheck ( PSZ idText );
+// static PMEMBLOCK make_new_free(PMEMBLOCK pmbOldFree, unsigned uRequest);
+// static unsigned _msize(void __near *pvBlock);
+// static void __near * npvAllocateBlock( PMEMBLOCK pmb, USHORT uRequest, PMEMBLOCK pmbPrev );
+// static void remove(PMEMBLOCK pmb);
+// static void compact(void);
+// void __near *malloc( unsigned uSize );
+// void free(void __near *pvBlock);
+// unsigned _memfree(void);
+// void __near *realloc(void __near *pvBlock, unsigned usLength);
+// unsigned HeapInit(unsigned uSize);
+
+#include "cs40.h"
+
+#define HEMP_DBG 1
+
+// putting this in class BSS means won't blowout file size and extra HEAP_SIZE bytes!
+// as it does if using the original  #pragma data_seg ("_HEMP","ENDDS");
+
+#pragma data_seg ("_HEMP");     // yes, _HEMP
+
+#define DEFAULT_HEAP 4096
+#define HEAP_SIZE    8192 // max heap size
+//#define SIGNATURE    0xBEEFDEAD  // "DEADBEEF" when view in hex in word order.
+#define SIGNATURE  0x3477ADDE  // 'DEAD7734' in ascii view
+
+typedef struct _MEMBLOCK {
+   unsigned long ulSignature;
+   unsigned uSize;
+   struct _MEMBLOCK *pmbNext;
+   char achBlock[1];
+} MEMBLOCK, __near *PMEMBLOCK;
+
+#define HDR_SIZE  ( sizeof(MEMBLOCK) - 1 )
+
+// We won't leave a hole in memory any smaller than MIN_FragSize.
+#define MIN_FragSize  4
+
+//--- Global Variables used to manage the heap:
+// (no reason to be extern globals, so making them static, 26-Jan-99)
+
+static PMEMBLOCK pmbUsed=0;    // Points to head of list of allocated memory blocks.
+                        // Newly allocated blocks are inserted into head of list.
+static PMEMBLOCK pmbFree;      // Points to head of list of available memory blocks.
+static unsigned uMemFree;      // N bytes available for allocation.
+
+static USHORT fMemoryDoc = 0;
+static USHORT nAlloc = 0;           // Current number of allocated blocks.
+static USHORT cAlloc = 0;           // Total memory in allocated blocks incl. headers.
+static USHORT nAllocCalls = 0;      // Cumulative total, number of malloc() calls.
+static USHORT nFree  = 0;           // Current number of free blocks.
+static USHORT cFree  = 0;           // Total memory in free blocks incl. headers.
+static USHORT nFreeCalls  = 0;      // Cumulative total, number of free() calls.
+static USHORT nCompact = 0;         // Num of times we've joined two adjacent free blocks into a single larger block
+static USHORT cTotalHeap = HEAP_SIZE;
+
+static char __near acHeap[HEAP_SIZE];
+                        // The heap.  NOTE:  This must be the last data definition in the HEAP segment,
+                        // although not done currently, we are planning to size the heap down at INIT
+                        // time.  If this is done, any vbls in the HEAP segment that
+                        // appear after the HEAP would become unaddressable.
+
+#ifdef HEMP_DBG
+
+//--- Heap methods:
+
+//static void dumpheap(void)
+void dumpheap(void)
+{
+   int i;
+   PMEMBLOCK pmb;
+   unsigned u=0;
+
+ 0000  53                dumpheap_       push    bx
+ 0001  51                                push    cx
+ 0002  52                                push    dx
+ 0003  56                                push    si
+ 0004  57                                push    di
+ 0005  55                                push    bp
+ 0006  89 e5                             mov     bp,sp
+ 0008  83 ec 04                          sub     sp,0004H
+
+   pmb=pmbUsed;
+ 000b  8b 36 00 00                       mov     si,_pmbUsed
+ 000f  31 d2                             xor     dx,dx
+
+if (gCLflags & FLAGS_CL_DDPRINT)    ddprintf("~HEAP: Heap Dump - Used blocks\n");
+ 0011  8a 26 01 00                       mov     ah,_gCLflags+1H
+ 0015  89 56 fc                          mov     [bp-4H],dx
+ 0018  f6 c4 40                          test    ah,40H
+ 001b  74 0a                             je      L1
+ 001d  1e                                push    ds
+ 001e  68 00 00                          push    offset L78
+ 0021  e8 00 00                          call    _ddprintf
+ 0024  83 c4 04                          add     sp,0004H
+
+   for (i=0; i<32; i++) {
+      if (!pmb) break;
+ 0027  31 ff             L1              xor     di,di
+ 0029  85 f6                             test    si,si
+ 002b  74 2f                             je      L4
+
+if (gCLflags & FLAGS_CL_DDPRINT)       ddprintf("~  pmb=%p, btyes=%u\n",(void __far *) pmb, pmb->uSize);
+ 002d  f6 06 01 00 40    L2              test    byte ptr _gCLflags+1H,40H
+ 0032  74 10                             je      L3
+ 0034  8b 5c 04                          mov     bx,[si+4H]
+ 0037  53                                push    bx
+ 0038  1e                                push    ds
+ 0039  56                                push    si
+ 003a  1e                                push    ds
+ 003b  68 20 00                          push    offset L79
+ 003e  e8 00 00                          call    _ddprintf
+ 0041  83 c4 0a                          add     sp,000aH
+ 0044  8b 4e fc          L3              mov     cx,[bp-4H]
+
+      u+=pmb->uSize;
+      pmb=pmb->pmbNext;
+ 0047  8b 44 04                          mov     ax,[si+4H]
+
+ 004a  47                                inc     di
+ 004b  01 c1                             add     cx,ax
+
+   }
+ 004d  8b 74 06                          mov     si,[si+6H]
+ 0050  89 4e fc                          mov     [bp-4H],cx
+ 0053  83 ff 20                          cmp     di,0020H
+ 0056  7d 04                             jge     L4
+ 0058  85 f6                             test    si,si
+ 005a  75 d1                             jne     L2
+
+if (gCLflags & FLAGS_CL_DDPRINT)    ddprintf("~  Total used = %u\n",u);
+
+   u=0;
+ 005c  f6 06 01 00 40    L4              test    byte ptr _gCLflags+1H,40H
+ 0061  74 0e                             je      L5
+ 0063  8b 76 fc                          mov     si,[bp-4H]
+ 0066  56                                push    si
+ 0067  1e                                push    ds
+ 0068  68 36 00                          push    offset L80
+ 006b  e8 00 00                          call    _ddprintf
+ 006e  83 c4 06                          add     sp,0006H
+
+ 0071  8b 36 00 00       L5              mov     si,_pmbFree
+
+   pmb=pmbFree;
+ 0075  31 ff                             xor     di,di
+
+if (gCLflags & FLAGS_CL_DDPRINT)    ddprintf("~HEAP: Heap Dump - Free blocks\n");
+ 0077  8a 1e 01 00                       mov     bl,_gCLflags+1H
+ 007b  89 7e fe                          mov     [bp-2H],di
+ 007e  f6 c3 40                          test    bl,40H
+ 0081  74 0a                             je      L6
+ 0083  1e                                push    ds
+ 0084  68 4a 00                          push    offset L81
+ 0087  e8 00 00                          call    _ddprintf
+ 008a  83 c4 04                          add     sp,0004H
+
+   for (i=0; i<32; i++) {
+      if (!pmb) break;
+ 008d  31 ff             L6              xor     di,di
+ 008f  85 f6                             test    si,si
+ 0091  74 2f                             je      L9
+
+if (gCLflags & FLAGS_CL_DDPRINT)       ddprintf("~  pmb=%p, bytes=%u\n",(void __far *) pmb, pmb->uSize);
+ 0093  f6 06 01 00 40    L7              test    byte ptr _gCLflags+1H,40H
+ 0098  74 10                             je      L8
+ 009a  8b 44 04                          mov     ax,[si+4H]
+ 009d  50                                push    ax
+ 009e  1e                                push    ds
+ 009f  56                                push    si
+ 00a0  1e                                push    ds
+ 00a1  68 6a 00                          push    offset L82
+ 00a4  e8 00 00                          call    _ddprintf
+ 00a7  83 c4 0a                          add     sp,000aH
+ 00aa  8b 56 fe          L8              mov     dx,[bp-2H]
+
+      u+=pmb->uSize;
+      pmb=pmb->pmbNext;
+ 00ad  8b 44 04                          mov     ax,[si+4H]
+
+ 00b0  47                                inc     di
+ 00b1  01 c2                             add     dx,ax
+
+   }
+ 00b3  8b 74 06                          mov     si,[si+6H]
+ 00b6  89 56 fe                          mov     [bp-2H],dx
+ 00b9  83 ff 20                          cmp     di,0020H
+ 00bc  7d 04                             jge     L9
+ 00be  85 f6                             test    si,si
+ 00c0  75 d1                             jne     L7
+
+if (gCLflags & FLAGS_CL_DDPRINT)    ddprintf("~  Total free = %u\n",u);
+
+ 00c2  f6 06 01 00 40    L9              test    byte ptr _gCLflags+1H,40H
+ 00c7  74 0e                             je      L10
+ 00c9  8b 5e fe                          mov     bx,[bp-2H]
+ 00cc  53                                push    bx
+ 00cd  1e                                push    ds
+ 00ce  68 80 00                          push    offset L83
+ 00d1  e8 00 00                          call    _ddprintf
+ 00d4  83 c4 06                          add     sp,0006H
+
+if (gCLflags & FLAGS_CL_DDPRINT)    ddprintf("~ alloc:currblks=%u, calls=%u;  free:currblks=%u, calls=%u\n",
+              nAlloc,nAllocCalls,nFree,nFreeCalls);
+ 00d7  f6 06 01 00 40    L10             test    byte ptr _gCLflags+1H,40H
+ 00dc  74 1d                             je      L11
+ 00de  8b 0e 00 00                       mov     cx,_nFreeCalls
+ 00e2  51                                push    cx
+ 00e3  8b 36 00 00                       mov     si,_nFree
+ 00e7  56                                push    si
+ 00e8  8b 3e 00 00                       mov     di,_nAllocCalls
+ 00ec  57                                push    di
+ 00ed  a1 00 00                          mov     ax,_nAlloc
+ 00f0  50                                push    ax
+ 00f1  1e                                push    ds
+ 00f2  68 94 00                          push    offset L84
+ 00f5  e8 00 00                          call    _ddprintf
+ 00f8  83 c4 0c                          add     sp,000cH
+
+}
+
+#endif
+
+
+ 00fb  89 ec             L11             mov     sp,bp
+ 00fd  5d                                pop     bp
+ 00fe  5f                                pop     di
+ 00ff  5e                                pop     si
+ 0100  5a                                pop     dx
+ 0101  59                                pop     cx
+ 0102  5b                                pop     bx
+ 0103  c3                                ret     
+
+static void SignatureCheck ( PMEMBLOCK p, PSZ idText )
+{
+
+   bool bGoodPointer;
+
+   // Set bGoodPointer to indicate whether or not 'p' points within heap.
+ 0104  52                SignatureCheck_ push    dx
+ 0105  56                                push    si
+ 0106  57                                push    di
+ 0107  89 c6                             mov     si,ax
+
+   bGoodPointer = (((USHORT) p) >= ((USHORT) acHeap))
+                  && (((USHORT) p) <= (((USHORT) acHeap) + HEAP_SIZE)) ;
+                              //### heap might have less than HEAP_SIZE bytes
+
+   // Check for correct signature.
+ 0109  3d 00 00                          cmp     ax,offset _acHeap
+ 010c  72 0a                             jb      L12
+ 010e  3d 00 20                          cmp     ax,offset _acHeap+2000H
+ 0111  77 05                             ja      L12
+ 0113  b8 01 00                          mov     ax,0001H
+ 0116  eb 02                             jmp     L13
+ 0118  31 c0             L12             xor     ax,ax
+ 011a  89 c2             L13             mov     dx,ax
+
+   if (bGoodPointer)
+ 011c  85 c0                             test    ax,ax
+ 011e  74 1a                             je      L16
+
+      bGoodPointer = (p->ulSignature == SIGNATURE);
+
+ 0120  8b 54 02                          mov     dx,[si+2H]
+ 0123  8b 3c                             mov     di,[si]
+ 0125  81 fa 77 34                       cmp     dx,3477H
+ 0129  75 0b                             jne     L14
+ 012b  81 ff de ad                       cmp     di,0addeH
+ 012f  75 05                             jne     L14
+ 0131  b8 01 00                          mov     ax,0001H
+ 0134  eb 02                             jmp     L15
+ 0136  31 c0             L14             xor     ax,ax
+ 0138  89 c2             L15             mov     dx,ax
+
+   if (! bGoodPointer)
+   {
+#ifdef HEMP_DBG
+ 013a  85 d2             L16             test    dx,dx
+ 013c  75 15                             jne     L18
+
+if (gCLflags & FLAGS_CL_DDPRINT)       ddprintf( "~Heap pointer out of range, or signature exception: %p %s\n", p, idText );
+#endif
+ 013e  f6 06 01 00 40                    test    byte ptr _gCLflags+1H,40H
+ 0143  74 0d                             je      L17
+ 0145  51                                push    cx
+ 0146  53                                push    bx
+ 0147  56                                push    si
+ 0148  1e                                push    ds
+ 0149  68 d0 00                          push    offset L85
+ 014c  e8 00 00                          call    _ddprintf
+ 014f  83 c4 0a                          add     sp,000aH
+
+      int3();
+   }
+ return;
+ idText;
+ 0152  cc                L17             int     3
+
+}
+
+ 0153  5f                L18             pop     di
+ 0154  5e                                pop     si
+ 0155  5a                                pop     dx
+ 0156  c3                                ret     
+ 0157  fc                                cld     
+
+static void HeapCheck ( PSZ idText )
+{
+   PMEMBLOCK p;
+ 0158  53                HeapCheck_      push    bx
+ 0159  51                                push    cx
+ 015a  56                                push    si
+ 015b  57                                push    di
+
+   for ( nAlloc = 0, cAlloc = 0, p = pmbUsed; p; p = p->pmbNext ) {
+ 015c  31 d2                             xor     dx,dx
+ 015e  8b 36 00 00                       mov     si,_pmbUsed
+ 0162  89 16 00 00                       mov     _nAlloc,dx
+ 0166  89 16 00 00                       mov     _cAlloc,dx
+ 016a  85 f6                             test    si,si
+ 016c  74 2c                             je      L20
+ 016e  ba 0c 01                          mov     dx,offset L86
+
+      ++nAlloc;
+      cAlloc += p->uSize + HDR_SIZE;
+      //SignatureCheck( p,(PSZ) "HeapCheck() Used list" );
+      //SignatureCheck( p,(PSZ)0);
+ 0171  8b 0e 00 00       L19             mov     cx,_nAlloc
+ 0175  8b 3e 00 00                       mov     di,_cAlloc
+
+      SignatureCheck( p,(PSZ)"HCUL");
+ 0179  89 d3                             mov     bx,dx
+ 017b  8b 44 04                          mov     ax,[si+4H]
+ 017e  41                                inc     cx
+ 017f  05 08 00                          add     ax,0008H
+ 0182  89 0e 00 00                       mov     _nAlloc,cx
+ 0186  01 c7                             add     di,ax
+ 0188  8c d9                             mov     cx,ds
+ 018a  89 f0                             mov     ax,si
+ 018c  89 3e 00 00                       mov     _cAlloc,di
+ 0190  e8 00 00                          call    SignatureCheck_
+
+   }
+ 0193  8b 74 06                          mov     si,[si+6H]
+ 0196  85 f6                             test    si,si
+ 0198  75 d7                             jne     L19
+
+   for ( nFree = 0, cFree = 0, p = pmbFree; p; p = p->pmbNext ) {
+ 019a  31 c0             L20             xor     ax,ax
+ 019c  8b 36 00 00                       mov     si,_pmbFree
+ 01a0  a3 00 00                          mov     _nFree,ax
+ 01a3  a3 00 00                          mov     _cFree,ax
+ 01a6  85 f6                             test    si,si
+ 01a8  74 2c                             je      L22
+ 01aa  ba 12 01                          mov     dx,offset L87
+
+      ++nFree;
+ 01ad  8b 1e 00 00       L21             mov     bx,_nFree
+
+      cFree += p->uSize + HDR_SIZE;
+      //SignatureCheck( p,(PSZ) "HeapCheck() Free list" );
+      //SignatureCheck( p,(PSZ)0);
+ 01b1  8b 44 04                          mov     ax,[si+4H]
+ 01b4  8b 0e 00 00                       mov     cx,_cFree
+ 01b8  05 08 00                          add     ax,0008H
+ 01bb  43                                inc     bx
+ 01bc  01 c1                             add     cx,ax
+ 01be  89 1e 00 00                       mov     _nFree,bx
+ 01c2  89 0e 00 00                       mov     _cFree,cx
+
+      SignatureCheck( p,(PSZ)"HCFL");
+ 01c6  89 d3                             mov     bx,dx
+ 01c8  89 f0                             mov     ax,si
+ 01ca  8c d9                             mov     cx,ds
+ 01cc  e8 00 00                          call    SignatureCheck_
+
+   }
+ 01cf  8b 74 06                          mov     si,[si+6H]
+ 01d2  85 f6                             test    si,si
+ 01d4  75 d7                             jne     L21
+
+   if (fMemoryDoc & 1) {
+ 01d6  f6 06 00 00 01    L22             test    byte ptr _fMemoryDoc,01H
+ 01db  74 26                             je      L24
+
+      if (cAlloc + cFree != cTotalHeap) {
+#ifdef HEMP_DBG
+ 01dd  a1 00 00                          mov     ax,_cAlloc
+ 01e0  8b 36 00 00                       mov     si,_cFree
+ 01e4  8b 3e 00 00                       mov     di,_cTotalHeap
+ 01e8  01 f0                             add     ax,si
+ 01ea  39 f8                             cmp     ax,di
+ 01ec  74 15                             je      L24
+
+if (gCLflags & FLAGS_CL_DDPRINT)          ddprintf( "~Heap Alloc + Free != Total\n" );
+ 01ee  f6 06 01 00 40                    test    byte ptr _gCLflags+1H,40H
+ 01f3  74 0a                             je      L23
+ 01f5  1e                                push    ds
+ 01f6  68 18 01                          push    offset L88
+ 01f9  e8 00 00                          call    _ddprintf
+ 01fc  83 c4 04                          add     sp,0004H
+
+         dumpheap();
+#endif
+ 01ff  e8 00 00          L23             call    dumpheap_
+
+         int3();
+      }
+   }
+ return;
+ idText;
+ 0202  cc                                int     3
+
+}
+
+
+
+// Threshold for creating a new free block.
+#define  MIN_Leftover  (HDR_SIZE + MIN_FragSize)
+
+/* make_new_free()
+   Formats the back part of an existing free MEMBLOCK as a new, smaller
+   "Free" MEMBLOCK.  Doesn't update Global vbls (caller responsibility).
+      IN:   pmbOldFree - pointer to existing memory block.
+            uSize - offset, which won't be included in new allocation.
+                    it's assumed HDR is not included in uSize.
+      OUT:  pointer to new free MEMBLOCK, is  a new block of free memory,
+            is created at pmbOldFree + uRequest.  The memory block header
+            in both the new block and the old block are properly initialized
+            on return, but we don't update the Free list or Allocated list.
+      OUT:  NULL if the new free memory block is smaller than the
+            framentation threshold.
+
+The fragmentation consideration comes into play when we find a block that's
+big enough to hold the requested memory, but not big enough for the leftover
+part to be useful as another free block.
+
+    _______________________free block_______________________________________
+   |  free    |                                                             |
+   |  block   |       space available                                       |
+   |  header  |          (pmbFree->uSize bytes long)                        |
+   |(HDR_SIZE |                                                             |
+   |__bytes)__|_____________________________________________________________|
+
+   <-- HDR --> <------------------------- l -------------------------------->
+
+Must either be allocated in total, or must become:
+
+    _______________________used block_______________________________________
+   |  used    |                                     |  free    |            |
+   |  block   |  space allocated                    |  block   | space      |
+   |  header  |  == uSize (following DWORD align't) |  header  | available  |
+   |(HDR_SIZE |     (pmbUsed->uSize bytes long)     |(HDR_SIZE |            |
+   |__bytes)__|_____________________________________|__bytes)__|____________|
+
+   <-- HDR --> <-------------- n ------------------><-- HDR --> <--- m ----->
+
+To be split into an allocated and a new, smaller free block, 'm' must be at
+least MIN_FragSize bytes long.
+
+Everything should remain 4 byte aligned since the HDR_SIZE, MIN_FragSize,
+and the space allocated (after we munge it) are all multiples of 4.
+
+This means that in order for a free block to be chosen, one of the following
+equation must hold
+
+  Case 1:  n  <=  l  < (n + HDR + MIN_FragSize)
+  Here, we'll allocate the entire block.  This makes the block somewhat
+  larger than the request, but prevents some degree of fragmentation.
+
+  Case 2:  (n + HDR + MIN_FragSize) <= l
+  We split the block into an allocated part to satisfy the allocation request,
+  and a free block which can be allocated in a subsequent request.
+*/
+
+ 0203  5f                L24             pop     di
+ 0204  5e                                pop     si
+ 0205  59                                pop     cx
+ 0206  5b                                pop     bx
+ 0207  c3                                ret     
+
+static PMEMBLOCK make_new_free(PMEMBLOCK pmbOldFree, unsigned uRequest)
+{
+   PMEMBLOCK pmbNewFree;     // If we create a new free block, it goes here.
+
+   // Which of the two cases (as described in function header) have we got?
+   // We know we're big enough to satisfy request, is there enough leftover
+   // for a new free block?
+
+ 0208  53                make_new_free_  push    bx
+ 0209  51                                push    cx
+ 020a  56                                push    si
+ 020b  89 c6                             mov     si,ax
+
+    if ((uRequest + MIN_Leftover) > pmbOldFree->uSize) {
+       // Not enough leftover, allocate the entire free block.  Don't
+       // change pmbOldFree->uSize.
+ 020d  89 d3                             mov     bx,dx
+ 020f  8b 4c 04                          mov     cx,[si+4H]
+ 0212  83 c3 0c                          add     bx,000cH
+ 0215  39 cb                             cmp     bx,cx
+ 0217  76 04                             jbe     L25
+
+       pmbNewFree = 0;
+    }
+ 0219  31 db                             xor     bx,bx
+
+    else {
+       // We've got enough leftover to make a new free block.
+ 021b  eb 2a                             jmp     L26
+
+       pmbNewFree = (PMEMBLOCK) ((char __near *) pmbOldFree + HDR_SIZE + uRequest );
+ 021d  8d 5c 08          L25             lea     bx,[si+8H]
+ 0220  01 d3                             add     bx,dx
+
+       pmbNewFree->ulSignature = SIGNATURE;
+ 0222  c7 07 de ad                       mov     word ptr [bx],0addeH
+
+       pmbNewFree->uSize = pmbOldFree->uSize - (uRequest + HDR_SIZE);
+ 0226  89 d0                             mov     ax,dx
+ 0228  c7 47 02 77 34                    mov     word ptr [bx+2H],3477H
+ 022d  05 08 00                          add     ax,0008H
+ 0230  8b 54 04                          mov     dx,[si+4H]
+ 0233  29 c2                             sub     dx,ax
+ 0235  89 57 04                          mov     [bx+4H],dx
+
+       pmbNewFree->pmbNext = pmbOldFree->pmbNext;
+
+       // Update the size of the free block that was passed in.
+ 0238  8b 54 06                          mov     dx,[si+6H]
+
+       pmbOldFree->uSize -= (pmbNewFree->uSize + HDR_SIZE);
+    }
+
+   return pmbNewFree;
+ 023b  8b 47 04                          mov     ax,[bx+4H]
+ 023e  89 57 06                          mov     [bx+6H],dx
+ 0241  05 08 00                          add     ax,0008H
+ 0244  29 44 04                          sub     [si+4H],ax
+
+}
+
+
+/**@internal _msize
+ */
+ 0247  89 d8             L26             mov     ax,bx
+ 0249  5e                                pop     si
+ 024a  59                                pop     cx
+ 024b  5b                                pop     bx
+ 024c  c3                                ret     
+ 024d  89 c0                             mov     ax,ax
+ 024f  fc                                cld     
+
+static unsigned _msize(void __near *pvBlock)
+{
+   PMEMBLOCK pmb;
+
+ 0250  53                _msize_         push    bx
+
+   if (!pvBlock)
+      return 0;
+
+ 0251  85 c0                             test    ax,ax
+ 0253  74 08                             je      L27
+
+   pmb = (PMEMBLOCK) ((char __near *) pvBlock - HDR_SIZE);
+
+ 0255  89 c3                             mov     bx,ax
+
+   return pmb->uSize;
+ 0257  8b 47 fc                          mov     ax,[bx-4H]
+ 025a  83 eb 08                          sub     bx,0008H
+
+}
+
+
+/**@internal pmbAllocateBlock
+ *  Update all data structures for allocation of one memory block.  It's
+ *  assumed, on entry, that the block is large enough for the requested
+ *  allocation.
+ * @param PMEMBLOCK pmb - the current memory block on the Free list to
+ *  allocate.
+ * @param USHORT uRequest - size of the memory request to fill, not counting
+ *  memory block header.
+ * @param PMEMBLOCK pmbPrev - the memory block which precedes the block being
+ *  allocated in the Free list.  NULL if no predecessor (ie, pmb is pointed to
+ *  by ::pmbFree).
+ * @return PMEMBLOCK - pointer to the data part of the allocated memory block,
+ *  suitable for return to malloc() caller.
+ */
+static void __near *
+ 025d  5b                L27             pop     bx
+ 025e  c3                                ret     
+ 025f  fc                                cld     
+
+npvAllocateBlock( PMEMBLOCK pmb, USHORT uRequest, PMEMBLOCK pmbPrev )
+{
+   //pmb points to the selected block.
+   //pmbPrev points to the block prior to the selected block, NULL if pmbFree.
+   PMEMBLOCK pmbOldNext;            // Original free block that follows the block being allocated.
+   PMEMBLOCK pmbNewFree;            // Leftover free memory from the allocated block.
+
+   // Split this block into an allocated + free part if it's big enough.
+ 0260                    npvAllocateBlock_:
+ 0260  56                                push    si
+ 0261  57                                push    di
+ 0262  89 c6                             mov     si,ax
+ 0264  89 df                             mov     di,bx
+
+   pmbNewFree = make_new_free( pmb, uRequest );
+
+   // Update global memory counter.
+ 0266  e8 00 00                          call    make_new_free_
+ 0269  89 c3                             mov     bx,ax
+
+   uMemFree -= (pmb->uSize + HDR_SIZE);
+
+   // Add this block into the front of the Allocated list.
+   pmbOldNext = pmb->pmbNext;
+ 026b  8b 44 04                          mov     ax,[si+4H]
+ 026e  8b 16 00 00                       mov     dx,_uMemFree
+ 0272  05 08 00                          add     ax,0008H
+ 0275  29 c2                             sub     dx,ax
+ 0277  89 16 00 00                       mov     _uMemFree,dx
+
+ 027b  8b 16 00 00                       mov     dx,_pmbUsed
+
+   pmb->pmbNext = pmbUsed;
+ 027f  8b 44 06                          mov     ax,[si+6H]
+ 0282  89 54 06                          mov     [si+6H],dx
+
+   pmbUsed = pmb;
+
+   // Remove the new allocation from the Free list.
+ 0285  89 36 00 00                       mov     _pmbUsed,si
+
+   if (pmbNewFree) {                // If we split off a new free block
+ 0289  85 db                             test    bx,bx
+ 028b  74 12                             je      L29
+
+      pmbNewFree->pmbNext = pmbOldNext;
+ 028d  89 47 06                          mov     [bx+6H],ax
+
+      if (pmbPrev)                  // If we're not at head of Free list
+ 0290  85 ff                             test    di,di
+ 0292  74 05                             je      L28
+
+         pmbPrev->pmbNext = pmbNewFree;
+ 0294  89 5d 06                          mov     [di+6H],bx
+
+      else
+ 0297  eb 16                             jmp     L31
+
+         pmbFree = pmbNewFree;
+   }
+   else {                           // We allocated the entire free block.
+ 0299  89 1e 00 00       L28             mov     _pmbFree,bx
+ 029d  eb 10                             jmp     L31
+
+      if (pmbPrev)                  // If we're not at head of Free list
+ 029f  85 ff             L29             test    di,di
+ 02a1  74 09                             je      L30
+
+         pmbPrev->pmbNext = pmbOldNext;
+      else
+ 02a3  89 45 06                          mov     [di+6H],ax
+ 02a6  8d 44 08                          lea     ax,[si+8H]
+ 02a9  5f                                pop     di
+ 02aa  5e                                pop     si
+ 02ab  c3                                ret     
+
+         pmbFree = pmbOldNext;
+   }
+
+ 02ac  a3 00 00          L30             mov     _pmbFree,ax
+
+   return (void __near *) pmb->achBlock;
+ 02af  8d 44 08          L31             lea     ax,[si+8H]
+
+}
+
+
+/* malloc()
+This function searches the list of free blocks until it finds one big enough
+to hold the amount of memory requested, which is passed in uSize.  The uSize
+request is sized up for:
+  - a memory block header
+  - four byte alignment
+  - minimum fragmentation
+
+See helper function make_new_free() for discussion of fragmentation handling.
+*/
+
+ 02b2  5f                                pop     di
+ 02b3  5e                                pop     si
+ 02b4  c3                                ret     
+ 02b5  89 c0                             mov     ax,ax
+ 02b7  fc                                cld     
+
+void __near *malloc( unsigned uSize )
+{
+   USHORT uRequest;                    // Request size after alignment.
+   PMEMBLOCK pmb, pmbPrev;             // Use to walk free lists.
+   void __near *npvReturn = 0;         // Return value.
+
+ 02b8  53                malloc_         push    bx
+ 02b9  51                                push    cx
+ 02ba  52                                push    dx
+ 02bb  56                                push    si
+ 02bc  57                                push    di
+ 02bd  89 c3                             mov     bx,ax
+
+   ++nAllocCalls;                      // Diagnostics.
+   //HeapCheck((PSZ) "malloc() entry" );
+   //HeapCheck((PSZ)0);
+   HeapCheck((PSZ)"MEXX");
+
+ 02bf  8b 16 00 00                       mov     dx,_nAllocCalls
+ 02c3  42                                inc     dx
+ 02c4  b8 36 01                          mov     ax,offset L89
+ 02c7  89 16 00 00                       mov     _nAllocCalls,dx
+ 02cb  8c da                             mov     dx,ds
+ 02cd  31 ff                             xor     di,di
+ 02cf  e8 00 00                          call    HeapCheck_
+
+   if (! uSize) return 0;
+
+ 02d2  85 db                             test    bx,bx
+ 02d4  75 04                             jne     L32
+ 02d6  31 c0                             xor     ax,ax
+ 02d8  eb 6a                             jmp     L40
+
+   uRequest = (uSize + 3) & -4;        // Force DWORD alignment.
+
+ 02da  8d 57 03          L32             lea     dx,[bx+3H]
+
+   if (pmbFree->uSize >= uRequest)
+ 02dd  8b 36 00 00                       mov     si,_pmbFree
+ 02e1  80 e2 fc                          and     dl,0fcH
+ 02e4  3b 54 04                          cmp     dx,[si+4H]
+ 02e7  77 0b                             ja      L33
+ 02e9  89 f0                             mov     ax,si
+
+      npvReturn = npvAllocateBlock( pmbFree, uRequest, NULL );
+ 02eb  31 db                             xor     bx,bx
+ 02ed  e8 00 00                          call    npvAllocateBlock_
+ 02f0  89 c7                             mov     di,ax
+
+   else {
+ 02f2  eb 20                             jmp     L36
+
+      pmbPrev = pmbFree;
+ 02f4  89 f3             L33             mov     bx,si
+
+      for ( pmb=pmbFree->pmbNext; pmb; pmbPrev=pmb, pmb=pmb->pmbNext)
+ 02f6  8b 74 06                          mov     si,[si+6H]
+ 02f9  85 f6                             test    si,si
+ 02fb  74 17                             je      L36
+
+         if (pmb->uSize >= uRequest) {
+ 02fd  3b 54 04          L34             cmp     dx,[si+4H]
+ 0300  77 09                             ja      L35
+
+            npvReturn = npvAllocateBlock( pmb, uRequest, pmbPrev );
+ 0302  89 f0                             mov     ax,si
+ 0304  e8 00 00                          call    npvAllocateBlock_
+ 0307  89 c7                             mov     di,ax
+
+            break;
+ 0309  eb 09                             jmp     L36
+
+         }
+   }
+
+ 030b  89 f3             L35             mov     bx,si
+ 030d  8b 74 06                          mov     si,[si+6H]
+ 0310  85 f6                             test    si,si
+ 0312  75 e9                             jne     L34
+
+   if (npvReturn)
+      //SignatureCheck( (PMEMBLOCK) (((PUCHAR) npvReturn) - HDR_SIZE), (PSZ) "malloc() exit, allocated block" );
+      //SignatureCheck( (PMEMBLOCK) (((PUCHAR) npvReturn) - HDR_SIZE), (PSZ)0);
+ 0314  85 ff             L36             test    di,di
+ 0316  74 0d                             je      L37
+ 0318  bb 3c 01                          mov     bx,offset L90
+
+      SignatureCheck( (PMEMBLOCK) (((PUCHAR) npvReturn) - HDR_SIZE), (PSZ)"MEAB");
+ 031b  8d 45 f8                          lea     ax,[di-8H]
+ 031e  8c d9                             mov     cx,ds
+ 0320  e8 00 00                          call    SignatureCheck_
+
+   else {
+      // Out of Memory !!!
+//    pError->vLog( HEAP_Err_NoMemory, (USHORT) uSize );
+
+#ifdef HEMP_DBG
+ 0323  eb 15                             jmp     L39
+
+if (gCLflags & FLAGS_CL_DDPRINT)       ddprintf("~Out of memory, dumpheap()...\n");
+ 0325  f6 06 01 00 40    L37             test    byte ptr _gCLflags+1H,40H
+ 032a  74 0a                             je      L38
+ 032c  1e                                push    ds
+ 032d  68 42 01                          push    offset L91
+ 0330  e8 00 00                          call    _ddprintf
+ 0333  83 c4 04                          add     sp,0004H
+
+      dumpheap();
+#endif
+ 0336  e8 00 00          L38             call    dumpheap_
+
+      int3();
+   }
+
+   //HeapCheck((PSZ) "malloc() exit" );
+   //HeapCheck((PSZ)0);
+ 0339  cc                                int     3
+
+   HeapCheck((PSZ)"MXXX");
+ 033a  b8 62 01          L39             mov     ax,offset L92
+ 033d  8c da                             mov     dx,ds
+ 033f  e8 00 00                          call    HeapCheck_
+
+   return npvReturn;
+ 0342  89 f8                             mov     ax,di
+
+}
+
+/* void compact(void)
+This function compacts the free blocks together.  This function is a
+companion to free(), and thus the algorithm is tailored to how free()
+works.  Change the algorithm in free(), and you'll have to change this
+function too.
+
+When free() frees a block, it sets the head of the free list, pmbFree, to
+point to it.  Then the newly freed block points to whatever the old pmbFree
+pointed to.  In other words, each new free block is added to the head of
+the free list.
+
+If compact() is always called after a block is freed, then it can be
+guaranteed that the free list is always compacted (i.e. you won't find
+two adjacent free blocks anywhere in the heap) _before_ each call to free().
+Therefore, the newly freed block can be located in only one of the
+following positions:
+1. Not adjacent to any other free blocks (compacting not necessary)
+2. Physically before another free block
+3. Physically after another free block
+4. Between two free blocks (i.e. the block occupies the entire space
+   between two free blocks)
+
+Since the newly freed block is the first in the free list, compact()
+starts with the second block in the list (i.e. pmbFree->pmbNext).
+Each free block is then compared with the newly freed block for
+adjacency.  If a given block is located before the new block, then it
+can't possibly be also located after, and vice versa.  Hence, the
+"else if" statement in the middle of the loop.
+
+Also, the newly freed block can only be adjacent to at most two other
+blocks.  Therefore, the operation of combining two adjacent free blocks can
+only happen at most twice.  The variable nFreed counts the number of times
+two blocks are combined.  The function exits if nFreed reaches two.  nFreed
+is initially 0.
+
+Helper macro after() takes a PMEMBLOCK (call it pmb) as a parameter,
+and calculates where an adjacent free block would exist if it were
+physically located after pmb.
+
+Helper function remove() removes an element from the free list.
+*/
+
+#define after(pmb) ((PMEMBLOCK) ((char __near *) pmb + pmb->uSize + HDR_SIZE))
+
+ 0344  5f                L40             pop     di
+ 0345  5e                                pop     si
+ 0346  5a                                pop     dx
+ 0347  59                                pop     cx
+ 0348  5b                                pop     bx
+ 0349  c3                                ret     
+ 034a  89 c0                             mov     ax,ax
+
+static void remove(PMEMBLOCK pmb)
+{
+   PMEMBLOCK pmbPrev;
+
+ 034c  53                remove_         push    bx
+ 034d  56                                push    si
+ 034e  57                                push    di
+ 034f  8b 3e 00 00                       mov     di,_pmbFree
+ 0353  89 c6                             mov     si,ax
+
+   if (pmb == pmbFree) {
+ 0355  39 f8                             cmp     ax,di
+ 0357  75 05                             jne     L41
+
+      pmbFree = pmbFree->pmbNext;
+ 0359  8b 7d 06                          mov     di,[di+6H]
+
+      return;
+   }
+
+ 035c  eb 20                             jmp     L44
+
+   for (pmbPrev=pmbFree; pmbPrev; pmbPrev=pmbPrev->pmbNext)
+ 035e  89 fb             L41             mov     bx,di
+ 0360  85 ff                             test    di,di
+ 0362  74 1a                             je      L44
+
+      if (pmbPrev->pmbNext == pmb) {
+ 0364  3b 77 06          L42             cmp     si,[bx+6H]
+ 0367  75 0e                             jne     L43
+
+         pmbPrev->pmbNext = pmb->pmbNext;
+         return;
+ 0369  8b 74 06                          mov     si,[si+6H]
+ 036c  89 77 06                          mov     [bx+6H],si
+ 036f  89 3e 00 00                       mov     _pmbFree,di
+ 0373  5f                                pop     di
+ 0374  5e                                pop     si
+ 0375  5b                                pop     bx
+ 0376  c3                                ret     
+
+      }
+ 0377  8b 5f 06          L43             mov     bx,[bx+6H]
+ 037a  85 db                             test    bx,bx
+ 037c  75 e6                             jne     L42
+
+}
+
+ 037e  89 3e 00 00       L44             mov     _pmbFree,di
+ 0382  5f                                pop     di
+ 0383  5e                                pop     si
+ 0384  5b                                pop     bx
+ 0385  c3                                ret     
+ 0386  89 c0                             mov     ax,ax
+
+static void compact(void)
+{
+   PMEMBLOCK pmb;
+   int iFreed = 0;
+
+ 0388  53                compact_        push    bx
+ 0389  51                                push    cx
+ 038a  52                                push    dx
+ 038b  56                                push    si
+ 038c  57                                push    di
+ 038d  55                                push    bp
+ 038e  89 e5                             mov     bp,sp
+ 0390  83 ec 02                          sub     sp,0002H
+
+   for (pmb=pmbFree->pmbNext; pmb; pmb=pmb->pmbNext) {
+ 0393  8b 3e 00 00                       mov     di,_pmbFree
+ 0397  31 d2                             xor     dx,dx
+ 0399  8b 7d 06                          mov     di,[di+6H]
+ 039c  89 56 fe                          mov     [bp-2H],dx
+ 039f  85 ff                             test    di,di
+ 03a1  0f 84 ff 00                       je      L61
+
+      if (pmb == pmb->pmbNext) {
+#ifdef HEMP_DBG
+ 03a5  8b 5d 06          L45             mov     bx,[di+6H]
+ 03a8  39 df                             cmp     di,bx
+ 03aa  75 14                             jne     L47
+
+if (gCLflags & FLAGS_CL_DDPRINT)          ddprintf("~HEAP: heap loop, %p points to itself\n", (void __far *) pmb);
+#endif
+ 03ac  f6 06 01 00 40                    test    byte ptr _gCLflags+1H,40H
+ 03b1  74 0c                             je      L46
+ 03b3  1e                                push    ds
+ 03b4  53                                push    bx
+ 03b5  1e                                push    ds
+ 03b6  68 68 01                          push    offset L93
+ 03b9  e8 00 00                          call    _ddprintf
+ 03bc  83 c4 08                          add     sp,0008H
+
+         int3();
+      }
+
+ 03bf  cc                L46             int     3
+
+      if (after(pmb)  == pmbFree) {
+#ifdef HEMP_DBG
+ 03c0  8b 5d 04          L47             mov     bx,[di+4H]
+ 03c3  01 fb                             add     bx,di
+ 03c5  8b 0e 00 00                       mov     cx,_pmbFree
+ 03c9  83 c3 08                          add     bx,0008H
+ 03cc  39 cb                             cmp     bx,cx
+ 03ce  75 61                             jne     L53
+
+if (gCLflags & FLAGS_CL_DDPRINT)  ddprintf("~HEAP: compact found pointer %p (size=%u) before pmbFree %p\n", (void __far *) pmb, pmb->uSize, (void __far *) pmbFree);
+#endif
+ 03d0  f6 06 01 00 40                    test    byte ptr _gCLflags+1H,40H
+ 03d5  74 12                             je      L48
+ 03d7  1e                                push    ds
+ 03d8  51                                push    cx
+ 03d9  8b 5d 04                          mov     bx,[di+4H]
+ 03dc  53                                push    bx
+ 03dd  1e                                push    ds
+ 03de  57                                push    di
+ 03df  1e                                push    ds
+ 03e0  68 90 01                          push    offset L94
+ 03e3  e8 00 00                          call    _ddprintf
+ 03e6  83 c4 0e                          add     sp,000eH
+
+         pmb->uSize += HDR_SIZE + pmbFree->uSize;
+ 03e9  a1 00 00          L48             mov     ax,_pmbFree
+ 03ec  89 c3                             mov     bx,ax
+ 03ee  8b 5f 04                          mov     bx,[bx+4H]
+ 03f1  8b 4d 04                          mov     cx,[di+4H]
+ 03f4  83 c3 08                          add     bx,0008H
+ 03f7  01 d9                             add     cx,bx
+
+         remove(pmbFree);
+ 03f9  89 c6                             mov     si,ax
+ 03fb  89 4d 04                          mov     [di+4H],cx
+ 03fe  39 c0                             cmp     ax,ax
+ 0400  75 09                             jne     L49
+ 0402  8b 5c 06                          mov     bx,[si+6H]
+ 0405  89 1e 00 00                       mov     _pmbFree,bx
+ 0409  eb 1a                             jmp     L52
+ 040b  89 c3             L49             mov     bx,ax
+ 040d  85 c0                             test    ax,ax
+ 040f  74 14                             je      L52
+ 0411  3b 77 06          L50             cmp     si,[bx+6H]
+ 0414  75 08                             jne     L51
+ 0416  8b 74 06                          mov     si,[si+6H]
+ 0419  89 77 06                          mov     [bx+6H],si
+ 041c  eb 07                             jmp     L52
+ 041e  8b 5f 06          L51             mov     bx,[bx+6H]
+ 0421  85 db                             test    bx,bx
+ 0423  75 ec                             jne     L50
+
+         if (++iFreed == 2) goto exit;
+ 0425  8b 76 fe          L52             mov     si,[bp-2H]
+ 0428  46                                inc     si
+ 0429  89 76 fe                          mov     [bp-2H],si
+ 042c  83 fe 02                          cmp     si,0002H
+ 042f  eb 68                             jmp     L59
+
+      } else if (after(pmbFree) == pmb) {
+#ifdef HEMP_DBG
+ 0431  89 cb             L53             mov     bx,cx
+ 0433  8b 77 04                          mov     si,[bx+4H]
+ 0436  01 ce                             add     si,cx
+ 0438  83 c6 08                          add     si,0008H
+ 043b  39 fe                             cmp     si,di
+ 043d  75 5c                             jne     L60
+
+if (gCLflags & FLAGS_CL_DDPRINT)  ddprintf("~HEAP: compact found pointer %p (size=%u) after pmbFree %p\n", (void __far *) pmb, pmb->uSize, (void __far *) pmbFree);
+#endif
+ 043f  f6 06 01 00 40                    test    byte ptr _gCLflags+1H,40H
+ 0444  74 12                             je      L54
+ 0446  1e                                push    ds
+ 0447  51                                push    cx
+ 0448  8b 75 04                          mov     si,[di+4H]
+ 044b  56                                push    si
+ 044c  1e                                push    ds
+ 044d  57                                push    di
+ 044e  1e                                push    ds
+ 044f  68 ce 01                          push    offset L95
+ 0452  e8 00 00                          call    _ddprintf
+ 0455  83 c4 0e                          add     sp,000eH
+
+         pmbFree->uSize += HDR_SIZE + pmb->uSize;
+ 0458  a1 00 00          L54             mov     ax,_pmbFree
+ 045b  8b 5d 04                          mov     bx,[di+4H]
+ 045e  89 c6                             mov     si,ax
+ 0460  83 c3 08                          add     bx,0008H
+ 0463  01 5c 04                          add     [si+4H],bx
+
+         remove(pmb);
+ 0466  89 fe                             mov     si,di
+ 0468  39 c7                             cmp     di,ax
+ 046a  75 09                             jne     L55
+ 046c  8b 5d 06                          mov     bx,[di+6H]
+ 046f  89 1e 00 00                       mov     _pmbFree,bx
+ 0473  eb 1a                             jmp     L58
+ 0475  89 c3             L55             mov     bx,ax
+ 0477  85 c0                             test    ax,ax
+ 0479  74 14                             je      L58
+ 047b  3b 77 06          L56             cmp     si,[bx+6H]
+ 047e  75 08                             jne     L57
+ 0480  8b 74 06                          mov     si,[si+6H]
+ 0483  89 77 06                          mov     [bx+6H],si
+ 0486  eb 07                             jmp     L58
+ 0488  8b 5f 06          L57             mov     bx,[bx+6H]
+ 048b  85 db                             test    bx,bx
+ 048d  75 ec                             jne     L56
+
+         if (++iFreed == 2) goto exit;
+      }
+ 048f  8b 56 fe          L58             mov     dx,[bp-2H]
+ 0492  42                                inc     dx
+ 0493  89 56 fe                          mov     [bp-2H],dx
+ 0496  83 fa 02                          cmp     dx,0002H
+ 0499  74 09             L59             je      L61
+
+   }
+
+exit:
+ 049b  8b 7d 06          L60             mov     di,[di+6H]
+ 049e  85 ff                             test    di,di
+ 04a0  0f 85 01 ff                       jne     L45
+
+   nCompact += iFreed;
+ 04a4  8b 46 fe          L61             mov     ax,[bp-2H]
+ 04a7  01 06 00 00                       add     _nCompact,ax
+
+}
+
+ 04ab  89 ec                             mov     sp,bp
+ 04ad  5d                                pop     bp
+ 04ae  5f                                pop     di
+ 04af  5e                                pop     si
+ 04b0  5a                                pop     dx
+ 04b1  59                                pop     cx
+ 04b2  5b                                pop     bx
+ 04b3  c3                                ret     
+
+void free(void __near *pvBlock)
+{
+   PMEMBLOCK pmb,pmbPrev,pmbBlock;
+   int fSentinel;
+
+ 04b4  53                free_           push    bx
+ 04b5  51                                push    cx
+ 04b6  52                                push    dx
+ 04b7  56                                push    si
+ 04b8  57                                push    di
+ 04b9  55                                push    bp
+ 04ba  89 e5                             mov     bp,sp
+ 04bc  83 ec 02                          sub     sp,0002H
+
+   ++nFreeCalls;
+ 04bf  ff 06 00 00                       inc     word ptr _nFreeCalls
+
+   if (!pvBlock) return;     // support freeing of NULL
+
+ 04c3  85 c0                             test    ax,ax
+ 04c5  0f 84 99 00                       je      L68
+
+   pmbBlock=(PMEMBLOCK) ((char __near *) pvBlock - HDR_SIZE);
+
+   //SignatureCheck( pmbBlock,(PSZ) "free() entry, Block to be freed" );
+   //SignatureCheck( pmbBlock,(PSZ)0);
+ 04c9  89 c7                             mov     di,ax
+
+   SignatureCheck( pmbBlock,(PSZ)"FEBF");
+   //HeapCheck((PSZ) "free() entry" );
+   //HeapCheck((PSZ)0);
+ 04cb  bb 0a 02                          mov     bx,offset L96
+ 04ce  83 ef 08                          sub     di,0008H
+ 04d1  8c d9                             mov     cx,ds
+ 04d3  89 f8                             mov     ax,di
+ 04d5  8c da                             mov     dx,ds
+ 04d7  e8 00 00                          call    SignatureCheck_
+
+   HeapCheck((PSZ)"FEXX");
+
+ 04da  b8 10 02                          mov     ax,offset L97
+ 04dd  e8 00 00                          call    HeapCheck_
+
+   uMemFree += pmbBlock->uSize + HDR_SIZE;
+
+ 04e0  8b 45 04                          mov     ax,[di+4H]
+ 04e3  8b 1e 00 00                       mov     bx,_uMemFree
+ 04e7  05 08 00                          add     ax,0008H
+ 04ea  01 c3                             add     bx,ax
+
+   if (pmbBlock == pmbUsed) {       // are we freeing the first block?
+ 04ec  8b 0e 00 00                       mov     cx,_pmbUsed
+ 04f0  89 1e 00 00                       mov     _uMemFree,bx
+ 04f4  39 cf                             cmp     di,cx
+ 04f6  75 15                             jne     L62
+
+      pmbUsed = pmbUsed->pmbNext;   // the 2nd block is now the 1st
+ 04f8  8b 45 06                          mov     ax,[di+6H]
+ 04fb  a3 00 00                          mov     _pmbUsed,ax
+
+      pmbBlock->pmbNext = pmbFree;  // this block is now free, so it points to 1st free block
+ 04fe  a1 00 00                          mov     ax,_pmbFree
+ 0501  89 45 06                          mov     [di+6H],ax
+
+      pmbFree = pmbBlock;           // this is now the 1st free block
+ 0504  89 0e 00 00                       mov     _pmbFree,cx
+
+      compact();
+ 0508  e8 00 00                          call    compact_
+
+      goto exit;
+   }
+
+ 050b  eb 4d                             jmp     L67
+
+   pmbPrev=pmbUsed;
+   fSentinel = FALSE;
+ 050d  89 cb             L62             mov     bx,cx
+ 050f  89 4e fe                          mov     [bp-2H],cx
+
+ 0512  8b 77 06                          mov     si,[bx+6H]
+
+   for (pmb=pmbUsed->pmbNext; pmb; pmbPrev=pmb, pmb=pmb->pmbNext)
+ 0515  31 c0                             xor     ax,ax
+ 0517  85 f6                             test    si,si
+ 0519  74 3f                             je      L67
+
+      if (pmb == pmbBlock) {
+ 051b  39 fe             L63             cmp     si,di
+ 051d  75 31                             jne     L66
+
+         if (fSentinel) {
+#ifdef HEMP_DBG
+ 051f  85 c0                             test    ax,ax
+ 0521  74 14                             je      L65
+
+if (gCLflags & FLAGS_CL_DDPRINT)             ddprintf("~HEAP: free sentinel triggered, pmb=%p\n", (void __far *) pmb);
+#endif
+ 0523  f6 06 01 00 40                    test    byte ptr _gCLflags+1H,40H
+ 0528  74 0c                             je      L64
+ 052a  1e                                push    ds
+ 052b  57                                push    di
+ 052c  1e                                push    ds
+ 052d  68 16 02                          push    offset L98
+ 0530  e8 00 00                          call    _ddprintf
+ 0533  83 c4 08                          add     sp,0008H
+
+            int3();
+ 0536  cc                L64             int     3
+
+         }
+ 0537  8b 5e fe          L65             mov     bx,[bp-2H]
+
+         pmbPrev->pmbNext = pmb->pmbNext;   // delete this block from the chain
+ 053a  8b 44 06                          mov     ax,[si+6H]
+ 053d  89 47 06                          mov     [bx+6H],ax
+
+         pmbBlock->pmbNext = pmbFree;
+ 0540  a1 00 00                          mov     ax,_pmbFree
+ 0543  89 45 06                          mov     [di+6H],ax
+
+         pmbFree = pmbBlock;
+ 0546  89 3e 00 00                       mov     _pmbFree,di
+
+         compact();
+ 054a  e8 00 00                          call    compact_
+
+         fSentinel = TRUE;
+ 054d  b8 01 00                          mov     ax,0001H
+
+      }
+
+exit: //--- Check things are still intact.
+   //HeapCheck((PSZ) "free() exit" );
+   //HeapCheck((PSZ)0);
+ 0550  89 76 fe          L66             mov     [bp-2H],si
+ 0553  8b 74 06                          mov     si,[si+6H]
+ 0556  85 f6                             test    si,si
+ 0558  75 c1                             jne     L63
+
+   HeapCheck((PSZ)"FXXX");
+ 055a  b8 3e 02          L67             mov     ax,offset L99
+ 055d  8c da                             mov     dx,ds
+ 055f  e8 00 00                          call    HeapCheck_
+
+}
+
+ 0562  89 ec             L68             mov     sp,bp
+ 0564  5d                                pop     bp
+ 0565  5f                                pop     di
+ 0566  5e                                pop     si
+ 0567  5a                                pop     dx
+ 0568  59                                pop     cx
+ 0569  5b                                pop     bx
+ 056a  c3                                ret     
+ 056b  fc                                cld     
+
+unsigned _memfree(void)
+{
+   return uMemFree;
+ 056c  a1 00 00          _memfree_       mov     ax,_uMemFree
+
+}
+
+ 056f  c3                                ret     
+
+void __near *realloc(void __near *pvBlock, unsigned usLength)
+{
+   void __near *pv;
+
+ 0570  53                realloc_        push    bx
+ 0571  51                                push    cx
+ 0572  56                                push    si
+ 0573  57                                push    di
+ 0574  55                                push    bp
+ 0575  89 e5                             mov     bp,sp
+ 0577  83 ec 04                          sub     sp,0004H
+ 057a  89 46 fe                          mov     [bp-2H],ax
+
+   if (!pvBlock)                 // if ptr is null, alloc block
+ 057d  85 c0                             test    ax,ax
+ 057f  75 08                             jne     L69
+
+      return malloc(usLength);
+
+ 0581  89 d0                             mov     ax,dx
+ 0583  e8 00 00                          call    malloc_
+ 0586  e9 7e 00                          jmp     L77
+
+   if (!usLength) {              // if length is 0, free block
+ 0589  85 d2             L69             test    dx,dx
+ 058b  75 0d                             jne     L70
+
+      free(pvBlock);
+ 058d  e8 00 00                          call    free_
+
+      return 0;
+   }
+
+ 0590  31 c0                             xor     ax,ax
+ 0592  89 ec                             mov     sp,bp
+ 0594  5d                                pop     bp
+ 0595  5f                                pop     di
+ 0596  5e                                pop     si
+ 0597  59                                pop     cx
+ 0598  5b                                pop     bx
+ 0599  c3                                ret     
+
+   pv=malloc(usLength);          // attempt to allocate the new block
+ 059a  89 d0             L70             mov     ax,dx
+ 059c  e8 00 00                          call    malloc_
+ 059f  89 46 fc                          mov     [bp-4H],ax
+
+   if (!pv)                      // can't do it?
+      return 0;                  // just fail.  Version 2 will try harder
+
+ 05a2  85 c0                             test    ax,ax
+ 05a4  74 61                             je      L77
+
+   MEMCPY(pv, pvBlock, min( _msize(pvBlock), usLength));
+ 05a6  8b 46 fe                          mov     ax,[bp-2H]
+ 05a9  e8 00 00                          call    _msize_
+ 05ac  39 d0                             cmp     ax,dx
+ 05ae  73 0a                             jae     L71
+ 05b0  8b 46 fe                          mov     ax,[bp-2H]
+ 05b3  e8 00 00                          call    _msize_
+ 05b6  89 c1                             mov     cx,ax
+ 05b8  eb 02                             jmp     L72
+ 05ba  89 d1             L71             mov     cx,dx
+ 05bc  8b 76 fe          L72             mov     si,[bp-2H]
+ 05bf  8c da                             mov     dx,ds
+ 05c1  8b 7e fc                          mov     di,[bp-4H]
+ 05c4  8e c2                             mov     es,dx
+ 05c6  fc                                cld     
+ 05c7  1e                                push    ds
+ 05c8  8e da                             mov     ds,dx
+ 05ca  85 c9                             test    cx,cx
+ 05cc  74 2f                             je      L76
+ 05ce  f7 c1 20 00                       test    cx,0020H
+ 05d2  72 27                             jb      L75
+ 05d4  f7 c7 03 00                       test    di,0003H
+ 05d8  74 12                             je      L74
+ 05da  f7 c7 01 00                       test    di,0001H
+ 05de  74 08                             je      L73
+ 05e0  a4                                movsb   
+ 05e1  49                                dec     cx
+ 05e2  f7 c7 02 00                       test    di,0002H
+ 05e6  74 04                             je      L74
+ 05e8  a5                L73             movsw   
+ 05e9  83 e9 02                          sub     cx,0002H
+ 05ec  88 cb             L74             mov     bl,cl
+ 05ee  c1 e9 02                          shr     cx,02H
+ 05f1  f3 66 a5                          repe    movsd    
+ 05f4  80 e3 03                          and     bl,03H
+ 05f7  74 04                             je      L76
+ 05f9  88 d9                             mov     cl,bl
+ 05fb  f3 a4             L75             repe    movsb    
+ 05fd  1f                L76             pop     ds
+
+   free(pvBlock);
+ 05fe  8b 46 fe                          mov     ax,[bp-2H]
+ 0601  e8 00 00                          call    free_
+
+   return pv;
+ 0604  8b 46 fc                          mov     ax,[bp-4H]
+
+}
+
+#pragma code_seg ("_INITTEXT");
+
+extern endHeap, endData;
+
+// probably only want to use HEAP_SIZE for size since it's hard-coded a lot above
+// this uSize arg is probably for a future thing
+
+ 0607  89 ec             L77             mov     sp,bp
+ 0609  5d                                pop     bp
+ 060a  5f                                pop     di
+ 060b  5e                                pop     si
+ 060c  59                                pop     cx
+ 060d  5b                                pop     bx
+ 060e  c3                                ret     
+
+No disassembly errors
+
+List of external symbols
+
+Symbol
+----------------
+_pmbUsed         000004fc 000004ee 00000287 0000027d 00000160 0000000d
+_gCLflags        00000525 00000441 000003d2 000003ae 00000327 000001f0 00000140 000000d9 000000c4 00000095
+                 00000079 0000005e 0000002f 00000013
+_ddprintf        00000531 00000453 000003e4 000003ba 00000331 000001fa 0000014d 000000f6 000000d2 000000a5
+                 00000088 0000006c 0000003f 00000022
+_pmbFree         00000548 00000541 00000506 000004ff 00000471 00000459 00000407 000003ea 000003c7 00000395
+                 00000380 00000371 00000351 000002df 000002ad 0000029b 0000019e 00000073
+_nFreeCalls      000004c1 000000e0
+_nFree           000001c0 000001af 000001a1 000000e5
+_nAllocCalls     000002c9 000002c1 000000ea
+_nAlloc          00000184 00000173 00000164 000000ee
+_acHeap          0000010f 0000010a
+_cAlloc          000001de 0000018e 00000177 00000168
+SignatureCheck_  000004d8 00000321 000001cd 00000191
+_cFree           000001e2 000001c4 000001b6 000001a4
+_fMemoryDoc      000001d8
+_cTotalHeap      000001e6
+dumpheap_        00000337 00000200
+make_new_free_   00000267
+_uMemFree        0000056d 000004f2 000004e5 00000279 00000270
+HeapCheck_       00000560 000004de 00000340 000002d0
+npvAllocateBlock_ 
+                 00000305 000002ee
+_nCompact        000004a9
+compact_         0000054b 00000509
+malloc_          0000059d 00000584
+free_            00000602 0000058e
+_msize_          000005b4 000005aa
+------------------------------------------------------------
+
+Segment: CONST  WORD   00000243 bytes  
+ 0000  7e 48 45 41 50 3a 20 48 L78             - ~HEAP: H
+ 0008  65 61 70 20 44 75 6d 70                 - eap Dump
+ 0010  20 2d 20 55 73 65 64 20                 -  - Used 
+ 0018  62 6c 6f 63 6b 73 0a 00                 - blocks..
+ 0020  7e 20 20 70 6d 62 3d 25 L79             - ~  pmb=%
+ 0028  70 2c 20 62 74 79 65 73                 - p, btyes
+ 0030  3d 25 75 0a 00 00                       - =%u...
+ 0036  7e 20 20 54 6f 74 61 6c L80             - ~  Total
+ 003e  20 75 73 65 64 20 3d 20                 -  used = 
+ 0046  25 75 0a 00                             - %u..
+ 004a  7e 48 45 41 50 3a 20 48 L81             - ~HEAP: H
+ 0052  65 61 70 20 44 75 6d 70                 - eap Dump
+ 005a  20 2d 20 46 72 65 65 20                 -  - Free 
+ 0062  62 6c 6f 63 6b 73 0a 00                 - blocks..
+ 006a  7e 20 20 70 6d 62 3d 25 L82             - ~  pmb=%
+ 0072  70 2c 20 62 79 74 65 73                 - p, bytes
+ 007a  3d 25 75 0a 00 00                       - =%u...
+ 0080  7e 20 20 54 6f 74 61 6c L83             - ~  Total
+ 0088  20 66 72 65 65 20 3d 20                 -  free = 
+ 0090  25 75 0a 00                             - %u..
+ 0094  7e 20 61 6c 6c 6f 63 3a L84             - ~ alloc:
+ 009c  63 75 72 72 62 6c 6b 73                 - currblks
+ 00a4  3d 25 75 2c 20 63 61 6c                 - =%u, cal
+ 00ac  6c 73 3d 25 75 3b 20 20                 - ls=%u;  
+ 00b4  66 72 65 65 3a 63 75 72                 - free:cur
+ 00bc  72 62 6c 6b 73 3d 25 75                 - rblks=%u
+ 00c4  2c 20 63 61 6c 6c 73 3d                 - , calls=
+ 00cc  25 75 0a 00                             - %u..
+ 00d0  7e 48 65 61 70 20 70 6f L85             - ~Heap po
+ 00d8  69 6e 74 65 72 20 6f 75                 - inter ou
+ 00e0  74 20 6f 66 20 72 61 6e                 - t of ran
+ 00e8  67 65 2c 20 6f 72 20 73                 - ge, or s
+ 00f0  69 67 6e 61 74 75 72 65                 - ignature
+ 00f8  20 65 78 63 65 70 74 69                 -  excepti
+ 0100  6f 6e 3a 20 25 70 20 25                 - on: %p %
+ 0108  73 0a 00 50                             - s..P
+ 010c  48 43 55 4c 00 70       L86             - HCUL.p
+ 0112  48 43 46 4c 00 20       L87             - HCFL. 
+ 0118  7e 48 65 61 70 20 41 6c L88             - ~Heap Al
+ 0120  6c 6f 63 20 2b 20 46 72                 - loc + Fr
+ 0128  65 65 20 21 3d 20 54 6f                 - ee != To
+ 0130  74 61 6c 0a 00 65                       - tal..e
+ 0136  4d 45 58 58 00 00       L89             - MEXX..
+ 013c  4d 45 41 42 00 6f       L90             - MEAB.o
+ 0142  7e 4f 75 74 20 6f 66 20 L91             - ~Out of 
+ 014a  6d 65 6d 6f 72 79 2c 20                 - memory, 
+ 0152  64 75 6d 70 68 65 61 70                 - dumpheap
+ 015a  28 29 2e 2e 2e 0a 00 3d                 - ().....=
+ 0162  4d 58 58 58 00 61       L92             - MXXX.a
+ 0168  7e 48 45 41 50 3a 20 68 L93             - ~HEAP: h
+ 0170  65 61 70 20 6c 6f 6f 70                 - eap loop
+ 0178  2c 20 25 70 20 70 6f 69                 - , %p poi
+ 0180  6e 74 73 20 74 6f 20 69                 - nts to i
+ 0188  74 73 65 6c 66 0a 00 65                 - tself..e
+ 0190  7e 48 45 41 50 3a 20 63 L94             - ~HEAP: c
+ 0198  6f 6d 70 61 63 74 20 66                 - ompact f
+ 01a0  6f 75 6e 64 20 70 6f 69                 - ound poi
+ 01a8  6e 74 65 72 20 25 70 20                 - nter %p 
+ 01b0  28 73 69 7a 65 3d 25 75                 - (size=%u
+ 01b8  29 20 62 65 66 6f 72 65                 - ) before
+ 01c0  20 70 6d 62 46 72 65 65                 -  pmbFree
+ 01c8  20 25 70 0a 00 00                       -  %p...
+ 01ce  7e 48 45 41 50 3a 20 63 L95             - ~HEAP: c
+ 01d6  6f 6d 70 61 63 74 20 66                 - ompact f
+ 01de  6f 75 6e 64 20 70 6f 69                 - ound poi
+ 01e6  6e 74 65 72 20 25 70 20                 - nter %p 
+ 01ee  28 73 69 7a 65 3d 25 75                 - (size=%u
+ 01f6  29 20 61 66 74 65 72 20                 - ) after 
+ 01fe  70 6d 62 46 72 65 65 20                 - pmbFree 
+ 0206  25 70 0a 00                             - %p..
+ 020a  46 45 42 46 00 64       L96             - FEBF.d
+ 0210  46 45 58 58 00 61       L97             - FEXX.a
+ 0216  7e 48 45 41 50 3a 20 66 L98             - ~HEAP: f
+ 021e  72 65 65 20 73 65 6e 74                 - ree sent
+ 0226  69 6e 65 6c 20 74 72 69                 - inel tri
+ 022e  67 67 65 72 65 64 2c 20                 - ggered, 
+ 0236  70 6d 62 3d 25 70 0a 00                 - pmb=%p..
+ 023e  46 58 58 58 00          L99             - FXXX.
+
+No disassembly errors
+
+------------------------------------------------------------
+
+Segment: _DATA  WORD   00000014 bytes  
+ 0000  00 00                   _pmbUsed        - ..
+ 0002  00 00                   _fMemoryDoc     - ..
+ 0004  00 00                   _nAlloc         - ..
+ 0006  00 00                   _cAlloc         - ..
+ 0008  00 00                   _nAllocCalls    - ..
+ 000a  00 00                   _nFree          - ..
+ 000c  00 00                   _cFree          - ..
+ 000e  00 00                   _nFreeCalls     - ..
+ 0010  00 00                   _nCompact       - ..
+ 0012  00 20                   _cTotalHeap     - . 
+
+No disassembly errors
+
+------------------------------------------------------------
+
+Segment: _BSS  PARA   00002004 bytes  
+
+No disassembly errors
+
+------------------------------------------------------------
+
+Segment: _INITTEXT  PARA   00000046 bytes  
+
+unsigned HeapInit(unsigned uSize) {
+
+ 0000  53                HeapInit_       push    bx
+ 0001  51                                push    cx
+ 0002  52                                push    dx
+ 0003  56                                push    si
+
+ unsigned max_heap=((unsigned)&endHeap - (unsigned)&endData) & ~0xFFF; // align to K
+
+// if (!uSize) uSize = DEFAULT_HEAP;
+ 0004  ba 00 00                          mov     dx,offset _endHeap
+ 0007  81 ea 00 00                       sub     dx,offset _endData
+ 000b  30 d2                             xor     dl,dl
+ 000d  80 e6 f0                          and     dh,0f0H
+
+ if (!uSize) uSize = HEAP_SIZE;
+ 0010  85 c0                             test    ax,ax
+ 0012  75 03                             jne     L100
+ 0014  b8 00 20                          mov     ax,2000H
+
+ if (uSize > max_heap) uSize = max_heap;
+
+ 0017  39 d0             L100            cmp     ax,dx
+ 0019  76 02                             jbe     L101
+ 001b  89 d0                             mov     ax,dx
+
+ pmbFree=(PMEMBLOCK) acHeap;
+ pmbFree->uSize = uSize - HDR_SIZE;
+ 001d  ba 00 00          L101            mov     dx,offset _acHeap
+
+ 0020  bb de ad                          mov     bx,0addeH
+ 0023  b9 77 34                          mov     cx,3477H
+
+ pmbFree->ulSignature = SIGNATURE;
+ 0026  2d 08 00                          sub     ax,0008H
+
+ pmbFree->pmbNext = 0;
+ 0029  31 f6                             xor     si,si
+ 002b  89 16 00 00                       mov     _pmbFree,dx
+ 002f  a3 04 00                          mov     _acHeap+4H,ax
+ 0032  89 1e 00 00                       mov     _acHeap,bx
+ 0036  89 0e 02 00                       mov     _acHeap+2H,cx
+ 003a  89 36 06 00                       mov     _acHeap+6H,si
+
+ uMemFree = pmbFree->uSize;
+
+ return pmbFree->uSize;
+ 003e  a3 00 00                          mov     _uMemFree,ax
+
+}
+
+
+ 0041  5e                                pop     si
+ 0042  5a                                pop     dx
+ 0043  59                                pop     cx
+ 0044  5b                                pop     bx
+ 0045  c3                                ret     
+
+No disassembly errors
+
+List of external symbols
+
+Symbol
+----------------
+_endHeap         00000005
+_endData         00000009
+_acHeap          0000003c 00000038 00000034 00000030 0000001e
+_pmbFree         0000002d
+_uMemFree        0000003f
+------------------------------------------------------------
+List of public symbols
+
+SYMBOL          GROUP           SEGMENT          ADDRESS
+---------------------------------------------------------
+_acHeap         DGROUP          _BSS             00000000
+_cAlloc         DGROUP          _DATA            00000006
+_cFree          DGROUP          _DATA            0000000c
+_cTotalHeap     DGROUP          _DATA            00000012
+_fMemoryDoc     DGROUP          _DATA            00000002
+_memfree_                       _TEXT            0000056c
+_msize_                         _TEXT            00000250
+_nAlloc         DGROUP          _DATA            00000004
+_nAllocCalls    DGROUP          _DATA            00000008
+_nCompact       DGROUP          _DATA            00000010
+_nFree          DGROUP          _DATA            0000000a
+_nFreeCalls     DGROUP          _DATA            0000000e
+_pmbFree        DGROUP          _BSS             00002002
+_pmbUsed        DGROUP          _DATA            00000000
+_uMemFree       DGROUP          _BSS             00002000
+compact_                        _TEXT            00000388
+dumpheap_                       _TEXT            00000000
+free_                           _TEXT            000004b4
+HeapCheck_                      _TEXT            00000158
+HeapInit_                       _INITTEXT        00000000
+make_new_free_                  _TEXT            00000208
+malloc_                         _TEXT            000002b8
+npvAllocateBlock_ 
+                                _TEXT            00000260
+realloc_                        _TEXT            00000570
+remove_                         _TEXT            0000034c
+SignatureCheck_                 _TEXT            00000104
+
+------------------------------------------------------------
+

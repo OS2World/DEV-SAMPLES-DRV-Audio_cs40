@@ -1,0 +1,29 @@
+
+Module: D:\dev\csrc\os2dd\scd\header.c
+Group: 'DGROUP' CONST,CONST2,_DATA,_BSS,_HEADER
+
+Segment: _HEADER  WORD   0000001e bytes  
+ 0000  ff ff ff ff 80 c9       _header         - ......
+ 0006  00 00                                   DW      stratMode2_
+ 0008  00 00                                   DW      _idcDDCMD
+ 000a  42 53 41 55 44 31 24 20                 - BSAUD1$ 
+ 0012  00 00 00 00 00 00 00 00                 - ........
+ 001a  11 00 00 00                             - ....
+
+No disassembly errors
+
+List of external symbols
+
+Symbol
+----------------
+stratMode2_      00000006
+_idcDDCMD        00000008
+------------------------------------------------------------
+List of public symbols
+
+SYMBOL          GROUP           SEGMENT          ADDRESS
+---------------------------------------------------------
+_header         DGROUP          _HEADER          00000000
+
+------------------------------------------------------------
+

@@ -1,0 +1,1282 @@
+
+Module: D:\dev\csrc\os2dd\scd\audiobuf.c
+Group: 'DGROUP' CONST,CONST2,_DATA,_BSS,_INITDATA
+
+Segment: _TEXT  PARA   000005b9 bytes  
+
+//
+// audiobuf.c
+// 27-Jan-99
+//
+//
+// static USHORT AllocMem(ULONG bufferSize, AUDIOBUFFER *audioBufferPtr);
+// static ULONG GetStartOffset(AUDIOBUFFER *audioBufferPtr);
+// VOID   abReset(USHORT mode, AUDIOBUFFER *audioBufferPtr);
+// ULONG  abSpace(AUDIOBUFFER *audioBufferPtr);
+// ULONG  abBytes(AUDIOBUFFER *audioBufferPtr);
+// ULONG  abUpdate(USHORT flags, AUDIOBUFFER *audioBufferPtr);
+// ULONG  abWrite(UCHAR __far *dataPtr, ULONG dataSize, AUDIOBUFFER *audioBufferPtr);
+// ULONG  abRead(UCHAR __far *dataPtr, ULONG dataSize, AUDIOBUFFER *audioBufferPtr);
+// VOID   abFill(USHORT fillWith, AUDIOBUFFER *audioBufferPtr);
+// VOID   abDeinit(AUDIOBUFFER *audioBufferPtr);
+// USHORT abInit(ULONG bufferSize, ULONG pageSize, USHORT dmaChannel, AUDIOBUFFER *audioBufferPtr);
+
+#include "cs40.h"
+
+PFN Device_Help = 0;
+
+// ---------------
+// in: bufferSize, amount of physical memory to allocate (not all likely will be usuable)
+//out: rc (PDD says only rc=87 is possible error code)
+//nts: seems they all use this, and request above 1MB first, then under 1MB if none there
+//     may always be < 16MB here?  since DMA won't work if it's past 16MB mark
+//     only allocates raw physical memory, still need to massage it before using
+
+static USHORT AllocMem(ULONG bufferSize, AUDIOBUFFER *audioBufferPtr) {
+
+ USHORT rc;
+ ULONG physAddr;
+
+ 0000  51                AllocMem_       push    cx
+ 0001  56                                push    si
+ 0002  57                                push    di
+ 0003  55                                push    bp
+ 0004  89 e5                             mov     bp,sp
+ 0006  83 ec 06                          sub     sp,0006H
+ 0009  89 c1                             mov     cx,ax
+ 000b  89 56 fe                          mov     [bp-2H],dx
+ 000e  89 de                             mov     si,bx
+ 0010  8d 7e fa                          lea     di,[bp-6H]
+ 0013  8b 5e fe                          mov     bx,[bp-2H]
+
+ rc = DevHelp_AllocPhys(bufferSize, MEMTYPE_ABOVE_1M, &physAddr);
+ 0016  8c d0                             mov     ax,ss
+ 0018  30 f6                             xor     dh,dh
+ 001a  8e c0                             mov     es,ax
+ 001c  89 c8                             mov     ax,cx
+ 001e  93                                xchg    ax,bx
+ 001f  b2 18                             mov     dl,18H
+ 0021  ff 1e 00 00                       call    dword ptr _Device_Help
+ 0025  72 09                             jb      L1
+ 0027  26 89 1d                          mov     es:[di],bx
+ 002a  26 89 45 02                       mov     es:[di+2H],ax
+ 002e  29 c0                             sub     ax,ax
+ 0030  89 c2             L1              mov     dx,ax
+
+ if (rc) rc = DevHelp_AllocPhys(bufferSize, MEMTYPE_BELOW_1M ,&physAddr);
+ 0032  85 c0                             test    ax,ax
+ 0034  74 1e                             je      L3
+ 0036  8d 7e fa                          lea     di,[bp-6H]
+ 0039  b6 01                             mov     dh,01H
+ 003b  8b 5e fe                          mov     bx,[bp-2H]
+ 003e  89 c8                             mov     ax,cx
+ 0040  93                                xchg    ax,bx
+ 0041  b2 18                             mov     dl,18H
+ 0043  ff 1e 00 00                       call    dword ptr _Device_Help
+ 0047  72 09                             jb      L2
+ 0049  26 89 1d                          mov     es:[di],bx
+ 004c  26 89 45 02                       mov     es:[di+2H],ax
+ 0050  29 c0                             sub     ax,ax
+ 0052  89 c2             L2              mov     dx,ax
+
+ if (rc == 0) {
+ 0054  85 d2             L3              test    dx,dx
+ 0056  75 18                             jne     L4
+
+    audioBufferPtr->bufferPhysAddrRaw = physAddr; // won't change
+ 0058  8b 46 fa                          mov     ax,[bp-6H]
+ 005b  89 44 08                          mov     [si+8H],ax
+ 005e  8b 46 fc                          mov     ax,[bp-4H]
+ 0061  89 44 0a                          mov     [si+0aH],ax
+
+    audioBufferPtr->bufferPhysAddr = physAddr;    // will be forced to next 64K alignment
+ }
+
+ return rc;
+ 0064  8b 46 fa                          mov     ax,[bp-6H]
+ 0067  89 44 0c                          mov     [si+0cH],ax
+ 006a  8b 46 fc                          mov     ax,[bp-4H]
+ 006d  89 44 0e                          mov     [si+0eH],ax
+
+}
+
+
+// ------------------
+// in: audioBufferPtr
+//out: offset of next start
+//nts: gets offset in audio buffer of where next read/write operation should start
+
+ 0070  89 d0             L4              mov     ax,dx
+ 0072  89 ec                             mov     sp,bp
+ 0074  5d                                pop     bp
+ 0075  5f                                pop     di
+ 0076  5e                                pop     si
+ 0077  59                                pop     cx
+ 0078  c3                                ret     
+ 0079  89 c0                             mov     ax,ax
+ 007b  fc                                cld     
+
+static ULONG GetStartOffset(AUDIOBUFFER *audioBufferPtr) {
+
+ 007c  53                GetStartOffset_ push    bx
+ 007d  51                                push    cx
+ 007e  56                                push    si
+ 007f  89 c6                             mov     si,ax
+
+ ULONG t = audioBufferPtr->bufferBytes % audioBufferPtr->bufferSize;
+
+ return t;
+ 0081  8b 44 1c                          mov     ax,[si+1cH]
+ 0084  8b 54 1e                          mov     dx,[si+1eH]
+ 0087  8b 5c 10                          mov     bx,[si+10H]
+ 008a  8b 4c 12                          mov     cx,[si+12H]
+ 008d  e8 00 00                          call    __U4D
+ 0090  89 d8                             mov     ax,bx
+ 0092  89 ca                             mov     dx,cx
+
+}
+
+
+// ------------------
+// in: mode = read or write
+//     audioBufferPtr
+//out: n/a
+//nts: reset the audio buffer (was named InitBuffer)
+
+ 0094  5e                                pop     si
+ 0095  59                                pop     cx
+ 0096  5b                                pop     bx
+ 0097  c3                                ret     
+
+VOID abReset(USHORT mode, AUDIOBUFFER *audioBufferPtr) {
+
+ audioBufferPtr->mode = mode;
+ 0098  53                abReset_        push    bx
+ 0099  89 d3                             mov     bx,dx
+
+ audioBufferPtr->deviceBytes = 0;
+ 009b  c7 47 18 00 00                    mov     word ptr [bx+18H],0000H
+ 00a0  c7 47 1a 00 00                    mov     word ptr [bx+1aH],0000H
+
+ audioBufferPtr->bufferBytes = 0;
+
+ return;
+ 00a5  c7 47 1c 00 00                    mov     word ptr [bx+1cH],0000H
+ 00aa  c7 47 1e 00 00                    mov     word ptr [bx+1eH],0000H
+ 00af  89 07                             mov     [bx],ax
+
+}
+
+
+// ------------------
+// in: audioBufferPtr
+//out: good bytes
+//nts: gets bytes available in write audio buffer / valid bytes in read audio buffer
+//     original had _fGetSpace() called only by BufferStatus() (no point), so just coding
+//     BufferStatus() -- i.e., this returns the "good data" in the buffer (on a read or
+//     capture) or the "room left" in the buffer (on a write or play)
+//     original name was also BufferStatus()
+
+ 00b1  5b                                pop     bx
+ 00b2  c3                                ret     
+ 00b3  fc                                cld     
+
+ULONG abSpace(AUDIOBUFFER *audioBufferPtr) {
+
+ ULONG t;
+
+ 00b4  53                abSpace_        push    bx
+ 00b5  51                                push    cx
+ 00b6  56                                push    si
+ 00b7  57                                push    di
+ 00b8  89 c3                             mov     bx,ax
+
+ if (audioBufferPtr->mode == AUDIOBUFFER_WRITE) {
+ 00ba  83 3f 01                          cmp     word ptr [bx],0001H
+ 00bd  75 20                             jne     L5
+
+    t = audioBufferPtr->bufferSize - (audioBufferPtr->bufferBytes - audioBufferPtr->deviceBytes); // bytes available in buffer (write to dev, play)
+ }
+ 00bf  8b 47 1c                          mov     ax,[bx+1cH]
+ 00c2  8b 57 1e                          mov     dx,[bx+1eH]
+ 00c5  8b 7f 18                          mov     di,[bx+18H]
+ 00c8  8b 4f 1a                          mov     cx,[bx+1aH]
+ 00cb  29 f8                             sub     ax,di
+ 00cd  19 ca                             sbb     dx,cx
+ 00cf  8b 4f 10                          mov     cx,[bx+10H]
+ 00d2  29 c1                             sub     cx,ax
+ 00d4  8b 5f 12                          mov     bx,[bx+12H]
+ 00d7  19 d3                             sbb     bx,dx
+ 00d9  89 c8                             mov     ax,cx
+ 00db  89 da                             mov     dx,bx
+
+ else {
+ 00dd  eb 10                             jmp     L6
+
+    t = audioBufferPtr->deviceBytes - audioBufferPtr->bufferBytes;  // valid data bytes in buffer (read from dev, capture)
+ }
+
+ return t;
+ 00df  8b 47 18          L5              mov     ax,[bx+18H]
+ 00e2  8b 57 1a                          mov     dx,[bx+1aH]
+ 00e5  8b 4f 1c                          mov     cx,[bx+1cH]
+ 00e8  8b 77 1e                          mov     si,[bx+1eH]
+ 00eb  29 c8                             sub     ax,cx
+ 00ed  19 f2                             sbb     dx,si
+
+}
+
+
+// ------------------
+// in: audioBufferPtr
+//out: bytes written|read
+//nts: returns total number of bytes written to (playback mode) or read from (record mode) device
+
+ 00ef  5f                L6              pop     di
+ 00f0  5e                                pop     si
+ 00f1  59                                pop     cx
+ 00f2  5b                                pop     bx
+ 00f3  c3                                ret     
+
+ULONG abBytes(AUDIOBUFFER *audioBufferPtr) {
+
+ 00f4  53                abBytes_        push    bx
+ 00f5  89 c3                             mov     bx,ax
+
+ ULONG t = audioBufferPtr->bufferBytes;
+
+ return t;
+ 00f7  8b 47 1c                          mov     ax,[bx+1cH]
+ 00fa  8b 57 1e                          mov     dx,[bx+1eH]
+
+}
+
+
+// ---------------
+// in: flags (was ULONG)
+//     audioBufferPtr
+//out: data consumed or produced
+//nts: called by the stream to get the "latest" number of bytes consumed|produced by device
+//     Flags is either 0 or not 0: if not 0 the audio buffer will call into the hardware
+//     (in this case dma object) and get the latest number of bytes value
+
+ 00fd  5b                                pop     bx
+ 00fe  c3                                ret     
+ 00ff  fc                                cld     
+
+ULONG abUpdate(USHORT flags, AUDIOBUFFER *audioBufferPtr) {
+
+ 0100  53                abUpdate_       push    bx
+ 0101  51                                push    cx
+ 0102  56                                push    si
+ 0103  89 d3                             mov     bx,dx
+
+ if (flags) {
+ 0105  85 c0                             test    ax,ax
+ 0107  74 15                             je      L7
+
+    audioBufferPtr->deviceBytes = audioBufferPtr->deviceBytes + dmaQueryDelta(audioBufferPtr);
+ }
+
+ 0109  89 d0                             mov     ax,dx
+ 010b  e8 00 00                          call    dmaQueryDelta_
+ 010e  8b 4f 18                          mov     cx,[bx+18H]
+ 0111  8b 77 1a                          mov     si,[bx+1aH]
+ 0114  01 c1                             add     cx,ax
+ 0116  11 d6                             adc     si,dx
+ 0118  89 4f 18                          mov     [bx+18H],cx
+ 011b  89 77 1a                          mov     [bx+1aH],si
+
+ return audioBufferPtr->deviceBytes;
+ 011e  8b 47 18          L7              mov     ax,[bx+18H]
+ 0121  8b 57 1a                          mov     dx,[bx+1aH]
+
+}
+
+
+// ---------------------------
+// in: dataPtr -> data to play
+//     dataSize = bytes in buffer
+//     audioBufferPtr
+//out: bytes actually written to buffer
+//nts: (was called WriteBuffer())
+//     writes data into the audio buffer (for it to be played)
+//     This should be called by a stream that is doing a playback -- this will only
+//     do the write based on the data returned by GetSpace/GetStartOffset
+//     BufferUpdate should be called before this routine
+
+ 0124  5e                                pop     si
+ 0125  59                                pop     cx
+ 0126  5b                                pop     bx
+ 0127  c3                                ret     
+
+ULONG abWrite(UCHAR __far *dataPtr, ULONG dataSize, AUDIOBUFFER *audioBufferPtr) {
+
+ 0128  56                abWrite_        push    si
+ 0129  57                                push    di
+ 012a  55                                push    bp
+ 012b  89 e5                             mov     bp,sp
+ 012d  83 ec 14                          sub     sp,0014H
+ 0130  89 46 f8                          mov     [bp-8H],ax
+ 0133  89 56 fa                          mov     [bp-6H],dx
+ 0136  89 5e f2                          mov     [bp-0eH],bx
+ 0139  89 4e f6                          mov     [bp-0aH],cx
+
+ ULONG abSize = audioBufferPtr->bufferSize;
+ 013c  8b 7e 08                          mov     di,[bp+8H]
+ 013f  8b 76 08                          mov     si,[bp+8H]
+
+ ULONG startOffset = GetStartOffset(audioBufferPtr);
+ 0142  8b 5e 08                          mov     bx,[bp+8H]
+ 0145  8b 7d 10                          mov     di,[di+10H]
+ 0148  8b 74 12                          mov     si,[si+12H]
+ 014b  8b 47 1c                          mov     ax,[bx+1cH]
+ 014e  8b 57 1e                          mov     dx,[bx+1eH]
+ 0151  89 fb                             mov     bx,di
+ 0153  89 f1                             mov     cx,si
+ 0155  e8 00 00                          call    __U4D
+ 0158  89 c8                             mov     ax,cx
+ 015a  89 d9                             mov     cx,bx
+
+ ULONG bytes = min(dataSize, abSpace(audioBufferPtr));
+
+ 015c  8b 5e 08                          mov     bx,[bp+8H]
+ 015f  8b 17                             mov     dx,[bx]
+ 0161  89 46 f0                          mov     [bp-10H],ax
+ 0164  83 fa 01                          cmp     dx,0001H
+ 0167  75 29                             jne     L8
+ 0169  8b 47 1c                          mov     ax,[bx+1cH]
+ 016c  8b 57 18                          mov     dx,[bx+18H]
+ 016f  89 46 ec                          mov     [bp-14H],ax
+ 0172  8b 47 1e                          mov     ax,[bx+1eH]
+ 0175  29 56 ec                          sub     [bp-14H],dx
+ 0178  8b 5e 08                          mov     bx,[bp+8H]
+ 017b  8b 57 1a                          mov     dx,[bx+1aH]
+ 017e  8b 5e ec                          mov     bx,[bp-14H]
+ 0181  19 d0                             sbb     ax,dx
+ 0183  89 fa                             mov     dx,di
+ 0185  29 da                             sub     dx,bx
+ 0187  89 56 f4                          mov     [bp-0cH],dx
+ 018a  89 f2                             mov     dx,si
+ 018c  19 c2                             sbb     dx,ax
+ 018e  89 d0                             mov     ax,dx
+ 0190  eb 1b                             jmp     L9
+ 0192  8b 47 18          L8              mov     ax,[bx+18H]
+ 0195  8b 57 1c                          mov     dx,[bx+1cH]
+ 0198  89 46 ec                          mov     [bp-14H],ax
+ 019b  8b 47 1a                          mov     ax,[bx+1aH]
+ 019e  29 56 ec                          sub     [bp-14H],dx
+ 01a1  8b 5e 08                          mov     bx,[bp+8H]
+ 01a4  1b 47 1e                          sbb     ax,[bx+1eH]
+ 01a7  8b 56 ec                          mov     dx,[bp-14H]
+ 01aa  89 56 f4                          mov     [bp-0cH],dx
+ 01ad  8b 56 f6          L9              mov     dx,[bp-0aH]
+ 01b0  8b 5e f4                          mov     bx,[bp-0cH]
+ 01b3  39 d0                             cmp     ax,dx
+ 01b5  77 07                             ja      L10
+ 01b7  75 0d                             jne     L11
+ 01b9  3b 5e f2                          cmp     bx,[bp-0eH]
+ 01bc  76 08                             jbe     L11
+ 01be  8b 56 f2          L10             mov     dx,[bp-0eH]
+ 01c1  8b 46 f6                          mov     ax,[bp-0aH]
+ 01c4  eb 0c                             jmp     L12
+ 01c6  8b 46 08          L11             mov     ax,[bp+8H]
+ 01c9  e8 00 00                          call    abSpace_
+ 01cc  89 c3                             mov     bx,ax
+ 01ce  89 d0                             mov     ax,dx
+ 01d0  89 da                             mov     dx,bx
+ 01d2  89 56 fc          L12             mov     [bp-4H],dx
+ 01d5  89 46 fe                          mov     [bp-2H],ax
+
+ if (bytes >= abSize) bytes = abSize;  // max limit is physical buffer size
+ 01d8  39 f0                             cmp     ax,si
+ 01da  77 06                             ja      L13
+ 01dc  75 0a                             jne     L14
+ 01de  39 fa                             cmp     dx,di
+ 01e0  72 06                             jb      L14
+ 01e2  89 7e fc          L13             mov     [bp-4H],di
+ 01e5  89 76 fe                          mov     [bp-2H],si
+
+ bytes = bytes & ALIGN_FILL_PLAY;      // align now, after above
+ 01e8  8b 46 fc          L14             mov     ax,[bp-4H]
+ 01eb  30 c0                             xor     al,al
+ 01ed  80 e4 fc                          and     ah,0fcH
+ 01f0  89 46 fc                          mov     [bp-4H],ax
+
+ if (bytes == 0) goto ExitNow;         // shouldn't happen, unless abSpace() is 0, which it won't
+
+ // if this write will wrap the buffer, split it up and do 2 writes
+
+ 01f3  8b 46 fe                          mov     ax,[bp-2H]
+ 01f6  8b 56 fc                          mov     dx,[bp-4H]
+ 01f9  09 d0                             or      ax,dx
+ 01fb  0f 84 f1 00                       je      L26
+ 01ff  8b 5e fe                          mov     bx,[bp-2H]
+
+ if ((startOffset + bytes) > abSize) {
+
+ 0202  01 ca                             add     dx,cx
+ 0204  8b 46 f0                          mov     ax,[bp-10H]
+ 0207  11 d8                             adc     ax,bx
+ 0209  39 f0                             cmp     ax,si
+ 020b  77 06                             ja      L15
+ 020d  75 79                             jne     L20
+ 020f  39 fa                             cmp     dx,di
+ 0211  76 75                             jbe     L20
+ 0213  8b 5e 08          L15             mov     bx,[bp+8H]
+ 0216  8b 76 f8                          mov     si,[bp-8H]
+
+    ULONG diff = abSize - startOffset;
+
+ 0219  29 cf                             sub     di,cx
+ 021b  89 7e ee                          mov     [bp-12H],di
+
+    MEMCPY(audioBufferPtr->bufferPtr+startOffset, dataPtr, diff);
+ 021e  8b 7e 08                          mov     di,[bp+8H]
+ 0221  8b 56 fa                          mov     dx,[bp-6H]
+ 0224  8b 7d 04                          mov     di,[di+4H]
+ 0227  8e 47 06                          mov     es,[bx+6H]
+ 022a  01 cf                             add     di,cx
+ 022c  8b 4e ee                          mov     cx,[bp-12H]
+ 022f  fc                                cld     
+ 0230  1e                                push    ds
+ 0231  8e da                             mov     ds,dx
+ 0233  85 c9                             test    cx,cx
+ 0235  74 2f                             je      L19
+ 0237  f7 c1 20 00                       test    cx,0020H
+ 023b  72 27                             jb      L18
+ 023d  f7 c7 03 00                       test    di,0003H
+ 0241  74 12                             je      L17
+ 0243  f7 c7 01 00                       test    di,0001H
+ 0247  74 08                             je      L16
+ 0249  a4                                movsb   
+ 024a  49                                dec     cx
+ 024b  f7 c7 02 00                       test    di,0002H
+ 024f  74 04                             je      L17
+ 0251  a5                L16             movsw   
+ 0252  83 e9 02                          sub     cx,0002H
+ 0255  88 cb             L17             mov     bl,cl
+ 0257  c1 e9 02                          shr     cx,02H
+ 025a  f3 66 a5                          repe    movsd    
+ 025d  80 e3 03                          and     bl,03H
+ 0260  74 04                             je      L19
+ 0262  88 d9                             mov     cl,bl
+ 0264  f3 a4             L18             repe    movsb    
+ 0266  1f                L19             pop     ds
+
+    MEMCPY(audioBufferPtr->bufferPtr, dataPtr+diff, bytes-diff);
+
+// !!!
+// won't get here when doing ALIGN_FILL_PLAY size that's an even multiple of buffer
+
+//tracePerf(128,(ULONG)audioBufferPtr->bufferPtr+startOffset);
+//tracePerf(129,(ULONG)dataPtr);
+
+ }
+ 0267  8b 4e fc                          mov     cx,[bp-4H]
+ 026a  8b 76 ee                          mov     si,[bp-12H]
+ 026d  8b 7e ee                          mov     di,[bp-12H]
+ 0270  29 f1                             sub     cx,si
+ 0272  8b 76 f8                          mov     si,[bp-8H]
+ 0275  8b 5e 08                          mov     bx,[bp+8H]
+ 0278  01 fe                             add     si,di
+ 027a  8b 7e 08                          mov     di,[bp+8H]
+ 027d  8b 56 fa                          mov     dx,[bp-6H]
+ 0280  8b 7d 04                          mov     di,[di+4H]
+ 0283  8e 47 06                          mov     es,[bx+6H]
+
+ else {
+ 0286  eb 17                             jmp     L21
+
+    MEMCPY(audioBufferPtr->bufferPtr+startOffset, dataPtr, bytes);
+ 0288  8b 7e 08          L20             mov     di,[bp+8H]
+ 028b  8b 5e 08                          mov     bx,[bp+8H]
+ 028e  8b 76 f8                          mov     si,[bp-8H]
+ 0291  8b 56 fa                          mov     dx,[bp-6H]
+ 0294  8b 7d 04                          mov     di,[di+4H]
+ 0297  8e 47 06                          mov     es,[bx+6H]
+ 029a  01 cf                             add     di,cx
+ 029c  8b 4e fc                          mov     cx,[bp-4H]
+ 029f  fc                L21             cld     
+ 02a0  1e                                push    ds
+ 02a1  8e da                             mov     ds,dx
+ 02a3  85 c9                             test    cx,cx
+ 02a5  74 2f                             je      L25
+ 02a7  f7 c1 20 00                       test    cx,0020H
+ 02ab  72 27                             jb      L24
+ 02ad  f7 c7 03 00                       test    di,0003H
+ 02b1  74 12                             je      L23
+ 02b3  f7 c7 01 00                       test    di,0001H
+ 02b7  74 08                             je      L22
+ 02b9  a4                                movsb   
+ 02ba  49                                dec     cx
+ 02bb  f7 c7 02 00                       test    di,0002H
+ 02bf  74 04                             je      L23
+ 02c1  a5                L22             movsw   
+ 02c2  83 e9 02                          sub     cx,0002H
+ 02c5  88 cb             L23             mov     bl,cl
+ 02c7  c1 e9 02                          shr     cx,02H
+ 02ca  f3 66 a5                          repe    movsd    
+ 02cd  80 e3 03                          and     bl,03H
+ 02d0  74 04                             je      L25
+ 02d2  88 d9                             mov     cl,bl
+ 02d4  f3 a4             L24             repe    movsb    
+ 02d6  1f                L25             pop     ds
+
+ }
+
+ 02d7  8b 5e 08                          mov     bx,[bp+8H]
+
+ audioBufferPtr->bufferBytes = audioBufferPtr->bufferBytes + bytes;
+
+ExitNow:
+
+ return bytes;
+ 02da  8b 46 fc                          mov     ax,[bp-4H]
+ 02dd  8b 57 1c                          mov     dx,[bx+1cH]
+ 02e0  8b 4f 1e                          mov     cx,[bx+1eH]
+ 02e3  01 c2                             add     dx,ax
+ 02e5  89 57 1c                          mov     [bx+1cH],dx
+ 02e8  8b 46 fe                          mov     ax,[bp-2H]
+ 02eb  11 c1                             adc     cx,ax
+ 02ed  89 4f 1e                          mov     [bx+1eH],cx
+
+}
+
+
+// ---------------------------
+// in: dataPtr -> data to read
+//     dataSize = bytes in buffer
+//     audioBufferPtr
+//out: bytes actually read from buffer
+//nts: (was called ReadBuffer())
+//     reads data from the audio buffer (it was recorded)
+//     This should be called by a stream that is doing a record -- this will only
+//     do the read based on the data returned by GetSpace/GetStartOffset
+//     BufferUpdate should be called before this routine
+
+ 02f0  8b 46 fc          L26             mov     ax,[bp-4H]
+ 02f3  8b 56 fe                          mov     dx,[bp-2H]
+ 02f6  89 ec                             mov     sp,bp
+ 02f8  5d                                pop     bp
+ 02f9  5f                                pop     di
+ 02fa  5e                                pop     si
+ 02fb  c2 02 00                          ret     0002H
+ 02fe  89 c0                             mov     ax,ax
+
+ULONG abRead(UCHAR __far *dataPtr, ULONG dataSize, AUDIOBUFFER *audioBufferPtr) {
+
+ 0300  56                abRead_         push    si
+ 0301  57                                push    di
+ 0302  55                                push    bp
+ 0303  89 e5                             mov     bp,sp
+ 0305  83 ec 14                          sub     sp,0014H
+ 0308  89 46 f8                          mov     [bp-8H],ax
+ 030b  89 56 fa                          mov     [bp-6H],dx
+ 030e  89 5e f2                          mov     [bp-0eH],bx
+ 0311  89 4e f6                          mov     [bp-0aH],cx
+
+ ULONG abSize = audioBufferPtr->bufferSize;
+ 0314  8b 7e 08                          mov     di,[bp+8H]
+ 0317  8b 76 08                          mov     si,[bp+8H]
+
+ ULONG startOffset = GetStartOffset(audioBufferPtr);
+ 031a  8b 5e 08                          mov     bx,[bp+8H]
+ 031d  8b 7d 10                          mov     di,[di+10H]
+ 0320  8b 74 12                          mov     si,[si+12H]
+ 0323  8b 47 1c                          mov     ax,[bx+1cH]
+ 0326  8b 57 1e                          mov     dx,[bx+1eH]
+ 0329  89 fb                             mov     bx,di
+ 032b  89 f1                             mov     cx,si
+ 032d  e8 00 00                          call    __U4D
+ 0330  89 c8                             mov     ax,cx
+ 0332  89 d9                             mov     cx,bx
+
+ ULONG bytes = min(dataSize, abSpace(audioBufferPtr));
+
+ 0334  8b 5e 08                          mov     bx,[bp+8H]
+ 0337  8b 17                             mov     dx,[bx]
+ 0339  89 46 f0                          mov     [bp-10H],ax
+ 033c  83 fa 01                          cmp     dx,0001H
+ 033f  75 29                             jne     L27
+ 0341  8b 47 1c                          mov     ax,[bx+1cH]
+ 0344  8b 57 18                          mov     dx,[bx+18H]
+ 0347  89 46 ec                          mov     [bp-14H],ax
+ 034a  8b 47 1e                          mov     ax,[bx+1eH]
+ 034d  29 56 ec                          sub     [bp-14H],dx
+ 0350  8b 5e 08                          mov     bx,[bp+8H]
+ 0353  8b 57 1a                          mov     dx,[bx+1aH]
+ 0356  8b 5e ec                          mov     bx,[bp-14H]
+ 0359  19 d0                             sbb     ax,dx
+ 035b  89 fa                             mov     dx,di
+ 035d  29 da                             sub     dx,bx
+ 035f  89 56 f4                          mov     [bp-0cH],dx
+ 0362  89 f2                             mov     dx,si
+ 0364  19 c2                             sbb     dx,ax
+ 0366  89 d0                             mov     ax,dx
+ 0368  eb 1b                             jmp     L28
+ 036a  8b 47 18          L27             mov     ax,[bx+18H]
+ 036d  8b 57 1c                          mov     dx,[bx+1cH]
+ 0370  89 46 ec                          mov     [bp-14H],ax
+ 0373  8b 47 1a                          mov     ax,[bx+1aH]
+ 0376  29 56 ec                          sub     [bp-14H],dx
+ 0379  8b 5e 08                          mov     bx,[bp+8H]
+ 037c  1b 47 1e                          sbb     ax,[bx+1eH]
+ 037f  8b 56 ec                          mov     dx,[bp-14H]
+ 0382  89 56 f4                          mov     [bp-0cH],dx
+ 0385  8b 56 f6          L28             mov     dx,[bp-0aH]
+ 0388  8b 5e f4                          mov     bx,[bp-0cH]
+ 038b  39 d0                             cmp     ax,dx
+ 038d  77 07                             ja      L29
+ 038f  75 0d                             jne     L30
+ 0391  3b 5e f2                          cmp     bx,[bp-0eH]
+ 0394  76 08                             jbe     L30
+ 0396  8b 56 f2          L29             mov     dx,[bp-0eH]
+ 0399  8b 46 f6                          mov     ax,[bp-0aH]
+ 039c  eb 0c                             jmp     L31
+ 039e  8b 46 08          L30             mov     ax,[bp+8H]
+ 03a1  e8 00 00                          call    abSpace_
+ 03a4  89 c3                             mov     bx,ax
+ 03a6  89 d0                             mov     ax,dx
+ 03a8  89 da                             mov     dx,bx
+ 03aa  89 56 fc          L31             mov     [bp-4H],dx
+ 03ad  89 46 fe                          mov     [bp-2H],ax
+
+ if (bytes >= abSize) bytes = abSize;  // max limit is physical buffer size
+ 03b0  39 f0                             cmp     ax,si
+ 03b2  77 06                             ja      L32
+ 03b4  75 0a                             jne     L33
+ 03b6  39 fa                             cmp     dx,di
+ 03b8  72 06                             jb      L33
+ 03ba  89 7e fc          L32             mov     [bp-4H],di
+ 03bd  89 76 fe                          mov     [bp-2H],si
+
+ bytes = bytes & ALIGN_FILL_CAPTURE;   // align now, after above
+ 03c0  8b 46 fc          L33             mov     ax,[bp-4H]
+ 03c3  30 c0                             xor     al,al
+ 03c5  80 e4 fc                          and     ah,0fcH
+ 03c8  89 46 fc                          mov     [bp-4H],ax
+
+ if (bytes == 0) goto ExitNow;         // shouldn't happen, unless abSpace() is 0, which it won't
+
+ 03cb  8b 46 fe                          mov     ax,[bp-2H]
+ 03ce  8b 56 fc                          mov     dx,[bp-4H]
+ 03d1  09 d0                             or      ax,dx
+ 03d3  0f 84 f0 00                       je      L45
+ 03d7  8b 5e fe                          mov     bx,[bp-2H]
+
+ if ((startOffset + bytes) > abSize) {
+
+    ULONG diff = abSize - startOffset;
+
+ 03da  01 ca                             add     dx,cx
+ 03dc  8b 46 f0                          mov     ax,[bp-10H]
+ 03df  11 d8                             adc     ax,bx
+ 03e1  39 f0                             cmp     ax,si
+ 03e3  77 06                             ja      L34
+ 03e5  75 78                             jne     L39
+ 03e7  39 fa                             cmp     dx,di
+ 03e9  76 74                             jbe     L39
+
+    MEMCPY(dataPtr, audioBufferPtr->bufferPtr+startOffset, diff);
+ 03eb  8b 76 08          L34             mov     si,[bp+8H]
+ 03ee  8b 5e 08                          mov     bx,[bp+8H]
+ 03f1  29 cf                             sub     di,cx
+ 03f3  89 7e ee                          mov     [bp-12H],di
+ 03f6  8b 74 04                          mov     si,[si+4H]
+ 03f9  8b 57 06                          mov     dx,[bx+6H]
+ 03fc  8e 46 fa                          mov     es,[bp-6H]
+ 03ff  01 ce                             add     si,cx
+ 0401  89 f9                             mov     cx,di
+ 0403  8b 7e f8                          mov     di,[bp-8H]
+ 0406  fc                                cld     
+ 0407  1e                                push    ds
+ 0408  8e da                             mov     ds,dx
+ 040a  85 c9                             test    cx,cx
+ 040c  74 2f                             je      L38
+ 040e  f7 c1 20 00                       test    cx,0020H
+ 0412  72 27                             jb      L37
+ 0414  f7 c7 03 00                       test    di,0003H
+ 0418  74 12                             je      L36
+ 041a  f7 c7 01 00                       test    di,0001H
+ 041e  74 08                             je      L35
+ 0420  a4                                movsb   
+ 0421  49                                dec     cx
+ 0422  f7 c7 02 00                       test    di,0002H
+ 0426  74 04                             je      L36
+ 0428  a5                L35             movsw   
+ 0429  83 e9 02                          sub     cx,0002H
+ 042c  88 cb             L36             mov     bl,cl
+ 042e  c1 e9 02                          shr     cx,02H
+ 0431  f3 66 a5                          repe    movsd    
+ 0434  80 e3 03                          and     bl,03H
+ 0437  74 04                             je      L38
+ 0439  88 d9                             mov     cl,bl
+ 043b  f3 a4             L37             repe    movsb    
+ 043d  1f                L38             pop     ds
+
+    MEMCPY(dataPtr+diff, audioBufferPtr->bufferPtr, bytes-diff);
+ }
+ 043e  8b 4e fc                          mov     cx,[bp-4H]
+ 0441  8b 76 ee                          mov     si,[bp-12H]
+ 0444  8b 5e 08                          mov     bx,[bp+8H]
+ 0447  8b 7e f8                          mov     di,[bp-8H]
+ 044a  8b 46 ee                          mov     ax,[bp-12H]
+ 044d  8b 57 06                          mov     dx,[bx+6H]
+ 0450  29 f1                             sub     cx,si
+ 0452  8b 76 08                          mov     si,[bp+8H]
+ 0455  01 c7                             add     di,ax
+ 0457  8b 74 04                          mov     si,[si+4H]
+ 045a  8e 46 fa                          mov     es,[bp-6H]
+
+ else {
+ 045d  eb 17                             jmp     L40
+
+    MEMCPY(dataPtr, audioBufferPtr->bufferPtr+startOffset, bytes);
+ 045f  8b 76 08          L39             mov     si,[bp+8H]
+ 0462  8b 5e 08                          mov     bx,[bp+8H]
+ 0465  8b 7e f8                          mov     di,[bp-8H]
+ 0468  8b 74 04                          mov     si,[si+4H]
+ 046b  8b 57 06                          mov     dx,[bx+6H]
+ 046e  8e 46 fa                          mov     es,[bp-6H]
+ 0471  01 ce                             add     si,cx
+ 0473  8b 4e fc                          mov     cx,[bp-4H]
+ 0476  fc                L40             cld     
+ 0477  1e                                push    ds
+ 0478  8e da                             mov     ds,dx
+ 047a  85 c9                             test    cx,cx
+ 047c  74 2f                             je      L44
+ 047e  f7 c1 20 00                       test    cx,0020H
+ 0482  72 27                             jb      L43
+ 0484  f7 c7 03 00                       test    di,0003H
+ 0488  74 12                             je      L42
+ 048a  f7 c7 01 00                       test    di,0001H
+ 048e  74 08                             je      L41
+ 0490  a4                                movsb   
+ 0491  49                                dec     cx
+ 0492  f7 c7 02 00                       test    di,0002H
+ 0496  74 04                             je      L42
+ 0498  a5                L41             movsw   
+ 0499  83 e9 02                          sub     cx,0002H
+ 049c  88 cb             L42             mov     bl,cl
+ 049e  c1 e9 02                          shr     cx,02H
+ 04a1  f3 66 a5                          repe    movsd    
+ 04a4  80 e3 03                          and     bl,03H
+ 04a7  74 04                             je      L44
+ 04a9  88 d9                             mov     cl,bl
+ 04ab  f3 a4             L43             repe    movsb    
+ 04ad  1f                L44             pop     ds
+
+ }
+
+ 04ae  8b 5e 08                          mov     bx,[bp+8H]
+
+ audioBufferPtr->bufferBytes = audioBufferPtr->bufferBytes + bytes;
+
+ExitNow:
+ return bytes;
+ 04b1  8b 46 fc                          mov     ax,[bp-4H]
+ 04b4  8b 57 1c                          mov     dx,[bx+1cH]
+ 04b7  8b 4f 1e                          mov     cx,[bx+1eH]
+ 04ba  01 c2                             add     dx,ax
+ 04bc  89 57 1c                          mov     [bx+1cH],dx
+ 04bf  8b 46 fe                          mov     ax,[bp-2H]
+ 04c2  11 c1                             adc     cx,ax
+ 04c4  89 4f 1e                          mov     [bx+1eH],cx
+
+}
+
+
+// -------------------------------------
+// in: fillWith = word to use as filler
+//     audioBufferPtr
+//out: n/a
+//nts: seems to be no case where filler is not byte-symetrical, nevertheless,
+//     MEMSET() will write full words to buffer so -could- send 7FFF as a 16-bit filler
+//     idea here is to fill buffer with silence data, for as much as there is room
+
+ 04c7  8b 46 fc          L45             mov     ax,[bp-4H]
+ 04ca  8b 56 fe                          mov     dx,[bp-2H]
+ 04cd  89 ec                             mov     sp,bp
+ 04cf  5d                                pop     bp
+ 04d0  5f                                pop     di
+ 04d1  5e                                pop     si
+ 04d2  c2 02 00                          ret     0002H
+ 04d5  89 c0                             mov     ax,ax
+ 04d7  fc                                cld     
+
+VOID abFill(USHORT fillWith, AUDIOBUFFER *audioBufferPtr) {
+
+ 04d8  53                abFill_         push    bx
+ 04d9  51                                push    cx
+ 04da  56                                push    si
+ 04db  57                                push    di
+ 04dc  55                                push    bp
+ 04dd  89 e5                             mov     bp,sp
+ 04df  83 ec 04                          sub     sp,0004H
+ 04e2  89 c7                             mov     di,ax
+ 04e4  89 d6                             mov     si,dx
+
+ ULONG bytes = abSpace(audioBufferPtr);
+ 04e6  83 3c 01                          cmp     word ptr [si],0001H
+ 04e9  75 12                             jne     L46
+ 04eb  8b 5c 1c                          mov     bx,[si+1cH]
+ 04ee  8b 44 18                          mov     ax,[si+18H]
+ 04f1  8b 54 10                          mov     dx,[si+10H]
+ 04f4  29 c3                             sub     bx,ax
+ 04f6  29 da                             sub     dx,bx
+ 04f8  89 56 fe                          mov     [bp-2H],dx
+ 04fb  eb 0b                             jmp     L47
+ 04fd  8b 5c 18          L46             mov     bx,[si+18H]
+ 0500  8b 4c 1c                          mov     cx,[si+1cH]
+ 0503  29 cb                             sub     bx,cx
+ 0505  89 5e fe                          mov     [bp-2H],bx
+ 0508  8b 56 fe          L47             mov     dx,[bp-2H]
+
+ ULONG startOffset = GetStartOffset(audioBufferPtr);
+
+ // if doing a capture the value returned by abSpace() is the data in the buffer ready to
+ // be copied out -- therefore, the amount to fill is that amount subtracted from the buffer size
+
+ 050b  8b 44 1c                          mov     ax,[si+1cH]
+ 050e  8b 5c 10                          mov     bx,[si+10H]
+ 0511  8b 4c 12                          mov     cx,[si+12H]
+ 0514  89 56 fc                          mov     [bp-4H],dx
+ 0517  8b 54 1e                          mov     dx,[si+1eH]
+ 051a  e8 00 00                          call    __U4D
+ 051d  89 da                             mov     dx,bx
+
+ if (audioBufferPtr->mode == AUDIOBUFFER_READ) bytes = audioBufferPtr->bufferSize - bytes;
+
+ 051f  83 3c 00                          cmp     word ptr [si],0000H
+ 0522  75 0b                             jne     L48
+ 0524  8b 4e fe                          mov     cx,[bp-2H]
+ 0527  8b 5c 10                          mov     bx,[si+10H]
+ 052a  29 cb                             sub     bx,cx
+ 052c  89 5e fc                          mov     [bp-4H],bx
+ 052f  8b 4e fc          L48             mov     cx,[bp-4H]
+
+ MEMSET(audioBufferPtr->bufferPtr+startOffset, fillWith, bytes);
+
+ return;
+ 0532  8b 5c 04                          mov     bx,[si+4H]
+ 0535  89 f8                             mov     ax,di
+ 0537  01 d3                             add     bx,dx
+ 0539  8b 74 06                          mov     si,[si+6H]
+ 053c  89 df                             mov     di,bx
+ 053e  8e c6                             mov     es,si
+ 0540  fc                                cld     
+ 0541  85 c9                             test    cx,cx
+ 0543  74 43                             je      L53
+ 0545  83 f9 20                          cmp     cx,0020H
+ 0548  72 37                             jb      L52
+ 054a  f7 c1 01 00                       test    cx,0001H
+ 054e  74 02                             je      L49
+ 0550  88 c4                             mov     ah,al
+ 0552  89 c3             L49             mov     bx,ax
+ 0554  66 c1 e0 10                       shl     eax,10H
+ 0558  89 d8                             mov     ax,bx
+ 055a  f7 c7 03 00                       test    di,0003H
+ 055e  74 12                             je      L51
+ 0560  f7 c7 01 00                       test    di,0001H
+ 0564  74 08                             je      L50
+ 0566  aa                                stosb   
+ 0567  49                                dec     cx
+ 0568  f7 c7 02 00                       test    di,0002H
+ 056c  74 04                             je      L51
+ 056e  ab                L50             stosw   
+ 056f  83 e9 02                          sub     cx,0002H
+ 0572  88 cb             L51             mov     bl,cl
+ 0574  c1 e9 02                          shr     cx,02H
+ 0577  f3 66 ab                          repe    stosd    
+ 057a  80 e3 03                          and     bl,03H
+ 057d  74 09                             je      L53
+ 057f  88 d9                             mov     cl,bl
+ 0581  d1 e9             L52             shr     cx,1
+ 0583  f3 ab                             repe    stosw    
+ 0585  73 01                             jae     L53
+ 0587  aa                                stosb   
+
+}
+
+
+// -------------------------------------
+// in: audioBufferPtr
+//out: n/a
+//nts: destructor
+//     free the GDT first?  probably doesn't matter
+
+ 0588  89 ec             L53             mov     sp,bp
+ 058a  5d                                pop     bp
+ 058b  5f                                pop     di
+ 058c  5e                                pop     si
+ 058d  59                                pop     cx
+ 058e  5b                                pop     bx
+ 058f  c3                                ret     
+
+VOID abDeinit(AUDIOBUFFER *audioBufferPtr) {
+
+ 0590  53                abDeinit_       push    bx
+ 0591  52                                push    dx
+ 0592  56                                push    si
+ 0593  89 c6                             mov     si,ax
+
+ DevHelp_FreePhys(audioBufferPtr->bufferPhysAddrRaw);
+ 0595  8b 44 08                          mov     ax,[si+8H]
+ 0598  8b 5c 0a                          mov     bx,[si+0aH]
+ 059b  93                                xchg    ax,bx
+ 059c  b2 19                             mov     dl,19H
+ 059e  ff 1e 00 00                       call    dword ptr _Device_Help
+ 05a2  b8 00 00                          mov     ax,0000H
+ 05a5  83 d8 00                          sbb     ax,0000H
+
+ DevHelp_FreeGDTSelector(audioBufferPtr->sel);
+
+ return;
+ 05a8  8b 44 02                          mov     ax,[si+2H]
+ 05ab  b2 53                             mov     dl,53H
+ 05ad  ff 1e 00 00                       call    dword ptr _Device_Help
+ 05b1  72 02                             jb      L54
+ 05b3  29 c0                             sub     ax,ax
+
+}
+
+
+#pragma code_seg ("_INITTEXT");
+#pragma data_seg ("_INITDATA","ENDDS");
+
+// -------------------------------------
+// in: bufferSize = size of DMA to allocate
+//     pageSize = size of page for hardware (DMA or PCI, so probably different if PCI?)
+//     dma channel = for this audio buffer
+//     audioBufferPtr
+//out: n/a
+//nts: constructor
+//     sets things up ... give her a feather she's a cheroke
+//     careful not to call this when really mean to call abReset()
+//     originally passed flags as arg, not dmaChannel
+
+ 05b5  5e                L54             pop     si
+ 05b6  5a                                pop     dx
+ 05b7  5b                                pop     bx
+ 05b8  c3                                ret     
+
+No disassembly errors
+
+List of external symbols
+
+Symbol
+----------------
+_Device_Help     000005af 000005a0 00000045 00000023
+__U4D            0000051b 0000032e 00000156 0000008e
+dmaQueryDelta_   0000010c
+abSpace_         000003a2 000001ca
+------------------------------------------------------------
+
+Segment: _DATA  PARA   00000004 bytes  
+ 0000  00 00 00 00             _Device_Help    - ....
+
+No disassembly errors
+
+------------------------------------------------------------
+
+Segment: _INITTEXT  PARA   00000187 bytes  
+
+USHORT abInit(ULONG bufferSize, ULONG pageSize, USHORT dmaChannel, AUDIOBUFFER *audioBufferPtr) {
+
+ USHORT rc = 0;
+ USHORT flags;
+ ULONG tBufferSize, tBufferStart, tBufferEnd;
+
+ 0000  56                abInit_         push    si
+ 0001  57                                push    di
+ 0002  55                                push    bp
+ 0003  89 e5                             mov     bp,sp
+ 0005  83 ec 06                          sub     sp,0006H
+ 0008  89 c6                             mov     si,ax
+ 000a  89 d7                             mov     di,dx
+ 000c  8b 46 08                          mov     ax,[bp+8H]
+
+ audioBufferPtr->bufferSize = bufferSize;    // initial use, can vary per stream (ab.bufferSize)
+
+ 000f  8b 5e 0a                          mov     bx,[bp+0aH]
+ 0012  89 77 10                          mov     [bx+10H],si
+ 0015  31 c9                             xor     cx,cx
+ 0017  89 57 12                          mov     [bx+12H],dx
+
+ switch(dmaChannel) {
+ case 0:
+ case 1:
+ case 3:
+ 001a  3d 03 00                          cmp     ax,0003H
+ 001d  72 13                             jb      L55
+ 001f  76 16                             jbe     L56
+ 0021  3d 05 00                          cmp     ax,0005H
+ 0024  72 4b                             jb      L59
+ 0026  3d 07 00                          cmp     ax,0007H
+ 0029  76 21                             jbe     L57
+ 002b  3d 63 00                          cmp     ax,0063H
+ 002e  74 33                             je      L58
+ 0030  eb 3f                             jmp     L59
+ 0032  3d 01 00          L55             cmp     ax,0001H
+ 0035  77 3a                             ja      L59
+
+    flags = AUDIOBUFFER_ISA_DMA8;
+ 0037  c7 46 fe 08 00    L56             mov     word ptr [bp-2H],0008H
+
+    tBufferSize = bufferSize + bufferSize;   // double size
+ 003c  89 f0                             mov     ax,si
+ 003e  01 f0                             add     ax,si
+ 0040  89 46 fa                          mov     [bp-6H],ax
+ 0043  89 f8                             mov     ax,di
+ 0045  11 f8                             adc     ax,di
+ 0047  89 46 fc                          mov     [bp-4H],ax
+
+    break;
+ case 5:
+ case 6:
+ case 7:
+    flags = AUDIOBUFFER_ISA_DMA16;
+ 004a  eb 28                             jmp     L60
+
+ 004c  89 f0             L57             mov     ax,si
+
+    tBufferSize = bufferSize + 0x20000;      // 128KB + requested size
+ 004e  bb 10 00                          mov     bx,0010H
+ 0051  01 c8                             add     ax,cx
+ 0053  89 46 fa                          mov     [bp-6H],ax
+ 0056  89 d0                             mov     ax,dx
+ 0058  15 02 00                          adc     ax,0002H
+ 005b  89 5e fe                          mov     [bp-2H],bx
+ 005e  89 46 fc                          mov     [bp-4H],ax
+
+    break;
+ case 99:
+ 0061  eb 11                             jmp     L60
+
+    flags = AUDIOBUFFER_DDMA;
+ 0063  ba 20 00          L58             mov     dx,0020H
+
+    tBufferSize = bufferSize;                // actual size
+ 0066  89 76 fa                          mov     [bp-6H],si
+ 0069  89 7e fc                          mov     [bp-4H],di
+ 006c  89 56 fe                          mov     [bp-2H],dx
+
+    break;
+ default:
+ 006f  eb 03                             jmp     L60
+
+    rc = 1;
+ }
+
+ 0071  b9 01 00          L59             mov     cx,0001H
+
+ if (rc == 0) {
+
+ 0074  85 c9             L60             test    cx,cx
+ 0076  0f 85 a1 00                       jne     L67
+
+    rc = AllocMem(tBufferSize, audioBufferPtr);
+
+ 007a  8b 5e 0a                          mov     bx,[bp+0aH]
+ 007d  8b 46 fa                          mov     ax,[bp-6H]
+ 0080  8b 56 fc                          mov     dx,[bp-4H]
+ 0083  e8 00 00                          call    AllocMem_
+ 0086  89 c1                             mov     cx,ax
+
+    if (rc == 0) {
+
+ 0088  85 c0                             test    ax,ax
+ 008a  0f 85 8d 00                       jne     L67
+
+       tBufferStart = audioBufferPtr->bufferPhysAddr;
+
+ 008e  8b 5e 0a                          mov     bx,[bp+0aH]
+ 0091  8b 57 0c                          mov     dx,[bx+0cH]
+ 0094  8b 4f 0e                          mov     cx,[bx+0eH]
+ 0097  89 d0                             mov     ax,dx
+
+       if (flags == AUDIOBUFFER_ISA_DMA8) { // check if fits wholly in 64K page
+          tBufferEnd = tBufferStart + bufferSize;
+ 0099  8b 5e fe                          mov     bx,[bp-2H]
+ 009c  01 f0                             add     ax,si
+ 009e  11 cf                             adc     di,cx
+ 00a0  83 fb 08                          cmp     bx,0008H
+ 00a3  75 17                             jne     L63
+
+          if ((tBufferEnd >> 16) != (tBufferStart >> 16)) tBufferStart = (tBufferEnd & 0xFFFF0000);
+ 00a5  31 c0                             xor     ax,ax
+ 00a7  75 04                             jne     L61
+ 00a9  39 cf                             cmp     di,cx
+ 00ab  74 04                             je      L62
+ 00ad  89 f9             L61             mov     cx,di
+ 00af  31 d2                             xor     dx,dx
+
+          audioBufferPtr->bufferPhysAddr = tBufferStart;
+       }
+ 00b1  8b 5e 0a          L62             mov     bx,[bp+0aH]
+ 00b4  89 57 0c                          mov     [bx+0cH],dx
+ 00b7  89 4f 0e                          mov     [bx+0eH],cx
+
+       else if (flags == AUDIOBUFFER_ISA_DMA16) { // force start on a 128K page
+ 00ba  eb 13                             jmp     L64
+ 00bc  83 fb 10          L63             cmp     bx,0010H
+ 00bf  75 0e                             jne     L64
+
+          audioBufferPtr->bufferPhysAddr = (audioBufferPtr->bufferPhysAddr + bufferSize) & 0xFFFE0000;
+       }
+       //else if (flags == AUDIOBUFFER_DDMA) {
+       //   audioBufferPtr->bufferPhysAddr already set okay
+       //}
+
+       // allocate  a GDT
+
+ 00c1  8b 5e 0a                          mov     bx,[bp+0aH]
+ 00c4  83 e7 fe                          and     di,0fffeH
+ 00c7  c7 47 0c 00 00                    mov     word ptr [bx+0cH],0000H
+ 00cc  89 7f 0e                          mov     [bx+0eH],di
+
+       rc = DevHelp_AllocGDTSelector(&audioBufferPtr->sel,1);
+
+ 00cf  8b 7e 0a          L64             mov     di,[bp+0aH]
+ 00d2  b9 01 00                          mov     cx,0001H
+ 00d5  8c d8                             mov     ax,ds
+ 00d7  83 c7 02                          add     di,0002H
+ 00da  8e c0                             mov     es,ax
+ 00dc  b2 2d                             mov     dl,2dH
+ 00de  ff 1e 00 00                       call    dword ptr _Device_Help
+ 00e2  72 02                             jb      L65
+ 00e4  29 c0                             sub     ax,ax
+ 00e6  89 c1             L65             mov     cx,ax
+
+       if (rc == 0) {
+
+          // map the physical memory to the GDT
+
+ 00e8  85 c0                             test    ax,ax
+ 00ea  75 2f                             jne     L67
+
+          rc = DevHelp_PhysToGDTSelector(audioBufferPtr->bufferPhysAddr,
+                                         (USHORT)audioBufferPtr->bufferSize,
+                                         audioBufferPtr->sel);
+
+ 00ec  8b 76 0a                          mov     si,[bp+0aH]
+ 00ef  8b 5e 0a                          mov     bx,[bp+0aH]
+ 00f2  8b 74 02                          mov     si,[si+2H]
+ 00f5  8b 4f 10                          mov     cx,[bx+10H]
+ 00f8  8b 47 0c                          mov     ax,[bx+0cH]
+ 00fb  8b 5f 0e                          mov     bx,[bx+0eH]
+ 00fe  93                                xchg    ax,bx
+ 00ff  b2 2e                             mov     dl,2eH
+ 0101  ff 1e 00 00                       call    dword ptr _Device_Help
+ 0105  72 02                             jb      L66
+ 0107  29 c0                             sub     ax,ax
+ 0109  89 c1             L66             mov     cx,ax
+
+          if (rc == 0) audioBufferPtr->bufferPtr = MAKEP(audioBufferPtr->sel,0);
+       }
+    }
+ }
+
+ 010b  85 c0                             test    ax,ax
+ 010d  75 0c                             jne     L67
+ 010f  8b 5e 0a                          mov     bx,[bp+0aH]
+ 0112  8b 47 02                          mov     ax,[bx+2H]
+ 0115  89 4f 04                          mov     [bx+4H],cx
+ 0118  89 47 06                          mov     [bx+6H],ax
+
+ if (rc) {
+ 011b  85 c9             L67             test    cx,cx
+ 011d  74 47                             je      L70
+
+    if (audioBufferPtr->bufferPhysAddrRaw) {
+ 011f  8b 5e 0a                          mov     bx,[bp+0aH]
+ 0122  8b 47 0a                          mov     ax,[bx+0aH]
+ 0125  8b 77 08                          mov     si,[bx+8H]
+ 0128  09 f0                             or      ax,si
+ 012a  74 1f                             je      L68
+
+       DevHelp_FreePhys(audioBufferPtr->bufferPhysAddrRaw);
+ 012c  89 f0                             mov     ax,si
+ 012e  8b 5f 0a                          mov     bx,[bx+0aH]
+ 0131  93                                xchg    ax,bx
+ 0132  b2 19                             mov     dl,19H
+ 0134  ff 1e 00 00                       call    dword ptr _Device_Help
+ 0138  b8 00 00                          mov     ax,0000H
+ 013b  83 d8 00                          sbb     ax,0000H
+
+       audioBufferPtr->bufferPhysAddrRaw = 0;
+    }
+ 013e  8b 5e 0a                          mov     bx,[bp+0aH]
+ 0141  c7 47 08 00 00                    mov     word ptr [bx+8H],0000H
+ 0146  c7 47 0a 00 00                    mov     word ptr [bx+0aH],0000H
+
+    if (audioBufferPtr->sel) {
+ 014b  8b 5e 0a          L68             mov     bx,[bp+0aH]
+ 014e  8b 7f 02                          mov     di,[bx+2H]
+ 0151  85 ff                             test    di,di
+ 0153  74 11                             je      L70
+
+       DevHelp_FreeGDTSelector(audioBufferPtr->sel);
+ 0155  89 f8                             mov     ax,di
+ 0157  b2 53                             mov     dl,53H
+ 0159  ff 1e 00 00                       call    dword ptr _Device_Help
+ 015d  72 02                             jb      L69
+ 015f  29 c0                             sub     ax,ax
+
+       audioBufferPtr->sel = 0;
+    }
+ }
+
+ 0161  c7 47 02 00 00    L69             mov     word ptr [bx+2H],0000H
+
+ audioBufferPtr->deviceBytes = 0; // should already be
+ 0166  8b 5e 0a          L70             mov     bx,[bp+0aH]
+ 0169  c7 47 18 00 00                    mov     word ptr [bx+18H],0000H
+ 016e  c7 47 1a 00 00                    mov     word ptr [bx+1aH],0000H
+
+ audioBufferPtr->bufferBytes = 0; // should already be
+
+ return rc;
+ pageSize;
+ 0173  c7 47 1c 00 00                    mov     word ptr [bx+1cH],0000H
+
+}
+
+
+ 0178  89 c8                             mov     ax,cx
+ 017a  c7 47 1e 00 00                    mov     word ptr [bx+1eH],0000H
+ 017f  89 ec                             mov     sp,bp
+ 0181  5d                                pop     bp
+ 0182  5f                                pop     di
+ 0183  5e                                pop     si
+ 0184  c2 04 00                          ret     0004H
+
+No disassembly errors
+
+List of external symbols
+
+Symbol
+----------------
+AllocMem_        00000084
+_Device_Help     0000015b 00000136 00000103 000000e0
+------------------------------------------------------------
+List of public symbols
+
+SYMBOL          GROUP           SEGMENT          ADDRESS
+---------------------------------------------------------
+_Device_Help    DGROUP          _DATA            00000000
+abBytes_                        _TEXT            000000f4
+abDeinit_                       _TEXT            00000590
+abFill_                         _TEXT            000004d8
+abInit_                         _INITTEXT        00000000
+abRead_                         _TEXT            00000300
+abReset_                        _TEXT            00000098
+abSpace_                        _TEXT            000000b4
+abUpdate_                       _TEXT            00000100
+abWrite_                        _TEXT            00000128
+AllocMem_                       _TEXT            00000000
+GetStartOffset_                 _TEXT            0000007c
+
+------------------------------------------------------------
+

@@ -1,0 +1,31 @@
+system os2 dll
+option quiet
+option verbose
+option caseexact
+option symfile=cs40.dbg
+debug codeview
+option cache
+option map=mapfile.
+option description 'CS40...'
+name cs40.sys
+file segsetup.obj
+file header.obj
+file strat.obj
+file audiobuf.obj
+file audiohw.obj
+file dma.obj
+file irq.obj
+file wavaudio.obj
+file wavestrm.obj
+file stream.obj
+file waveplay.obj
+file waverec.obj
+file ioctl.obj
+file ssm_idc.obj
+file chipset.obj
+file malloc.obj
+file myprintf.obj
+file init.obj
+import DOSIODELAYCNT DOSCALLS.427
+library d:\dev\ddk\base\lib\os2286.lib
+library d:\dev\ddk\base\lib\rmcalls.lib

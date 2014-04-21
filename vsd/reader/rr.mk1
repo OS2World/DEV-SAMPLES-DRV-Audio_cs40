@@ -1,0 +1,24 @@
+!define BLANK ""
+d:\dev\csrc\os2dd\vsd\reader\rr.obj : d:\dev\csrc\os2dd\vsd\reader\rr.c .AUT&
+ODEPEND
+ @d:
+ cd d:\dev\csrc\os2dd\vsd\reader
+ *wcc386 rr.c -w4 -e25 -s -zq -otexan -ol -om -oc -oi -oa -or -oe20 -d1 -mf &
+-5r -bt=os2
+
+d:\dev\csrc\os2dd\vsd\reader\rr.exe : d:\dev\csrc\os2dd\vsd\reader\rr.obj .A&
+UTODEPEND
+ @d:
+ cd d:\dev\csrc\os2dd\vsd\reader
+ @%write rr.lk1 NAME rr
+ @%append rr.lk1 FIL rr.obj
+ @%append rr.lk1 
+!ifneq BLANK ""
+ *wlib -q -n -b rr.imp 
+ @%append rr.lk1 LIBR rr.imp
+!endif
+ *wlink SYS os2v2 op m op st=16384 op c op maxe=25 op q op symf @rr.lk1
+!ifneq BLANK ""
+ rc  rr.exe
+!endif
+

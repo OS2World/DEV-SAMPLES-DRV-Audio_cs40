@@ -1,0 +1,1430 @@
+
+Module: D:\dev\csrc\os2dd\scd\chipset.c
+Group: 'DGROUP' CONST,CONST2,_DATA,_BSS
+
+Segment: _TEXT  PARA   000004d7 bytes  
+
+//
+// chipset.c
+// 4-Feb-99
+//
+// 27-Feb-99: to use type-F DMA:
+//            pin control reg (i10): DTM (bit2) set to 1
+//            also, use DEMAND mode for dma channel, rather than single mode
+//
+// UCHAR  chipsetGET(USHORT type, USHORT reg);
+// VOID   chipsetSet(USHORT type, USHORT reg, UCHAR data);
+// VOID   chipsetMCE(USHORT mode);
+// USHORT chipsetSetDTM(USHORT dtm);
+// USHORT chipsetInit(USHORT bp, USHORT cp, USHORT mode, USHORT make);
+// USHORT chipsetIntPending(USHORT type);
+// USHORT chipsetIntReset(USHORT type);
+// UCHAR  chipsetWaitInit(VOID);
+// UCHAR  chipsetWaitACI(VOID);
+
+#include "cs40.h"
+
+// global data
+
+USHORT gIRQ          = 99;       // -i:5
+USHORT gBasePort     = 99;       // -bp:534
+USHORT gCtrlPort     = 99;       // -cp:390
+USHORT gMode         = 2;        // -xm:2
+USHORT gDevice       = 99;       // -dev:3       0=CS 3=OPL3SA3
+USHORT gDMAplay      = 99;       // -dp:1
+USHORT gDMAplaySize  = 0x8000;   // -dps:8000    DMA buffer size (max is 60KB)
+USHORT gDMAplayIPB   = 2;        // -dpi:2       ints per buffer -- power of 2 (2,4,8,16,32)
+USHORT gDMAplayMode  = 1;        // -dpm:1       1=typeF DMA, else not
+USHORT gDMArec       = 99;       // -dr:0        can be same -dp: (then is not full duplex)
+USHORT gDMArecSize   = 0x8000;   // -drs:8000    DMA buffer size (max is 60KB)
+USHORT gDMArecIPB    = 2;        // -dri:2       ints per buffer -- power of 2 (2,4,8,16,32)
+USHORT gDMArecMode   = 1;        // -drm:1       1=typeF DMA, else not
+USHORT gCLflags      = 0;        // various      -v bit0=1, ...
+
+// local protos
+
+static UCHAR iGET(USHORT reg);
+static VOID  iSet(USHORT reg, UCHAR data);
+static UCHAR xGET(USHORT reg);
+static VOID  xSet(USHORT reg, UCHAR data);
+static UCHAR ciGET(USHORT reg);
+static VOID  ciSet(USHORT reg, UCHAR data);
+
+// local data
+
+//static UCHAR  chipMake = 0;     // 0=CS, 0x100=Yamaha, 0x101=3DXG
+//static UCHAR  chipVer = 0;      // 715,4231; 4232(4236non-B); 4235,4236,4237,4238,4239
+//static USHORT chipMode = 0;     // 2 or 3
+
+static USHORT basePort = 0;     // codec base (WSS base+4, though WSS used only in old WSS lingo)
+static USHORT dataPort = 0;     // data (basePort+1)
+static USHORT statusPort = 0;   // status (basePort+2)
+
+static USHORT controlPort= 0;   // control port
+static USHORT cindexPort = 0;   // control index port
+static USHORT cdataPort = 0;    // control data port
+
+
+// ---------------------
+// in: index reg to read
+//out: data at reg
+//nts: get index-indirect reg
+//     compiler is typically more efficent when using dataPort instead of basePort+1
+
+static UCHAR iGET(USHORT reg) {
+
+ UCHAR data;
+ UCHAR mt;              // MCE and TRD bits
+
+ 0000  51                iGET_           push    cx
+ 0001  52                                push    dx
+ 0002  89 c1                             mov     cx,ax
+
+ _cli_();
+ 0004  9c                                pushf   
+ 0005  fa                                cli     
+
+ mt = inp(basePort) & 0x60;
+ 0006  8b 16 00 00                       mov     dx,_basePort
+ 000a  ec                                in      al,dx
+ 000b  24 60                             and     al,60H
+
+ outp(basePort,mt|reg);
+ 000d  08 c8                             or      al,cl
+ 000f  ee                                out     dx,al
+
+ data = inp(dataPort);
+ 0010  8b 16 00 00                       mov     dx,_dataPort
+ 0014  ec                                in      al,dx
+
+ _sti_();
+
+ return data;
+ 0015  9d                                popf    
+
+}
+
+
+// ----------------------
+// in: index reg to write
+//     data to write
+//out: n/a
+//nts: set index-indirect reg
+
+ 0016  5a                                pop     dx
+ 0017  59                                pop     cx
+ 0018  c3                                ret     
+ 0019  89 c0                             mov     ax,ax
+ 001b  fc                                cld     
+
+static VOID iSet(USHORT reg, UCHAR data) {
+
+ UCHAR mt;              // MCE and TRD bits
+
+ 001c  51                iSet_           push    cx
+ 001d  89 c1                             mov     cx,ax
+ 001f  88 d4                             mov     ah,dl
+
+ _cli_();
+ 0021  9c                                pushf   
+ 0022  fa                                cli     
+
+ mt = inp(basePort) & 0x60;
+ 0023  8b 16 00 00                       mov     dx,_basePort
+ 0027  ec                                in      al,dx
+ 0028  24 60                             and     al,60H
+
+ outp(basePort,mt|reg);
+ 002a  08 c8                             or      al,cl
+ 002c  ee                                out     dx,al
+
+ outp(dataPort,data);
+ 002d  8b 16 00 00                       mov     dx,_dataPort
+ 0031  88 e0                             mov     al,ah
+ 0033  ee                                out     dx,al
+
+ _sti_();
+
+ return;
+ 0034  9d                                popf    
+
+}
+
+
+// -----------------------
+// in: x-index reg to read
+//out: data at reg
+//nts: get extended reg
+//     requires mode3
+//     ; d7   d6   d5   d4   d3    d2  d1  d0
+//     ;XA3  XA2  XA1  XA0  XRAE  XA4 rez  ACF
+//     ACF is not in 4235/9 anymore (for ADPCM capture freeze)
+
+// 28-Sep-99:  pretty sure something's wrong, but since don't use mode-3 just yet, no biggie
+
+ 0035  59                                pop     cx
+ 0036  c3                                ret     
+ 0037  fc                                cld     
+
+static UCHAR xGET(USHORT reg) {
+
+ USHORT tReg;
+ UCHAR data;
+ UCHAR mt;              // MCE and TRD bits
+
+ tReg = (reg >> 2) & 4; // XA4 to d2 (only want d2 bit)
+ reg = reg << 4;        // XA3-0 to d7-4 (d3-0 cleared by this)
+ reg = reg|0x10|tReg;   // set XRAE, and merge d7-d4,d2
+
+ 0038  53                xGET_           push    bx
+ 0039  52                                push    dx
+ 003a  89 c3                             mov     bx,ax
+
+ _cli_();
+ 003c  9c                                pushf   
+ 003d  fa                                cli     
+ 003e  c1 e8 02                          shr     ax,02H
+ 0041  c1 e3 04                          shl     bx,04H
+ 0044  30 e4                             xor     ah,ah
+ 0046  80 cb 10                          or      bl,10H
+ 0049  24 04                             and     al,04H
+
+ mt = inp(basePort) & 0x60;
+ 004b  8b 16 00 00                       mov     dx,_basePort
+ 004f  09 c3                             or      bx,ax
+ 0051  ec                                in      al,dx
+ 0052  24 60                             and     al,60H
+
+ outp(basePort,mt|23);  // select I23, extended reg access (and ACF bit) (R1 is now x-addr reg)
+ 0054  0c 17                             or      al,17H
+ 0056  ee                                out     dx,al
+
+ data = inp(dataPort);  // read first to get ACF
+ 0057  8b 16 00 00                       mov     dx,_dataPort
+ 005b  ec                                in      al,dx
+
+ reg = reg|(data & 1);  // x-reg address data
+ 005c  24 01                             and     al,01H
+ 005e  09 c3                             or      bx,ax
+
+ outp(dataPort,reg);    // after this write, R1 is now x-data reg
+ 0060  88 d8                             mov     al,bl
+ 0062  ee                                out     dx,al
+
+ data = inp(dataPort);  // read data of x-reg
+ 0063  ec                                in      al,dx
+
+ _sti_();
+
+ return data;
+ 0064  9d                                popf    
+
+}
+
+
+// ------------------------
+// in: x-index reg to write
+//     data to write
+//out: n/a
+//nts: set extended reg
+//     requires mode3
+//     ; d7   d6   d5   d4   d3    d2  d1  d0
+//     ;XA3  XA2  XA1  XA0  XRAE  XA4 rez  ACF
+
+ 0065  5a                                pop     dx
+ 0066  5b                                pop     bx
+ 0067  c3                                ret     
+
+static VOID xSet(USHORT reg, UCHAR data) {
+
+ USHORT tReg;
+ UCHAR tData;
+ UCHAR mt;              // MCE and TRD bits
+
+ 0068  53                xSet_           push    bx
+ 0069  51                                push    cx
+ 006a  89 c3                             mov     bx,ax
+ 006c  88 d4                             mov     ah,dl
+
+ tReg = (reg >> 2) & 4; // XA4 to d2 (only want d2 bit)
+ 006e  89 da                             mov     dx,bx
+ 0070  c1 ea 02                          shr     dx,02H
+
+ reg = reg << 4;        // XA3-0 to d7-4 (d3-0 cleared by this)
+ 0073  c1 e3 04                          shl     bx,04H
+ 0076  30 f6                             xor     dh,dh
+
+ reg = reg|0x10|tReg;   // set XRAE, and merge d7-d4,d2
+
+ 0078  80 cb 10                          or      bl,10H
+ 007b  80 e2 04                          and     dl,04H
+
+ _cli_();
+ 007e  9c                                pushf   
+ 007f  fa                                cli     
+ 0080  09 d3                             or      bx,dx
+
+ mt = inp(basePort) & 0x60;
+ 0082  8b 16 00 00                       mov     dx,_basePort
+ 0086  ec                                in      al,dx
+ 0087  24 60                             and     al,60H
+
+ outp(basePort,mt|23);  // select I23, extended reg access (and ACF bit) (R1 is now x-addr reg)
+ 0089  0c 17                             or      al,17H
+ 008b  ee                                out     dx,al
+
+ tData = inp(dataPort); // read first to get ACF
+ 008c  8b 0e 00 00                       mov     cx,_dataPort
+ 0090  89 ca                             mov     dx,cx
+ 0092  ec                                in      al,dx
+
+ reg = reg|(tData & 1); // x-reg address data
+ 0093  88 c2                             mov     dl,al
+ 0095  80 e2 01                          and     dl,01H
+ 0098  30 ee                             xor     dh,ch
+ 009a  09 d3                             or      bx,dx
+
+ outp(dataPort,reg);    // after this write, R1 is now x-data reg
+ 009c  88 d8                             mov     al,bl
+ 009e  89 ca                             mov     dx,cx
+ 00a0  ee                                out     dx,al
+
+ outp(dataPort,data);   // write data to x-reg
+ 00a1  88 e0                             mov     al,ah
+ 00a3  ee                                out     dx,al
+
+ _sti_();
+
+ return;
+ 00a4  9d                                popf    
+
+}
+
+
+// -----------------------------
+// in: control index reg to read
+//out: data at reg
+//nts: get index-indirect control reg
+
+ 00a5  59                                pop     cx
+ 00a6  5b                                pop     bx
+ 00a7  c3                                ret     
+
+static UCHAR ciGET(USHORT reg) {
+
+ UCHAR data;
+
+ 00a8  52                ciGET_          push    dx
+
+ _cli_();
+ 00a9  9c                                pushf   
+ 00aa  fa                                cli     
+
+ outp(cindexPort,reg);
+ 00ab  8b 16 00 00                       mov     dx,_cindexPort
+ 00af  ee                                out     dx,al
+
+ data = inp(cdataPort);
+ 00b0  8b 16 00 00                       mov     dx,_cdataPort
+ 00b4  ec                                in      al,dx
+
+ _sti_();
+
+ return data;
+ 00b5  9d                                popf    
+
+}
+
+
+// ------------------------------
+// in: control index reg to write
+//out: n/a
+//nts: set index-indirect control reg
+
+ 00b6  5a                                pop     dx
+ 00b7  c3                                ret     
+
+static VOID ciSet(USHORT reg, UCHAR data) {
+
+ 00b8  53                ciSet_          push    bx
+ 00b9  88 d3                             mov     bl,dl
+
+ _cli_();
+ 00bb  9c                                pushf   
+ 00bc  fa                                cli     
+
+ outp(cindexPort,reg);
+ 00bd  8b 16 00 00                       mov     dx,_cindexPort
+ 00c1  ee                                out     dx,al
+
+ outp(cdataPort, data);
+ 00c2  8b 16 00 00                       mov     dx,_cdataPort
+ 00c6  88 d8                             mov     al,bl
+ 00c8  ee                                out     dx,al
+
+ _sti_();
+
+ return;
+ 00c9  9d                                popf    
+
+}
+
+
+// -------------------------------------------------------------------------------
+// in: type ='i' for index
+//           'x' for extended
+//           'c' for index-control
+//           'C' for direct control
+//           'd' for direct (not usually used)
+//     reg to read
+//out: reg data
+//nts: for 's' use chipsetStatus(READ_STATUS)
+//     'C' (direct control access) is not used by 715
+
+ 00ca  5b                                pop     bx
+ 00cb  c3                                ret     
+
+UCHAR chipsetGET(USHORT type, USHORT reg) {
+
+ 00cc  53                chipsetGET_     push    bx
+ 00cd  51                                push    cx
+ 00ce  89 c3                             mov     bx,ax
+
+ UCHAR data = 0xFF;
+
+ 00d0  b0 ff                             mov     al,0ffH
+
+ if (type == 'i') {
+ 00d2  83 fb 69                          cmp     bx,0069H
+ 00d5  75 17                             jne     L1
+ 00d7  9c                                pushf   
+ 00d8  fa                                cli     
+
+    data = iGET(reg);
+ }
+ 00d9  89 d1                             mov     cx,dx
+ 00db  8b 16 00 00                       mov     dx,_basePort
+ 00df  ec                                in      al,dx
+ 00e0  24 60                             and     al,60H
+ 00e2  08 c8                             or      al,cl
+ 00e4  ee                                out     dx,al
+ 00e5  8b 16 00 00                       mov     dx,_dataPort
+ 00e9  ec                                in      al,dx
+ 00ea  9d                                popf    
+
+ else if (type == 'x') {
+ 00eb  59                                pop     cx
+ 00ec  5b                                pop     bx
+ 00ed  c3                                ret     
+ 00ee  83 fb 78          L1              cmp     bx,0078H
+ 00f1  75 08                             jne     L2
+
+    data = xGET(reg);
+ }
+ 00f3  89 d0                             mov     ax,dx
+ 00f5  e8 00 00                          call    xGET_
+ 00f8  59                                pop     cx
+ 00f9  5b                                pop     bx
+ 00fa  c3                                ret     
+
+ else if (type == 'c') {
+ 00fb  83 fb 63          L2              cmp     bx,0063H
+ 00fe  75 14                             jne     L3
+
+    data = ciGET(reg);
+ }
+ 0100  9c                                pushf   
+ 0101  fa                                cli     
+ 0102  8b 1e 00 00                       mov     bx,_cindexPort
+ 0106  88 d0                             mov     al,dl
+ 0108  89 da                             mov     dx,bx
+ 010a  ee                                out     dx,al
+ 010b  8b 16 00 00                       mov     dx,_cdataPort
+ 010f  ec                                in      al,dx
+ 0110  9d                                popf    
+ 0111  59                                pop     cx
+ 0112  5b                                pop     bx
+ 0113  c3                                ret     
+
+ else if (type == 'C') {
+ 0114  83 fb 43          L3              cmp     bx,0043H
+ 0117  75 06                             jne     L4
+
+    data = inp(controlPort+reg);
+ }
+ 0119  03 16 00 00                       add     dx,_controlPort
+
+ else if (type == 'd') {
+ 011d  eb 09                             jmp     L5
+ 011f  83 fb 64          L4              cmp     bx,0064H
+ 0122  75 05                             jne     L6
+
+    data = inp(basePort+reg);  // typically not used (specific chipsetGETInit() used instead)
+ }
+
+ return data;
+ 0124  03 16 00 00                       add     dx,_basePort
+ 0128  ec                L5              in      al,dx
+
+}
+
+
+// -------------------------------------------------------------------------------
+// in: type ='i' for index
+//           'x' for extended
+//           'c' for index-control
+//           'C' for direct control
+//           'd' for direct (not usually used)
+//     reg to write
+//     data to write
+//out: n/a
+//nts: for 's' use chipsetStatus(RESET_STATUS)
+//     'C' (direct control access) is not used by 715
+
+ 0129  59                L6              pop     cx
+ 012a  5b                                pop     bx
+ 012b  c3                                ret     
+
+VOID chipsetSet(USHORT type, USHORT reg, UCHAR data) {
+
+ 012c  51                chipsetSet_     push    cx
+ 012d  55                                push    bp
+ 012e  89 e5                             mov     bp,sp
+ 0130  83 ec 02                          sub     sp,0002H
+ 0133  89 c1                             mov     cx,ax
+ 0135  89 d0                             mov     ax,dx
+
+ if (type == 'i') {
+ 0137  83 f9 69                          cmp     cx,0069H
+ 013a  75 1a                             jne     L7
+ 013c  9c                                pushf   
+ 013d  fa                                cli     
+
+    iSet(reg,data);
+ }
+ 013e  89 56 fe                          mov     [bp-2H],dx
+ 0141  8b 16 00 00                       mov     dx,_basePort
+ 0145  ec                                in      al,dx
+ 0146  24 60                             and     al,60H
+ 0148  0a 46 fe                          or      al,[bp-2H]
+ 014b  ee                                out     dx,al
+ 014c  8b 16 00 00                       mov     dx,_dataPort
+ 0150  88 d8                             mov     al,bl
+ 0152  ee                                out     dx,al
+ 0153  9d                                popf    
+
+ else if (type == 'x') {
+ 0154  eb 43                             jmp     L12
+ 0156  83 f9 78          L7              cmp     cx,0078H
+ 0159  75 0c                             jne     L8
+
+    xSet(reg,data);
+ }
+ 015b  88 da                             mov     dl,bl
+ 015d  30 f6                             xor     dh,dh
+ 015f  e8 00 00                          call    xSet_
+ 0162  89 ec                             mov     sp,bp
+ 0164  5d                                pop     bp
+ 0165  59                                pop     cx
+ 0166  c3                                ret     
+
+ else if (type == 'c') {
+ 0167  83 f9 63          L8              cmp     cx,0063H
+ 016a  75 14                             jne     L9
+
+    ciSet(reg,data);
+ }
+ 016c  9c                                pushf   
+ 016d  fa                                cli     
+ 016e  8b 16 00 00                       mov     dx,_cindexPort
+ 0172  ee                                out     dx,al
+ 0173  8b 16 00 00                       mov     dx,_cdataPort
+ 0177  88 d8                             mov     al,bl
+ 0179  ee                                out     dx,al
+ 017a  9d                                popf    
+ 017b  89 ec                             mov     sp,bp
+ 017d  5d                                pop     bp
+ 017e  59                                pop     cx
+ 017f  c3                                ret     
+
+ else if (type == 'C') {
+ 0180  83 f9 43          L9              cmp     cx,0043H
+ 0183  75 06                             jne     L10
+
+    outp(controlPort+reg,data);
+ }
+ 0185  8b 16 00 00                       mov     dx,_controlPort
+
+ else if (type == 'd') {
+ 0189  eb 09                             jmp     L11
+ 018b  83 f9 64          L10             cmp     cx,0064H
+ 018e  75 09                             jne     L12
+
+    outp(basePort+reg,data);    // typically not used
+ }
+
+ return;
+ 0190  8b 16 00 00                       mov     dx,_basePort
+ 0194  01 c2             L11             add     dx,ax
+ 0196  88 d8                             mov     al,bl
+ 0198  ee                                out     dx,al
+
+}
+
+
+// -------------------------------------
+// in: state to set dtm (1=DTM, 0=no DTM)
+//out: previous state (1 or 0)
+//nts:
+
+ 0199  89 ec             L12             mov     sp,bp
+ 019b  5d                                pop     bp
+ 019c  59                                pop     cx
+ 019d  c3                                ret     
+ 019e  89 c0                             mov     ax,ax
+
+USHORT chipsetSetDTM(USHORT dtmFlag) {
+
+ USHORT lastState;
+ UCHAR data;
+
+ 01a0  53                chipsetSetDTM_  push    bx
+ 01a1  51                                push    cx
+ 01a2  52                                push    dx
+ 01a3  89 c3                             mov     bx,ax
+
+ data = (chipsetGET('i', PIN_CONTROL_REG));
+ 01a5  ba 0a 00                          mov     dx,000aH
+ 01a8  b8 69 00                          mov     ax,0069H
+ 01ab  e8 00 00                          call    chipsetGET_
+
+ lastState = (data & 4) != 0;
+
+ 01ae  88 c2                             mov     dl,al
+ 01b0  80 e2 04                          and     dl,04H
+ 01b3  30 f6                             xor     dh,dh
+ 01b5  85 d2                             test    dx,dx
+ 01b7  0f 95 c2                          setne   dl
+ 01ba  89 d1                             mov     cx,dx
+
+ if (lastState != dtmFlag) {
+ 01bc  39 da                             cmp     dx,bx
+ 01be  74 15                             je      L14
+
+    data = data & ~4;
+ 01c0  24 fb                             and     al,0fbH
+
+    if (dtmFlag) data = data | 4;
+ 01c2  85 db                             test    bx,bx
+ 01c4  74 02                             je      L13
+ 01c6  0c 04                             or      al,04H
+ 01c8  ba 0a 00          L13             mov     dx,000aH
+
+    chipsetSet('i', PIN_CONTROL_REG, data);
+ }
+
+ return lastState;
+ 01cb  88 c3                             mov     bl,al
+ 01cd  b8 69 00                          mov     ax,0069H
+ 01d0  30 ff                             xor     bh,bh
+ 01d2  e8 00 00                          call    chipsetSet_
+
+}
+
+
+// -------------------------------------
+// in: globals
+//out:
+//nts:
+
+ 01d5  89 c8             L14             mov     ax,cx
+ 01d7  5a                                pop     dx
+ 01d8  59                                pop     cx
+ 01d9  5b                                pop     bx
+ 01da  c3                                ret     
+ 01db  fc                                cld     
+
+USHORT chipsetInit(VOID) {
+
+ USHORT rc = 0;
+ UCHAR data;
+
+ 01dc  53                chipsetInit_    push    bx
+ 01dd  51                                push    cx
+ 01de  52                                push    dx
+ 01df  56                                push    si
+
+ basePort   = gBasePort;
+ 01e0  a1 00 00                          mov     ax,_gBasePort
+
+ dataPort   = basePort+1;
+ statusPort = basePort+2;
+ controlPort= gCtrlPort;
+
+ 01e3  89 c6                             mov     si,ax
+ 01e5  46                                inc     si
+
+ if (gDevice == 3) {            // 715
+    cindexPort = controlPort;
+ 01e6  8b 16 00 00                       mov     dx,_gDevice
+ 01ea  89 36 00 00                       mov     _dataPort,si
+ 01ee  89 c6                             mov     si,ax
+ 01f0  a3 00 00                          mov     _basePort,ax
+ 01f3  83 c6 02                          add     si,0002H
+ 01f6  a1 00 00                          mov     ax,_gCtrlPort
+ 01f9  89 36 00 00                       mov     _statusPort,si
+ 01fd  a3 00 00                          mov     _controlPort,ax
+ 0200  83 fa 03                          cmp     dx,0003H
+ 0203  75 08                             jne     L15
+
+ 0205  89 c6                             mov     si,ax
+ 0207  46                                inc     si
+
+    cdataPort = controlPort+1;
+ }
+ 0208  a3 00 00                          mov     _cindexPort,ax
+
+ else  {                        // CS
+ 020b  eb 0e                             jmp     L16
+
+    cindexPort = controlPort+3;
+ 020d  89 c6             L15             mov     si,ax
+ 020f  83 c6 03                          add     si,0003H
+ 0212  89 36 00 00                       mov     _cindexPort,si
+
+    cdataPort = controlPort+4;
+ }
+
+ 0216  89 c6                             mov     si,ax
+ 0218  83 c6 04                          add     si,0004H
+ 021b  89 36 00 00       L16             mov     _cdataPort,si
+
+ rc = chipsetWaitInit();
+ 021f  e8 00 00                          call    chipsetWaitInit_
+ 0222  30 e4                             xor     ah,ah
+ 0224  89 c6                             mov     si,ax
+
+ if (rc) {
+ 0226  85 c0                             test    ax,ax
+ 0228  74 17                             je      L17
+
+if (gCLflags & FLAGS_CL_DDPRINT) ddprintf("1:chipsetWaitInit()=%u\n",rc);
+    goto ExitNow;
+ }
+
+ 022a  f6 06 01 00 40                    test    byte ptr _gCLflags+1H,40H
+ 022f  0f 84 6b 01                       je      L21
+ 0233  50                                push    ax
+ 0234  1e                                push    ds
+ 0235  68 00 00                          push    offset L41
+ 0238  e8 00 00                          call    _ddprintf
+ 023b  83 c4 06                          add     sp,0006H
+ 023e  e9 5d 01                          jmp     L21
+
+ chipsetSet('i', MODE_AND_ID_REG, 0x40);        // set mode 2
+
+ 0241  bb 40 00          L17             mov     bx,0040H
+ 0244  ba 0c 00                          mov     dx,000cH
+ 0247  b8 69 00                          mov     ax,0069H
+ 024a  e8 00 00                          call    chipsetSet_
+
+ data = chipsetGET('i',INTERFACE_CONFIG_REG);
+ 024d  ba 09 00                          mov     dx,0009H
+ 0250  b8 69 00                          mov     ax,0069H
+ 0253  e8 00 00                          call    chipsetGET_
+
+ data = data & 0xDC;                            // disable PEN/CEN
+
+ 0256  24 dc                             and     al,0dcH
+
+ if (gCLflags & FLAGS_CL_SETACAL) data = data | 8; // yam has this set it seems (29-Sep-99)
+
+ 0258  f6 06 00 00 04                    test    byte ptr _gCLflags,04H
+ 025d  74 02                             je      L18
+ 025f  0c 08                             or      al,08H
+
+ chipsetSet('i', INTERFACE_CONFIG_REG, data);
+
+ 0261  30 e4             L18             xor     ah,ah
+ 0263  ba 09 00                          mov     dx,0009H
+ 0266  89 c3                             mov     bx,ax
+ 0268  b8 69 00                          mov     ax,0069H
+ 026b  e8 00 00                          call    chipsetSet_
+
+ chipsetSet('i', LEFT_OUTPUT_CONTROL, 0x8F);    // output mute and down
+ 026e  bb 8f 00                          mov     bx,008fH
+ 0271  ba 1b 00                          mov     dx,001bH
+ 0274  b8 69 00                          mov     ax,0069H
+ 0277  e8 00 00                          call    chipsetSet_
+
+ chipsetSet('i', RIGHT_OUTPUT_CONTROL, 0x8F);
+
+ 027a  bb 8f 00                          mov     bx,008fH
+ 027d  ba 1d 00                          mov     dx,001dH
+ 0280  b8 69 00                          mov     ax,0069H
+ 0283  e8 00 00                          call    chipsetSet_
+
+ chipsetSet('i', MONO_IO_CONTROL, 0xCF);        // mom mute and down
+ 0286  bb cf 00                          mov     bx,00cfH
+ 0289  ba 1a 00                          mov     dx,001aH
+ 028c  b8 69 00                          mov     ax,0069H
+ 028f  e8 00 00                          call    chipsetSet_
+
+ chipsetSet('i', LOOPBACK_CONTROL_REG, 0xFC);   // monitor mute and down
+
+ 0292  bb fc 00                          mov     bx,00fcH
+ 0295  ba 0d 00                          mov     dx,000dH
+ 0298  b8 69 00                          mov     ax,0069H
+ 029b  e8 00 00                          call    chipsetSet_
+
+ chipsetSet('i', LEFT_DAC_OUTPUT_CONTROL, 0xBF); // DAC output mute and down
+ 029e  bb bf 00                          mov     bx,00bfH
+ 02a1  ba 06 00                          mov     dx,0006H
+ 02a4  b8 69 00                          mov     ax,0069H
+ 02a7  e8 00 00                          call    chipsetSet_
+
+ chipsetSet('i', RIGHT_DAC_OUTPUT_CONTROL, 0xBF);
+
+ 02aa  bb bf 00                          mov     bx,00bfH
+ 02ad  ba 07 00                          mov     dx,0007H
+ 02b0  b8 69 00                          mov     ax,0069H
+ 02b3  e8 00 00                          call    chipsetSet_
+
+ chipsetMCE(1);
+
+ // full calibration uses bits 4/3, available in 4232+ (incl.4235/9)
+ // difference between full and just convertor (4231, and org source) is
+ // the analog mixer is not calibrated -- see the benefits of each calibration
+ // mode type in the docs (CS4232, p.53 talks about why might want to use no calibration)
+ // note that a full calibration is always done at power-up, and this is the init code...
+
+ 02b6  8b 16 00 00                       mov     dx,_basePort
+ 02ba  ec                                in      al,dx
+ 02bb  0c 40                             or      al,40H
+ 02bd  ee                                out     dx,al
+
+ data = chipsetGET('i', INTERFACE_CONFIG_REG) | 0x18; // full calibration
+ 02be  ba 09 00                          mov     dx,0009H
+ 02c1  b8 69 00                          mov     ax,0069H
+ 02c4  e8 00 00                          call    chipsetGET_
+ 02c7  0c 18                             or      al,18H
+
+ chipsetSet('i', INTERFACE_CONFIG_REG, data);
+
+ 02c9  30 e4                             xor     ah,ah
+ 02cb  ba 09 00                          mov     dx,0009H
+ 02ce  89 c3                             mov     bx,ax
+ 02d0  b8 69 00                          mov     ax,0069H
+ 02d3  e8 00 00                          call    chipsetSet_
+
+ chipsetMCE(0);
+
+ 02d6  8b 16 00 00                       mov     dx,_basePort
+ 02da  ec                                in      al,dx
+ 02db  24 bf                             and     al,0bfH
+ 02dd  ee                                out     dx,al
+
+ rc = chipsetWaitInit();                // yes, have to wait on INIT bit after calibrate (by spec)
+ 02de  e8 00 00                          call    chipsetWaitInit_
+ 02e1  30 e4                             xor     ah,ah
+ 02e3  89 c6                             mov     si,ax
+
+ if (rc) {
+ 02e5  85 c0                             test    ax,ax
+ 02e7  74 1b                             je      L19
+
+if (gCLflags & FLAGS_CL_DDPRINT) ddprintf("2:chipsetWaitInit()=%u\n",rc);
+    goto ExitNow;
+ }
+
+ 02e9  f6 06 01 00 40                    test    byte ptr _gCLflags+1H,40H
+ 02ee  0f 84 ac 00                       je      L21
+ 02f2  50                                push    ax
+ 02f3  1e                                push    ds
+ 02f4  68 18 00                          push    offset L42
+ 02f7  e8 00 00                          call    _ddprintf
+ 02fa  83 c4 06                          add     sp,0006H
+ 02fd  89 f0                             mov     ax,si
+ 02ff  5e                                pop     si
+ 0300  5a                                pop     dx
+ 0301  59                                pop     cx
+ 0302  5b                                pop     bx
+ 0303  c3                                ret     
+
+ rc = chipsetWaitACI();
+ 0304  e8 00 00          L19             call    chipsetWaitACI_
+ 0307  30 e4                             xor     ah,ah
+ 0309  89 c6                             mov     si,ax
+
+ if (rc) {
+ 030b  85 c0                             test    ax,ax
+ 030d  74 1b                             je      L20
+
+if (gCLflags & FLAGS_CL_DDPRINT) ddprintf("chipsetWaitACI()=%u\n",rc);
+    goto ExitNow;
+ 030f  f6 06 01 00 40                    test    byte ptr _gCLflags+1H,40H
+ 0314  0f 84 86 00                       je      L21
+ 0318  50                                push    ax
+ 0319  1e                                push    ds
+ 031a  68 30 00                          push    offset L43
+ 031d  e8 00 00                          call    _ddprintf
+ 0320  83 c4 06                          add     sp,0006H
+ 0323  89 f0                             mov     ax,si
+ 0325  5e                                pop     si
+ 0326  5a                                pop     dx
+ 0327  59                                pop     cx
+ 0328  5b                                pop     bx
+ 0329  c3                                ret     
+
+ }
+
+ // playback/capture mode change enables off (PMCE/CMCE, not for 4231 but yes 715),
+ // also timer feature disable
+
+ 032a  ba 10 00          L20             mov     dx,0010H
+ 032d  b8 69 00                          mov     ax,0069H
+
+ chipsetSet('i', ALT_FEATURE_ENABLE_1, 0);      
+
+ // mute and down inputs to 0 dB gain
+
+ 0330  31 db                             xor     bx,bx
+ 0332  e8 00 00                          call    chipsetSet_
+
+ chipsetSet('i', LEFT_AUX1_INPUT_CONTROL,  0x88);
+ 0335  bb 88 00                          mov     bx,0088H
+ 0338  ba 02 00                          mov     dx,0002H
+ 033b  b8 69 00                          mov     ax,0069H
+ 033e  e8 00 00                          call    chipsetSet_
+
+ chipsetSet('i', RIGHT_AUX1_INPUT_CONTROL, 0x88);
+ 0341  bb 88 00                          mov     bx,0088H
+ 0344  ba 03 00                          mov     dx,0003H
+ 0347  b8 69 00                          mov     ax,0069H
+ 034a  e8 00 00                          call    chipsetSet_
+
+ chipsetSet('i', LEFT_AUX2_INPUT_CONTROL,  0x88);
+ 034d  bb 88 00                          mov     bx,0088H
+ 0350  ba 04 00                          mov     dx,0004H
+ 0353  b8 69 00                          mov     ax,0069H
+ 0356  e8 00 00                          call    chipsetSet_
+
+ chipsetSet('i', RIGHT_AUX2_INPUT_CONTROL, 0x88);
+ 0359  bb 88 00                          mov     bx,0088H
+ 035c  ba 05 00                          mov     dx,0005H
+ 035f  b8 69 00                          mov     ax,0069H
+ 0362  e8 00 00                          call    chipsetSet_
+
+ chipsetSet('i', LEFT_LINE_INPUT_CONTROL,  0x88);
+ 0365  bb 88 00                          mov     bx,0088H
+ 0368  ba 12 00                          mov     dx,0012H
+ 036b  b8 69 00                          mov     ax,0069H
+ 036e  e8 00 00                          call    chipsetSet_
+
+ chipsetSet('i', RIGHT_LINE_INPUT_CONTROL, 0x88);
+
+ // tropez code did the monitor and DAC output controls AGAIN... I don't
+
+ 0371  bb 88 00                          mov     bx,0088H
+ 0374  ba 13 00                          mov     dx,0013H
+ 0377  b8 69 00                          mov     ax,0069H
+ 037a  e8 00 00                          call    chipsetSet_
+
+ outp(statusPort,0);    // clear all int flags before enabling interrupt pin (done next)
+
+ // enable interrupts (better not get spurious ints since handler won't own IRQ until start)
+
+ 037d  8b 16 00 00                       mov     dx,_statusPort
+ 0381  30 c0                             xor     al,al
+ 0383  ee                                out     dx,al
+
+ data = 2 | (chipsetGET('i', PIN_CONTROL_REG) & ~3);
+
+ 0384  ba 0a 00                          mov     dx,000aH
+ 0387  b8 69 00                          mov     ax,0069H
+ 038a  e8 00 00                          call    chipsetGET_
+ 038d  24 fc                             and     al,0fcH
+ 038f  0c 02                             or      al,02H
+
+ chipsetSet('i', PIN_CONTROL_REG, data);
+
+ExitNow:
+ return rc;
+ 0391  30 e4                             xor     ah,ah
+ 0393  ba 0a 00                          mov     dx,000aH
+ 0396  89 c3                             mov     bx,ax
+ 0398  b8 69 00                          mov     ax,0069H
+ 039b  e8 00 00                          call    chipsetSet_
+
+}
+
+
+// -------------------------------------
+// in: INT type to check
+//out: 0=not pending, 1=pending
+//nts:
+
+ 039e  89 f0             L21             mov     ax,si
+ 03a0  5e                                pop     si
+ 03a1  5a                                pop     dx
+ 03a2  59                                pop     cx
+ 03a3  5b                                pop     bx
+ 03a4  c3                                ret     
+ 03a5  89 c0                             mov     ax,ax
+ 03a7  fc                                cld     
+
+USHORT chipsetIntPending(USHORT type) {
+
+ 03a8                    chipsetIntPending_:
+ 03a8  53                                push    bx
+ 03a9  52                                push    dx
+ 03aa  89 c3                             mov     bx,ax
+
+ UCHAR data = chipsetGET('i',ALT_FEATURE_STATUS);
+
+ 03ac  ba 18 00                          mov     dx,0018H
+ 03af  b8 69 00                          mov     ax,0069H
+ 03b2  e8 00 00                          call    chipsetGET_
+
+ switch(type) {
+ case AUDIOHW_WAVE_PLAY:
+ 03b5  83 fb 11                          cmp     bx,0011H
+ 03b8  72 11                             jb      L22
+ 03ba  76 16                             jbe     L23
+ 03bc  81 fb 80 00                       cmp     bx,0080H
+ 03c0  72 20                             jb      L27
+ 03c2  76 16                             jbe     L25
+ 03c4  83 fb ff                          cmp     bx,0ffffH
+ 03c7  74 15                             je      L26
+ 03c9  eb 17                             jmp     L27
+ 03cb  83 fb 10          L22             cmp     bx,0010H
+ 03ce  74 06                             je      L24
+ 03d0  eb 10                             jmp     L27
+
+    data = data & PLAY_INTERRUPT;
+ 03d2  24 10             L23             and     al,10H
+
+    break;
+ case AUDIOHW_WAVE_CAPTURE:
+ 03d4  eb 0e                             jmp     L28
+
+    data = data & CAPTURE_INTERRUPT;
+ 03d6  24 20             L24             and     al,20H
+
+    break;
+ case AUDIOHW_TIMER:
+ 03d8  eb 0a                             jmp     L28
+
+    data = data & TIMER_INTERRUPT;
+ 03da  24 40             L25             and     al,40H
+
+    break;
+ case -1:
+ 03dc  eb 06                             jmp     L28
+
+    data = data & ALL_INTERRUPTS;
+ 03de  24 70             L26             and     al,70H
+
+    break;
+ default:
+ 03e0  eb 02                             jmp     L28
+
+    data = 0;
+ }
+
+ 03e2  30 c0             L27             xor     al,al
+
+ return (data != 0);
+ 03e4  0f 95 c3          L28             setne   bl
+ 03e7  30 ff                             xor     bh,bh
+ 03e9  89 d8                             mov     ax,bx
+
+}
+
+
+// -------------------------------------
+// in: INT type to clear
+//out: n/a
+//nts:
+
+ 03eb  5a                                pop     dx
+ 03ec  5b                                pop     bx
+ 03ed  c3                                ret     
+ 03ee  89 c0                             mov     ax,ax
+
+VOID chipsetIntReset(USHORT type) {
+
+ 03f0                    chipsetIntReset_:
+ 03f0  53                                push    bx
+ 03f1  52                                push    dx
+
+ UCHAR data = 0;
+
+ 03f2  30 d2                             xor     dl,dl
+
+ switch(type) {
+ case AUDIOHW_WAVE_PLAY:
+ 03f4  3d 11 00                          cmp     ax,0011H
+ 03f7  72 09                             jb      L29
+ 03f9  76 0e                             jbe     L30
+ 03fb  3d 80 00                          cmp     ax,0080H
+ 03fe  74 11                             je      L32
+ 0400  eb 11                             jmp     L33
+ 0402  3d 10 00          L29             cmp     ax,0010H
+ 0405  74 06                             je      L31
+ 0407  eb 0a                             jmp     L33
+
+    data = CLEAR_PI;
+ 0409  b2 6f             L30             mov     dl,6fH
+
+    break;
+ case AUDIOHW_WAVE_CAPTURE:
+ 040b  eb 06                             jmp     L33
+
+    data = CLEAR_CI;
+ 040d  b2 5f             L31             mov     dl,5fH
+
+    break;
+ case AUDIOHW_TIMER:
+ 040f  eb 02                             jmp     L33
+
+    data = CLEAR_TI;
+    break;
+ }
+
+ 0411  b2 3f             L32             mov     dl,3fH
+
+ if (data) chipsetSet('i',ALT_FEATURE_STATUS,data);
+
+ return;
+ 0413  84 d2             L33             test    dl,dl
+ 0415  74 0f                             je      L34
+ 0417  88 d0                             mov     al,dl
+ 0419  30 e4                             xor     ah,ah
+ 041b  ba 18 00                          mov     dx,0018H
+ 041e  89 c3                             mov     bx,ax
+ 0420  b8 69 00                          mov     ax,0069H
+ 0423  e8 00 00                          call    chipsetSet_
+
+}
+
+
+// -------------------------------------
+// in: n/a
+//out: 0=okay, else timeout error
+//nts: wait for INIT bit to clear
+//     tropez code first looked/waited for INIT bit to go from 0 -> 1, which seems pointless
+//     and not well supported for doing it, so I don't (it also read it once more before returning)
+//
+//     had this timeout at first use once (twice actually) but went away after power cycle
+//     may have been a messed up config since it was during initial testing (which I'm still
+//     doing -- 7-Feb-99 00:51 -- maybe the DMA isn't running, will be checking right after this)
+//
+//     above (timeout) was likely related to the fact tat I was using dataPort instead of basePort!
+//     ... still checking out no sound problem (might be this?)
+
+ 0426  5a                L34             pop     dx
+ 0427  5b                                pop     bx
+ 0428  c3                                ret     
+ 0429  89 c0                             mov     ax,ax
+ 042b  fc                                cld     
+
+UCHAR chipsetWaitInit(VOID) {
+
+ USHORT cnt = 0;
+ 042c                    chipsetWaitInit_:
+ 042c  53                                push    bx
+ 042d  51                                push    cx
+ 042e  52                                push    dx
+ 042f  56                                push    si
+ 0430  8b 36 00 00                       mov     si,_basePort
+
+ 0434  89 f2                             mov     dx,si
+ 0436  ec                                in      al,dx
+
+ UCHAR  data = inp(basePort);
+
+ 0437  31 db                             xor     bx,bx
+
+ while (data & 0x80) {
+ 0439  88 c2             L35             mov     dl,al
+ 043b  80 e2 80                          and     dl,80H
+ 043e  30 f6                             xor     dh,dh
+ 0440  85 d2                             test    dx,dx
+ 0442  74 13                             je      L36
+
+    iodelay(WAIT_1US);
+ 0444  b9 02 00                          mov     cx,0002H
+
+    data = inp(basePort);
+ 0447  89 f2                             mov     dx,si
+ 0449  e8 00 00                          call    iodelay_
+ 044c  ec                                in      al,dx
+
+    cnt++;
+ 044d  43                                inc     bx
+
+    if (cnt == 65535) break;  // 65.5 millseconds is way too long, timeout
+ }
+
+ 044e  31 f2                             xor     dx,si
+ 0450  75 e7                             jne     L35
+ 0452  83 fb ff                          cmp     bx,0ffffH
+ 0455  75 e2                             jne     L35
+
+ return (data & 0x80); // just return bit7
+ 0457  24 80             L36             and     al,80H
+
+}
+
+
+// -------------------------------------
+// in: n/a
+//out: 0=okay, else timeout error
+//nts: wait for ACI bit to clear (auto-calibration)
+//     full calibration can take 450 sample periods:
+//     - at 44.1kHz that's 450/44100=10.2 milliseconds (4235+ always run internally at 44.1kHz)
+//     - at  5.5kHz that's 450/5512 =81.6 milliseconds
+//     since quite long, using WAIT_1MS (1 ms) wait rather than lots of WAIT_1US (1 us)
+
+ 0459  89 36 00 00                       mov     _basePort,si
+ 045d  5e                                pop     si
+ 045e  5a                                pop     dx
+ 045f  59                                pop     cx
+ 0460  5b                                pop     bx
+ 0461  c3                                ret     
+ 0462  89 c0                             mov     ax,ax
+
+UCHAR chipsetWaitACI(VOID) {
+
+ USHORT cnt = 0;
+ 0464  53                chipsetWaitACI_ push    bx
+ 0465  51                                push    cx
+ 0466  52                                push    dx
+ 0467  56                                push    si
+ 0468  57                                push    di
+ 0469  8b 3e 00 00                       mov     di,_dataPort
+ 046d  9c                                pushf   
+ 046e  fa                                cli     
+ 046f  8b 16 00 00                       mov     dx,_basePort
+
+ 0473  b9 0b 00                          mov     cx,000bH
+ 0476  ec                                in      al,dx
+ 0477  24 60                             and     al,60H
+ 0479  08 c8                             or      al,cl
+ 047b  ee                                out     dx,al
+ 047c  89 fa                             mov     dx,di
+
+ UCHAR  data = iGET(ERROR_STATUS_INIT_REG);  // i11
+
+ 047e  31 f6                             xor     si,si
+ 0480  ec                                in      al,dx
+ 0481  9d                                popf    
+
+ while (data & ACI_BIT) {
+ 0482  88 c3             L37             mov     bl,al
+ 0484  80 e3 20                          and     bl,20H
+ 0487  30 ff                             xor     bh,bh
+ 0489  85 db                             test    bx,bx
+ 048b  74 20                             je      L38
+
+    iodelay(WAIT_1MS);
+ 048d  b9 d0 07                          mov     cx,07d0H
+ 0490  e8 00 00                          call    iodelay_
+ 0493  9c                                pushf   
+ 0494  fa                                cli     
+ 0495  8b 16 00 00                       mov     dx,_basePort
+
+    data = iGET(ERROR_STATUS_INIT_REG);
+ 0499  b9 0b 00                          mov     cx,000bH
+ 049c  ec                                in      al,dx
+ 049d  24 60                             and     al,60H
+ 049f  08 c8                             or      al,cl
+ 04a1  ee                                out     dx,al
+ 04a2  89 fa                             mov     dx,di
+
+    cnt++;
+ 04a4  46                                inc     si
+ 04a5  ec                                in      al,dx
+ 04a6  9d                                popf    
+
+    if (cnt > 162) break;  // 81.64 milliseconds is longest is should ever be, timeout if longer
+ }                         // using double since WAIT_1MS is 2000 loops, which may be off a bit
+
+ 04a7  81 fe a2 00                       cmp     si,00a2H
+ 04ab  76 d5                             jbe     L37
+
+ return (data & ACI_BIT);  // just return bit5
+ 04ad  24 20             L38             and     al,20H
+
+}
+
+
+// -------------------------------------
+// in: mode 0=off, else on
+//out:
+//nts:
+
+ 04af  89 3e 00 00                       mov     _dataPort,di
+ 04b3  5f                                pop     di
+ 04b4  5e                                pop     si
+ 04b5  5a                                pop     dx
+ 04b6  59                                pop     cx
+ 04b7  5b                                pop     bx
+ 04b8  c3                                ret     
+ 04b9  89 c0                             mov     ax,ax
+ 04bb  fc                                cld     
+
+VOID chipsetMCE(USHORT mode) {
+
+ UCHAR data;
+
+ 04bc  53                chipsetMCE_     push    bx
+ 04bd  52                                push    dx
+ 04be  89 c3                             mov     bx,ax
+
+ data = inp(basePort);
+ 04c0  8b 16 00 00                       mov     dx,_basePort
+ 04c4  ec                                in      al,dx
+
+ if (mode) {
+ 04c5  85 db                             test    bx,bx
+ 04c7  74 04                             je      L39
+
+    data = data | MCE_ON;
+ }
+ 04c9  0c 40                             or      al,40H
+
+ else {
+ 04cb  eb 02                             jmp     L40
+
+    data = data & MCE_OFF;
+ }
+ 04cd  24 bf             L39             and     al,0bfH
+
+ outp(basePort, data);
+
+ return;
+ 04cf  8b 16 00 00       L40             mov     dx,_basePort
+ 04d3  ee                                out     dx,al
+
+}
+
+ 04d4  5a                                pop     dx
+ 04d5  5b                                pop     bx
+ 04d6  c3                                ret     
+
+No disassembly errors
+
+List of external symbols
+
+Symbol
+----------------
+_basePort        000004d1 000004c2 00000497 00000471 0000045b 00000432 000002d8 000002b8 000001f1 00000192
+                 00000143 00000126 000000dd 00000084 0000004d 00000025 00000008
+_dataPort        000004b1 0000046b 000001ec 0000014e 000000e7 0000008e 00000059 0000002f 00000012
+_cindexPort      00000214 00000209 00000170 00000104 000000bf 000000ad
+_cdataPort       0000021d 00000175 0000010d 000000c4 000000b2
+xGET_            000000f6
+_controlPort     000001fe 00000187 0000011b
+xSet_            00000160
+chipsetGET_      000003b3 0000038b 000002c5 00000254 000001ac
+chipsetSet_      00000424 0000039c 0000037b 0000036f 00000363 00000357 0000034b 0000033f 00000333 000002d4
+                 000002b4 000002a8 0000029c 00000290 00000284 00000278 0000026c 0000024b 000001d3
+_gBasePort       000001e1
+_gDevice         000001e8
+_gCtrlPort       000001f7
+_statusPort      0000037f 000001fb
+chipsetWaitInit_ 
+                 000002df 00000220
+_gCLflags        00000311 000002eb 0000025a 0000022c
+_ddprintf        0000031e 000002f8 00000239
+chipsetWaitACI_  00000305
+iodelay_         00000491 0000044a
+------------------------------------------------------------
+
+Segment: CONST  WORD   00000045 bytes  
+ 0000  31 3a 63 68 69 70 73 65 L41             - 1:chipse
+ 0008  74 57 61 69 74 49 6e 69                 - tWaitIni
+ 0010  74 28 29 3d 25 75 0a 00                 - t()=%u..
+ 0018  32 3a 63 68 69 70 73 65 L42             - 2:chipse
+ 0020  74 57 61 69 74 49 6e 69                 - tWaitIni
+ 0028  74 28 29 3d 25 75 0a 00                 - t()=%u..
+ 0030  63 68 69 70 73 65 74 57 L43             - chipsetW
+ 0038  61 69 74 41 43 49 28 29                 - aitACI()
+ 0040  3d 25 75 0a 00                          - =%u..
+
+No disassembly errors
+
+------------------------------------------------------------
+
+Segment: _DATA  WORD   00000028 bytes  
+ 0000  63 00                   _gIRQ           - c.
+ 0002  63 00                   _gBasePort      - c.
+ 0004  63 00                   _gCtrlPort      - c.
+ 0006  02 00                   _gMode          - ..
+ 0008  63 00                   _gDevice        - c.
+ 000a  63 00                   _gDMAplay       - c.
+ 000c  00 80                   _gDMAplaySize   - ..
+ 000e  02 00                   _gDMAplayIPB    - ..
+ 0010  01 00                   _gDMAplayMode   - ..
+ 0012  63 00                   _gDMArec        - c.
+ 0014  00 80                   _gDMArecSize    - ..
+ 0016  02 00                   _gDMArecIPB     - ..
+ 0018  01 00                   _gDMArecMode    - ..
+ 001a  00 00                   _gCLflags       - ..
+ 001c  00 00                   _basePort       - ..
+ 001e  00 00                   _dataPort       - ..
+ 0020  00 00                   _statusPort     - ..
+ 0022  00 00                   _controlPort    - ..
+ 0024  00 00                   _cindexPort     - ..
+ 0026  00 00                   _cdataPort      - ..
+
+No disassembly errors
+
+------------------------------------------------------------
+List of public symbols
+
+SYMBOL          GROUP           SEGMENT          ADDRESS
+---------------------------------------------------------
+_basePort       DGROUP          _DATA            0000001c
+_cdataPort      DGROUP          _DATA            00000026
+_cindexPort     DGROUP          _DATA            00000024
+_controlPort    DGROUP          _DATA            00000022
+_dataPort       DGROUP          _DATA            0000001e
+_gBasePort      DGROUP          _DATA            00000002
+_gCLflags       DGROUP          _DATA            0000001a
+_gCtrlPort      DGROUP          _DATA            00000004
+_gDevice        DGROUP          _DATA            00000008
+_gDMAplay       DGROUP          _DATA            0000000a
+_gDMAplayIPB    DGROUP          _DATA            0000000e
+_gDMAplayMode   DGROUP          _DATA            00000010
+_gDMAplaySize   DGROUP          _DATA            0000000c
+_gDMArec        DGROUP          _DATA            00000012
+_gDMArecIPB     DGROUP          _DATA            00000016
+_gDMArecMode    DGROUP          _DATA            00000018
+_gDMArecSize    DGROUP          _DATA            00000014
+_gIRQ           DGROUP          _DATA            00000000
+_gMode          DGROUP          _DATA            00000006
+_statusPort     DGROUP          _DATA            00000020
+chipsetGET_                     _TEXT            000000cc
+chipsetInit_                    _TEXT            000001dc
+chipsetIntPending_ 
+                                _TEXT            000003a8
+chipsetIntReset_ 
+                                _TEXT            000003f0
+chipsetMCE_                     _TEXT            000004bc
+chipsetSet_                     _TEXT            0000012c
+chipsetSetDTM_                  _TEXT            000001a0
+chipsetWaitACI_                 _TEXT            00000464
+chipsetWaitInit_ 
+                                _TEXT            0000042c
+ciGET_                          _TEXT            000000a8
+ciSet_                          _TEXT            000000b8
+iGET_                           _TEXT            00000000
+iSet_                           _TEXT            0000001c
+xGET_                           _TEXT            00000038
+xSet_                           _TEXT            00000068
+
+------------------------------------------------------------
+

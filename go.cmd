@@ -1,0 +1,2 @@
+del *.err
+wmake

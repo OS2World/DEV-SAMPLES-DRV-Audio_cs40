@@ -1,0 +1,595 @@
+
+Module: D:\dev\csrc\os2dd\scd\ssm_idc.c
+Group: 'DGROUP' CONST,CONST2,_DATA,_BSS
+
+Segment: _TEXT  PARA   000002c0 bytes  
+ 0000  93 00             L1              DW      L4
+ 0002  ee 00                             DW      L7
+ 0004  2f 01                             DW      L9
+ 0006  65 01                             DW      L10
+ 0008  95 01                             DW      L11
+ 000a  4e 02                             DW      L20
+ 000c  84 02                             DW      L23
+ 000e  c0 01             L2              DW      L12
+ 0010  cd 01                             DW      L13
+ 0012  ef 01                             DW      L14
+ 0014  11 02                             DW      L15
+ 0016  1e 02                             DW      L16
+ 0018  1e 02                             DW      L16
+ 001a  29 02                             DW      L17
+ 001c  38 02                             DW      L18
+ 001e  89 c0                             mov     ax,ax
+
+//
+// ssm_idc.c
+// 3-Feb-99
+//
+// ULONG __far __loadds __cdecl idcDDCMD(DDCMDCOMMON __far *commonPtr);
+
+#include "cs40.h"
+
+ULONG __far __loadds __cdecl idcDDCMD(DDCMDCOMMON __far *commonPtr) {
+
+ 0020  1e                _idcDDCMD       push    ds
+ 0021  b8 00 00                          mov     ax,seg L28
+ 0024  8e d8                             mov     ds,ax
+ 0026  56                                push    si
+ 0027  57                                push    di
+ 0028  55                                push    bp
+ 0029  89 e5                             mov     bp,sp
+ 002b  83 ec 0e                          sub     sp,000eH
+ 002e  8b 76 0c                          mov     si,[bp+0cH]
+
+ ULONG rc = NO_ERROR;
+ USHORT function;
+ STREAM *streamPtr;
+
+//static USHORT cnt=0;
+
+ 0031  31 ff                             xor     di,di
+
+ if (commonPtr == 0) {
+#ifdef TRACE_IDC_DDCMD
+ 0033  8b 5e 0e                          mov     bx,[bp+0eH]
+ 0036  89 7e fe                          mov     [bp-2H],di
+ 0039  85 db                             test    bx,bx
+ 003b  75 17                             jne     L3
+ 003d  85 f6                             test    si,si
+ 003f  75 13                             jne     L3
+
+    tracePerf(TRACE_IDC_DDCMD_IN, 0xA5A5); // can't get function since commonPtr = 0
+#endif
+ 0041  bb a5 a5                          mov     bx,0a5a5H
+ 0044  b8 44 00                          mov     ax,0044H
+ 0047  31 c9                             xor     cx,cx
+ 0049  e8 00 00                          call    tracePerf_
+
+    return(ERROR_INVALID_BLOCK);
+ }
+
+ 004c  b8 09 00                          mov     ax,0009H
+ 004f  31 d2                             xor     dx,dx
+ 0051  e9 65 02                          jmp     L27
+
+ function = commonPtr->ulFunction;
+ 0054  8e c3             L3              mov     es,bx
+ 0056  26 8b 04                          mov     ax,es:[si]
+ 0059  26 8b 54 06                       mov     dx,es:[si+6H]
+ 005d  89 46 fa                          mov     [bp-6H],ax
+
+ streamPtr = streamFindStreamHandle(commonPtr->hStream);
+
+//cnt++;
+//ddprintf("idcDDCMD, cnt=%u, func=%u, streamPtr=%x \n",cnt,function, streamPtr);
+
+
+#ifdef TRACE_IDC_DDCMD
+ 0060  26 8b 44 04                       mov     ax,es:[si+4H]
+ 0064  e8 00 00                          call    streamFindStreamHandle_
+ 0067  89 46 fc                          mov     [bp-4H],ax
+ 006a  89 46 f6                          mov     [bp-0aH],ax
+
+ tracePerf(TRACE_IDC_DDCMD_IN, ((ULONG)function << 16) | _IF());  // high-word is function is USHORT, 0-6
+#endif
+
+ 006d  9c                                pushf   
+ 006e  58                                pop     ax
+ 006f  25 00 02                          and     ax,0200H
+ 0072  99                                cwd     
+ 0073  8b 4e fa                          mov     cx,[bp-6H]
+ 0076  89 c3                             mov     bx,ax
+ 0078  09 d1                             or      cx,dx
+ 007a  b8 44 00                          mov     ax,0044H
+ 007d  e8 00 00                          call    tracePerf_
+
+ switch(function) {
+ case DDCMD_SETUP:      // 0
+
+ 0080  8b 4e fa                          mov     cx,[bp-6H]
+ 0083  83 f9 06                          cmp     cx,0006H
+ 0086  0f 87 0f 02                       ja      L24
+ 008a  89 cb                             mov     bx,cx
+ 008c  01 cb                             add     bx,cx
+ 008e  2e ff a7 00 00                    jmp     word ptr cs:[bx+L1]
+
+    if (streamPtr) {
+
+ 0093  83 7e f6 00       L4              cmp     word ptr [bp-0aH],0000H
+ 0097  74 4f                             je      L6
+
+       DDCMDSETUP __far *setupPtr = (DDCMDSETUP __far *)commonPtr;
+ 0099  89 76 f2                          mov     [bp-0eH],si
+ 009c  8b 46 0e                          mov     ax,[bp+0eH]
+ 009f  8b 5e f2                          mov     bx,[bp-0eH]
+
+       SETUP_PARM __far *setupParmPtr = setupPtr->pSetupParm;
+
+       // here, yes, setupParmPtr is passed in, and am to set timeBase to its ulStreamTime value
+
+ 00a2  8e c0                             mov     es,ax
+ 00a4  89 46 f4                          mov     [bp-0cH],ax
+ 00a7  26 8b 47 0a                       mov     ax,es:[bx+0aH]
+
+       wavestreamSetCurrentTime(setupParmPtr->ulStreamTime, streamPtr->wsParentPtr);
+
+       // if flags' field (based on size) then indicate to mmpm that recurring events
+       // are supported...only they're not just yet
+
+ 00ab  8b 5e f6                          mov     bx,[bp-0aH]
+ 00ae  26 8b 74 08                       mov     si,es:[si+8H]
+ 00b2  8b 5f 24                          mov     bx,[bx+24H]
+ 00b5  8e c0                             mov     es,ax
+ 00b7  89 46 f8                          mov     [bp-8H],ax
+ 00ba  26 8b 04                          mov     ax,es:[si]
+ 00bd  26 8b 54 02                       mov     dx,es:[si+2H]
+ 00c1  e8 00 00                          call    wavestreamSetCurrentTime_
+
+       if (setupPtr->ulSetupParmSize > sizeof(ULONG)) {
+          //setupParmPtr->ulFlags = SETUP_RECURRING_EVENTS;
+ 00c4  c4 5e f2                          les     bx,dword ptr [bp-0eH]
+ 00c7  26 8b 4f 0e                       mov     cx,es:[bx+0eH]
+ 00cb  26 8b 47 0c                       mov     ax,es:[bx+0cH]
+ 00cf  85 c9                             test    cx,cx
+ 00d1  75 07                             jne     L5
+ 00d3  3d 04 00                          cmp     ax,0004H
+ 00d6  0f 86 c7 01                       jbe     L26
+
+          setupParmPtr->ulFlags = 0;
+ 00da  8e 46 f8          L5              mov     es,[bp-8H]
+ 00dd  26 89 7c 04                       mov     es:[si+4H],di
+ 00e1  26 89 7c 06                       mov     es:[si+6H],di
+
+       }
+    }
+    else {
+ 00e5  e9 b9 01                          jmp     L26
+
+       rc = ERROR_INVALID_STREAM;
+ 00e8  bf 7d 15          L6              mov     di,157dH
+
+    }
+    break;
+
+ case DDCMD_READ:       // 1
+
+ 00eb  e9 b3 01                          jmp     L26
+
+    if (streamPtr) {
+
+       DDCMDREADWRITE __far *rwPtr = (DDCMDREADWRITE __far *)commonPtr;
+
+       // rc = 8 if can't allocate memory for STREAM_BUFFER
+
+ 00ee  8b 7e fc          L7              mov     di,[bp-4H]
+ 00f1  85 ff                             test    di,di
+ 00f3  74 2f                             je      L8
+ 00f5  8e 46 0e                          mov     es,[bp+0eH]
+
+       rc = streamRead(rwPtr->pBuffer, rwPtr->ulBufferSize, streamPtr);
+ 00f8  57                                push    di
+ 00f9  26 8b 5c 0c                       mov     bx,es:[si+0cH]
+ 00fd  26 8b 4c 0e                       mov     cx,es:[si+0eH]
+ 0101  26 8b 44 08                       mov     ax,es:[si+8H]
+ 0105  26 8b 54 0a                       mov     dx,es:[si+0aH]
+ 0109  e8 00 00                          call    streamRead_
+ 010c  89 c7                             mov     di,ax
+ 010e  31 db                             xor     bx,bx
+ 0110  89 5e fe                          mov     [bp-2H],bx
+
+       if (rc == 8) rc = ERROR_TOO_MANY_BUFFERS;  // 5901;
+    }
+ 0113  0f 85 8a 01                       jne     L26
+ 0117  3d 08 00                          cmp     ax,0008H
+ 011a  0f 85 83 01                       jne     L26
+ 011e  bf 0d 17                          mov     di,170dH
+ 0121  e9 7d 01                          jmp     L26
+
+    else {
+ 0124  31 c0             L8              xor     ax,ax
+
+       rc = ERROR_INVALID_STREAM;
+ 0126  bf 7d 15                          mov     di,157dH
+ 0129  89 46 fe                          mov     [bp-2H],ax
+
+    }
+    break;
+
+ case DDCMD_WRITE:      // 2
+
+ 012c  e9 72 01                          jmp     L26
+
+    if (streamPtr) {
+
+       DDCMDREADWRITE __far *rwPtr = (DDCMDREADWRITE __far *)commonPtr;
+
+       // rc = 8 if can't allocate memory for STREAM_BUFFER
+
+ 012f  8b 7e fc          L9              mov     di,[bp-4H]
+ 0132  85 ff                             test    di,di
+ 0134  74 ee                             je      L8
+ 0136  8e 46 0e                          mov     es,[bp+0eH]
+
+       rc = streamWrite(rwPtr->pBuffer, rwPtr->ulBufferSize, streamPtr);
+ 0139  57                                push    di
+ 013a  26 8b 5c 0c                       mov     bx,es:[si+0cH]
+ 013e  26 8b 4c 0e                       mov     cx,es:[si+0eH]
+ 0142  26 8b 44 08                       mov     ax,es:[si+8H]
+ 0146  26 8b 54 0a                       mov     dx,es:[si+0aH]
+ 014a  e8 00 00                          call    streamWrite_
+ 014d  89 c7                             mov     di,ax
+ 014f  31 db                             xor     bx,bx
+ 0151  89 5e fe                          mov     [bp-2H],bx
+
+       if (rc == 8) rc = ERROR_TOO_MANY_BUFFERS;  // 5901;
+    }
+    else {
+       rc = ERROR_INVALID_STREAM;
+    }
+    break;
+
+ case DDCMD_STATUS:     // 3
+
+ 0154  0f 85 49 01                       jne     L26
+ 0158  3d 08 00                          cmp     ax,0008H
+ 015b  0f 85 42 01                       jne     L26
+ 015f  bf 0d 17                          mov     di,170dH
+ 0162  e9 3c 01                          jmp     L26
+
+    if (streamPtr) {
+
+       DDCMDSTATUS __far *statusPtr = (DDCMDSTATUS __far *)commonPtr;
+
+ 0165  8b 5e fc          L10             mov     bx,[bp-4H]
+ 0168  85 db                             test    bx,bx
+ 016a  0f 84 7a ff                       je      L6
+
+       streamPtr->currentTime = wavestreamGetCurrentTime(streamPtr->wsParentPtr);
+
+       // yes, give it a -pointer- to this stream's current time var (NOT the time itself)
+
+       statusPtr->pStatus = &streamPtr->currentTime;    // should be a far pointer
+ 016e  8b 47 24                          mov     ax,[bx+24H]
+ 0171  e8 00 00                          call    wavestreamGetCurrentTime_
+ 0174  89 47 20                          mov     [bx+20H],ax
+ 0177  89 57 22                          mov     [bx+22H],dx
+ 017a  8e 46 0e                          mov     es,[bp+0eH]
+
+ 017d  26 c7 44 0c 04 00                 mov     word ptr es:[si+0cH],0004H
+
+       statusPtr->ulStatusSize = 4;     // or use sizeof(STATUS_PARM)
+    }
+ 0183  8d 47 20                          lea     ax,[bx+20H]
+ 0186  26 8c 5c 0a                       mov     es:[si+0aH],ds
+ 018a  26 89 44 08                       mov     es:[si+8H],ax
+ 018e  26 89 7c 0e                       mov     es:[si+0eH],di
+
+    else {
+       rc = ERROR_INVALID_STREAM;
+    }
+    break;
+
+ case DDCMD_CONTROL:    // 4
+
+ 0192  e9 0c 01                          jmp     L26
+
+    if (streamPtr) {
+
+       DDCMDCONTROL __far *controlPtr = (DDCMDCONTROL __far *)commonPtr;
+ 0195  8b 56 fc          L11             mov     dx,[bp-4H]
+ 0198  85 d2                             test    dx,dx
+ 019a  0f 84 4a ff                       je      L6
+
+       WAVESTREAM *wsPtr = streamPtr->wsParentPtr;
+ 019e  89 d3                             mov     bx,dx
+ 01a0  8b 47 24                          mov     ax,[bx+24H]
+
+       USHORT cmd = (USHORT)controlPtr->ulCmd;
+
+ 01a3  8e 46 0e                          mov     es,[bp+0eH]
+ 01a6  26 8b 54 0c                       mov     dx,es:[si+0cH]
+
+       switch(cmd) {
+       case DDCMD_START: // 1
+ 01aa  4a                                dec     dx
+ 01ab  83 fa 07                          cmp     dx,0007H
+ 01ae  0f 87 92 00                       ja      L19
+ 01b2  89 d3                             mov     bx,dx
+ 01b4  01 d3                             add     bx,dx
+ 01b6  89 c2                             mov     dx,ax
+ 01b8  83 c2 1c                          add     dx,001cH
+ 01bb  2e ff a7 0e 00                    jmp     word ptr cs:[bx+L2]
+
+          rc = wavestreamStart(wsPtr);
+ 01c0  e8 00 00          L12             call    wavestreamStart_
+ 01c3  31 d2                             xor     dx,dx
+ 01c5  89 c7                             mov     di,ax
+ 01c7  89 56 fe                          mov     [bp-2H],dx
+
+          break;
+       case DDCMD_STOP:  // 2
+ 01ca  e9 d4 00                          jmp     L26
+
+          rc = wavestreamStop(wsPtr);
+ 01cd  e8 00 00          L13             call    wavestreamStop_
+
+          controlPtr->pParm = &wsPtr->timeBase;   // since wavestreamStop updated .timeBase
+ 01d0  8e 46 0e                          mov     es,[bp+0eH]
+
+          controlPtr->ulParmSize = sizeof(ULONG); // give it a pointer to that var
+ 01d3  26 c7 44 14 04 00                 mov     word ptr es:[si+14H],0004H
+ 01d9  89 c7                             mov     di,ax
+ 01db  26 8c 5c 12                       mov     es:[si+12H],ds
+ 01df  31 c0                             xor     ax,ax
+ 01e1  26 89 54 10                       mov     es:[si+10H],dx
+ 01e5  89 46 fe                          mov     [bp-2H],ax
+ 01e8  26 89 44 16                       mov     es:[si+16H],ax
+
+          break;
+       case DDCMD_PAUSE: // 3
+ 01ec  e9 b2 00                          jmp     L26
+
+          rc = wavestreamPause(wsPtr);
+ 01ef  e8 00 00          L14             call    wavestreamPause_
+
+          controlPtr->pParm = &wsPtr->timeBase;   // since wavestreamPause updated .timeBase
+ 01f2  8e 46 0e                          mov     es,[bp+0eH]
+
+          controlPtr->ulParmSize = sizeof(ULONG); // give it a pointer to that var
+ 01f5  26 c7 44 14 04 00                 mov     word ptr es:[si+14H],0004H
+ 01fb  89 c7                             mov     di,ax
+ 01fd  26 8c 5c 12                       mov     es:[si+12H],ds
+ 0201  31 c9                             xor     cx,cx
+ 0203  26 89 54 10                       mov     es:[si+10H],dx
+ 0207  89 4e fe                          mov     [bp-2H],cx
+ 020a  26 89 4c 16                       mov     es:[si+16H],cx
+
+          break;
+       case DDCMD_RESUME: // 4
+ 020e  e9 90 00                          jmp     L26
+
+          rc = wavestreamResume(wsPtr);
+ 0211  e8 00 00          L15             call    wavestreamResume_
+ 0214  31 db                             xor     bx,bx
+ 0216  89 c7                             mov     di,ax
+ 0218  89 5e fe                          mov     [bp-2H],bx
+
+          break;
+       case DDCMD_ENABLE_EVENT:  // 5
+ 021b  e9 83 00                          jmp     L26
+
+       case DDCMD_DISABLE_EVENT: // 6
+ 021e  31 d2             L16             xor     dx,dx
+
+          rc = ERROR_INVALID_REQUEST;
+ 0220  bf 86 15                          mov     di,1586H
+ 0223  89 56 fe                          mov     [bp-2H],dx
+
+          break;
+
+       case DDCMD_PAUSE_TIME: // 7 (newish)
+ 0226  e9 78 00                          jmp     L26
+
+          rc = streamPauseTime(streamPtr);
+ 0229  8b 46 fc          L17             mov     ax,[bp-4H]
+ 022c  e8 00 00                          call    streamPauseTime_
+ 022f  89 c7                             mov     di,ax
+ 0231  31 c0                             xor     ax,ax
+ 0233  89 46 fe                          mov     [bp-2H],ax
+
+          break;
+       case DDCMD_RESUME_TIME: // 8 (newish)
+ 0236  eb 69                             jmp     L26
+
+          rc = streamResumeTime(streamPtr);
+ 0238  8b 46 fc          L18             mov     ax,[bp-4H]
+ 023b  e8 00 00                          call    streamResumeTime_
+ 023e  31 f6                             xor     si,si
+ 0240  89 c7                             mov     di,ax
+
+          break;
+ 0242  eb 5a                             jmp     L25
+
+       default:
+ 0244  31 c9             L19             xor     cx,cx
+
+          rc = ERROR_INVALID_REQUEST;
+ 0246  bf 86 15                          mov     di,1586H
+ 0249  89 4e fe                          mov     [bp-2H],cx
+
+       }
+    }
+    else {
+       rc = ERROR_INVALID_STREAM;
+    }
+    break;
+ case DDCMD_REG_STREAM: // 5
+
+
+ 024c  eb 53                             jmp     L26
+
+    if (streamPtr) {
+ 024e  83 7e fc 00       L20             cmp     word ptr [bp-4H],0000H
+ 0252  74 0a                             je      L21
+ 0254  31 c0                             xor     ax,ax
+
+       rc = ERROR_HNDLR_REGISTERED;
+    }
+ 0256  bf f0 15                          mov     di,15f0H
+ 0259  89 46 fe                          mov     [bp-2H],ax
+
+    else {
+ 025c  eb 43                             jmp     L26
+
+       streamPtr = streamFindStreamSFN(((DDCMDREGISTER __far *)commonPtr)->ulSysFileNum);
+ 025e  8e 46 0e          L21             mov     es,[bp+0eH]
+ 0261  26 8b 44 08                       mov     ax,es:[si+8H]
+ 0265  e8 00 00                          call    streamFindStreamSFN_
+
+       if (streamPtr == 0) {
+ 0268  85 c0                             test    ax,ax
+ 026a  75 05                             jne     L22
+
+          rc = ERROR_STREAM_CREATION;
+       }
+ 026c  bf e1 15                          mov     di,15e1H
+
+       else {
+ 026f  eb 30                             jmp     L26
+ 0271  8b 56 0e          L22             mov     dx,[bp+0eH]
+
+          rc = streamRegister((DDCMDREGISTER __far *)commonPtr, streamPtr);
+ 0274  89 c3                             mov     bx,ax
+ 0276  89 f0                             mov     ax,si
+ 0278  31 c9                             xor     cx,cx
+ 027a  e8 00 00                          call    streamRegister_
+ 027d  89 4e fe                          mov     [bp-2H],cx
+ 0280  89 c7                             mov     di,ax
+
+       }
+    }
+    break;
+
+ case DDCMD_DEREG_STREAM: // 6
+
+ 0282  eb 1d                             jmp     L26
+
+    if (streamPtr) {
+ 0284  8b 7e fc          L23             mov     di,[bp-4H]
+ 0287  85 ff                             test    di,di
+ 0289  0f 84 97 fe                       je      L8
+
+       streamDeregister(streamPtr);
+ 028d  89 f8                             mov     ax,di
+
+       rc = 0;
+    }
+ 028f  31 ff                             xor     di,di
+ 0291  e8 00 00                          call    streamDeregister_
+ 0294  89 7e fe                          mov     [bp-2H],di
+
+    else {
+       rc = ERROR_INVALID_STREAM;
+    }
+    break;
+
+ 0297  eb 08                             jmp     L26
+
+ default:
+ 0299  31 f6             L24             xor     si,si
+
+    rc = ERROR_INVALID_FUNCTION;
+ }
+
+#ifdef TRACE_IDC_DDCMD
+ 029b  bf 01 00                          mov     di,0001H
+ 029e  89 76 fe          L25             mov     [bp-2H],si
+
+ tracePerf(TRACE_IDC_DDCMD_OUT, ((ULONG)function << 16) | _IF());  // high-word is function is USHORT, 0-6
+#endif
+
+ 02a1  9c                L26             pushf   
+ 02a2  58                                pop     ax
+ 02a3  25 00 02                          and     ax,0200H
+ 02a6  99                                cwd     
+ 02a7  8b 4e fa                          mov     cx,[bp-6H]
+ 02aa  89 c3                             mov     bx,ax
+ 02ac  09 d1                             or      cx,dx
+ 02ae  b8 44 80                          mov     ax,8044H
+ 02b1  e8 00 00                          call    tracePerf_
+ 02b4  8b 56 fe                          mov     dx,[bp-2H]
+
+ return rc;
+ 02b7  89 f8                             mov     ax,di
+
+}
+
+// con printfs (moved down here to get them out of the way)
+//ddprintf("~@ idcDDCMD, function=%u, streamPtr=%x\n", function,streamPtr);
+//ddprintf("@idcDDCMD, function=DDCMD_SETUP, setupParmPtr=%p, setupSize=%lu, streamPtr=%x\n",
+//           setupPtr->pSetupParm, setupPtr->ulSetupParmSize,streamPtr);
+//ddprintf("@ idcDDCMD, function=DDCMD_READ,  streamPtr=%x\n", streamPtr);
+//ddprintf("~@ idcDDCMD, function=DDCMD_WRITE, streamPtr=%x\n", streamPtr);
+//int3();
+//ddprintf("@idcDDCMD, function=DDCMD_STATUS,streamPtr=%x\n", streamPtr);
+//ddprintf("@idcDDCMD, function=DDCMD_CONTROL, pParm=%p, ulParmSize=%lu, streamPtr=%x wsPtr=%x\n",
+//           controlPtr->pParm, controlPtr->ulParmSize, streamPtr, wsPtr);
+//ddprintf("@idcDDCMD, function=DDCMD_CONTROL, cmd=START, streamPtr=%x wsPtr=%x\n", streamPtr, wsPtr);
+//ddprintf("@idcDDCMD, function=DDCMD_CONTROL, cmd=STOP,  streamPtr=%x wsPtr=%x\n", streamPtr, wsPtr);
+//ddprintf("@idcDDCMD, function=DDCMD_CONTROL, cmd=PAUSE, streamPtr=%x wsPtr=%x\n", streamPtr, wsPtr);
+//ddprintf("@idcDDCMD, function=DDCMD_CONTROL, cmd=RESUME, streamPtr=%x wsPtr=%x\n", streamPtr, wsPtr);
+//ddprintf("@idcDDCMD, function=DDCMD_CONTROL, cmd=EVENTxxx, streamPtr=%x wsPtr=%x\n", streamPtr, wsPtr);
+//ddprintf("@idcDDCMD, function=DDCMD_CONTROL, cmd=PAUSETIME, streamPtr=%x wsPtr=%x\n", streamPtr, wsPtr);
+//ddprintf("@idcDDCMD, function=DDCMD_CONTROL, cmd=RESUMETIME, streamPtr=%x wsPtr=%x\n", streamPtr, wsPtr);
+//ddprintf("@idcDDCMD, function=DDCMD_CONTROL, streamPtr=%x\n", streamPtr);
+//ddprintf("@idcDDCMD, function=DDCMD_REG_STREAM, streamPtr=%x\n", streamPtr);
+//ddprintf("@idcDDCMD, function=DDCMD_DEREG_STREAM, streamPtr=%x\n", streamPtr);
+//ddprintf("* leaving idcDDCMD, (rc=%lx)\n", rc);
+
+
+ 02b9  89 ec             L27             mov     sp,bp
+ 02bb  5d                                pop     bp
+ 02bc  5f                                pop     di
+ 02bd  5e                                pop     si
+ 02be  1f                                pop     ds
+ 02bf  cb                                retf    
+
+No disassembly errors
+
+List of external symbols
+
+Symbol
+----------------
+tracePerf_       000002b2 0000007e 0000004a
+streamFindStreamHandle_ 
+                 00000065
+wavestreamSetCurrentTime_ 
+                 000000c2
+streamRead_      0000010a
+streamWrite_     0000014b
+wavestreamGetCurrentTime_ 
+                 00000172
+wavestreamStart_ 
+                 000001c1
+wavestreamStop_  000001ce
+wavestreamPause_ 
+                 000001f0
+wavestreamResume_ 
+                 00000212
+streamPauseTime_ 
+                 0000022d
+streamResumeTime_ 
+                 0000023c
+streamFindStreamSFN_ 
+                 00000266
+streamRegister_  0000027b
+streamDeregister_ 
+                 00000292
+------------------------------------------------------------
+List of public symbols
+
+SYMBOL          GROUP           SEGMENT          ADDRESS
+---------------------------------------------------------
+_idcDDCMD                       _TEXT            00000020
+
+------------------------------------------------------------
+

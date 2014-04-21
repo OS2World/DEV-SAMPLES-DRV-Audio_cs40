@@ -1,0 +1,265 @@
+/* RR 1.0  Copyright (C)1999 Cornel Huth  All rights reserved [Jan 15 1999] */
+
+/* resource typeID=9 (size=2 bytes) */
+RCDATA 1
+BEGIN
+   "3"		/* number of adapters in this file */
+END
+
+/* resource typeID=9 (size=12 bytes) */
+RCDATA 10
+BEGIN
+   "10",	/* ID number of this adapter */
+   "cwvaudio",	/* adapter type */
+END
+
+/* resource typeID=9 (size=129 bytes) */
+RCDATA 11
+BEGIN
+   "1",	/* max adapters this adapter */
+   "",	/* helpfile name (max 39 chars) */
+   "",	/* adapter specific dll name (max 19 chars) */
+   "",	/* adapter specific dll entry point (max 39 chars) */
+
+   /* -- data for config.sys -- */
+
+   "2",	/* config.sys lines (max is 6 lines) */
+   "BASEDEV=CWAUDIO.SYS /N:*PDD* /X1:50 /X2:50 /LCAPT:X1X2",
+   "DEVICE=*PATH*\\CWVAUDIO.SYS *PDD*
+
+   /* -- data for ini file -- */
+
+   "2",	/* # of drivers to install (max is 6) */
+   "Crystal Audio",	/* product name (max 39 chars) */
+   "2.07.0",	/* version of software (max 5 chars) */
+   "BSAUD",	/* PDD name (max 6 chars) */
+   "MDM",	/* MCD table name (max 19 chars) */
+   "",	/* VSD table name (max 19 chars) */
+END
+
+/* resource typeID=9 (size=186 bytes) */
+RCDATA 12
+BEGIN
+   "IBMWaveBusAudio",	/* install name (max 17 chars) */
+   "7",	/* device type (max 3 chars) */
+   "1",	/* device flag (max 3 chars) */
+   "AUDIOMCD",	/* MCD driver name (max 19 chars) */
+   "AUDIOIF",	/* VSD driver name (max 19 chars) */
+   "3",	/* share type (max 3 chars) */
+   "BusAudioW",	/* resource name (max 17 chars) */
+   "2",	/* # of resource units (max 2 chars) */
+   "2",	/* # of resource classes (max 2 chars) */
+   "1","2",	/* resource classes (max 2 chars ea) */
+   "2",	/* # valid resource class combos (max 2 chars) */
+   "1","2","2","1",	/* valid resource class combos */
+   "1",	/* # of connectors  (max 2 chars) */
+   "3","IBMAmpMixBusAudio","1",	/* connectors */
+   "2",	/* # of extensions (max 2 chars) */
+   "WAV","VOC",	/* extensions */
+   "Digital Audio",	/* extended attributes (max 255 chars) */
+   "Digital Audio",	/* alias name (max 17 chars) */
+   "FORMAT=1,SAMPRATE=22050,BPS=16,CHANNELS=2,DIRECTION=PLAY",	/* device parms (max 255 chars) */
+END
+
+/* resource typeID=9 (size=180 bytes) */
+RCDATA 13
+BEGIN
+   "IBMAmpMixBusAudio",	/* install name (max 17 chars) */
+   "9",	/* device type (max 3 chars) */
+   "2",	/* device flag (max 3 chars) */
+   "AMPMXMCD",	/* MCD driver name (max 19 chars) */
+   "AUDIOIF",	/* VSD driver name (max 19 chars) */
+   "3",	/* share type (max 3 chars) */
+   "BusAudioA",	/* resource name (max 17 chars) */
+   "2",	/* # of resource units (max 2 chars) */
+   "2",	/* # of resource classes (max 2 chars) */
+   "1","2",	/* resource classes (max 2 chars ea) */
+   "2",	/* # valid resource class combos (max 2 chars) */
+   "1","2","2","1",	/* valid resource class combos */
+   "5",	/* # of connectors  (max 2 chars) */
+   "4","","0","9","","0","8","","0","10","","0","7","","0",	/* connectors */
+   "0",	/* # of extensions (max 2 chars) */
+	/* extensions */
+   "",	/* extended attributes (max 255 chars) */
+   "",	/* alias name (max 17 chars) */
+   "TREBLE=50,BASS=50,PITCH=50,GAIN=70,BALANCE=50,VOL=75,INPUT=LINE,OUTPUT=SPEAKER",	/* device parms (max 255 chars) */
+END
+
+/* resource typeID=9 (size=2 bytes) */
+RCDATA 19
+BEGIN
+   "0",	/* number of prompts */
+
+END
+
+/* resource typeID=9 (size=4 bytes) */
+RCDATA 20
+BEGIN
+   "20",	/* ID number of this adapter */
+   "",	/* adapter type */
+END
+
+/* resource typeID=9 (size=110 bytes) */
+RCDATA 21
+BEGIN
+   "1",	/* max adapters this adapter */
+   "",	/* helpfile name (max 39 chars) */
+   "",	/* adapter specific dll name (max 19 chars) */
+   "",	/* adapter specific dll entry point (max 39 chars) */
+
+   /* -- data for config.sys -- */
+
+   "2",	/* config.sys lines (max is 6 lines) */
+   "BASEDEV=TIMER0.SYS",
+   "DEVICE=*PATH*\\OPL3.SYS /P:388 /N:*PDD*
+
+   /* -- data for ini file -- */
+
+   "2",	/* # of drivers to install (max is 6) */
+   "IBM OPL3 FM MIDI Synthesis",	/* product name (max 39 chars) */
+   "1.0.0",	/* version of software (max 5 chars) */
+   "OPL3",	/* PDD name (max 6 chars) */
+   "MDM",	/* MCD table name (max 19 chars) */
+   "",	/* VSD table name (max 19 chars) */
+END
+
+/* resource typeID=9 (size=145 bytes) */
+RCDATA 22
+BEGIN
+   "IBMSEQOPLAudio",	/* install name (max 17 chars) */
+   "8",	/* device type (max 3 chars) */
+   "1",	/* device flag (max 3 chars) */
+   "MIDIMCD",	/* MCD driver name (max 19 chars) */
+   "AUDIOIF",	/* VSD driver name (max 19 chars) */
+   "3",	/* share type (max 3 chars) */
+   "CSOPLAudioS",	/* resource name (max 17 chars) */
+   "1",	/* # of resource units (max 2 chars) */
+   "1",	/* # of resource classes (max 2 chars) */
+   "1",	/* resource classes (max 2 chars ea) */
+   "0",	/* # valid resource class combos (max 2 chars) */
+	/* valid resource class combos */
+   "1",	/* # of connectors  (max 2 chars) */
+   "3","IBMAMPMIXOPLAudio","1",	/* connectors */
+   "1",	/* # of extensions (max 2 chars) */
+   "MID",	/* extensions */
+   "MIDI",	/* extended attributes (max 255 chars) */
+   "MIDI",	/* alias name (max 17 chars) */
+   "CHANNELS=1111111111111111 MIDITYPE=General MIDI",	/* device parms (max 255 chars) */
+END
+
+/* resource typeID=9 (size=199 bytes) */
+RCDATA 23
+BEGIN
+   "IBMAMPMIXOPLAudio",	/* install name (max 17 chars) */
+   "9",	/* device type (max 3 chars) */
+   "2",	/* device flag (max 3 chars) */
+   "AMPMXMCD",	/* MCD driver name (max 19 chars) */
+   "AUDIOIF",	/* VSD driver name (max 19 chars) */
+   "3",	/* share type (max 3 chars) */
+   "CSOPLAudioA",	/* resource name (max 17 chars) */
+   "1",	/* # of resource units (max 2 chars) */
+   "1",	/* # of resource classes (max 2 chars) */
+   "1",	/* resource classes (max 2 chars ea) */
+   "0",	/* # valid resource class combos (max 2 chars) */
+	/* valid resource class combos */
+   "5",	/* # of connectors  (max 2 chars) */
+   "4","","0","9","","0","8","","0","10","","0","7","","0",	/* connectors */
+   "0",	/* # of extensions (max 2 chars) */
+	/* extensions */
+   "",	/* extended attributes (max 255 chars) */
+   "",	/* alias name (max 17 chars) */
+   "TREBLE=50,BASS=50,PITCH=50,GAIN=70,BALANCE=50,VOL=75,INPUT=LINE,OUTPUT=SPEAKER,RESOURCEDLL=OPL3RES,RCID=9",	/* device parms (max 255 chars) */
+END
+
+/* resource typeID=9 (size=2 bytes) */
+RCDATA 29
+BEGIN
+   "0",	/* number of prompts */
+
+END
+
+/* resource typeID=9 (size=4 bytes) */
+RCDATA 30
+BEGIN
+   "30",	/* ID number of this adapter */
+   "",	/* adapter type */
+END
+
+/* resource typeID=9 (size=171 bytes) */
+RCDATA 31
+BEGIN
+   "1",	/* max adapters this adapter */
+   "",	/* helpfile name (max 39 chars) */
+   "",	/* adapter specific dll name (max 19 chars) */
+   "",	/* adapter specific dll entry point (max 39 chars) */
+
+   /* -- data for config.sys -- */
+
+   "2",	/* config.sys lines (max is 6 lines) */
+   "BASEDEV=TIMER0.SYS",
+   "DEVICE=*PATH*\\CWMPU401.SYS /O:ONLYONE /O:LONGNAME /O:MULTIIRQ /O:MULTIIO /O:16BITS /N:*PDD*
+
+   /* -- data for ini file -- */
+
+   "2",	/* # of drivers to install (max is 6) */
+   "Crystal Wavetable (MPU-401) MIDI",	/* product name (max 39 chars) */
+   "2.07.0",	/* version of software (max 5 chars) */
+   "CWMPU",	/* PDD name (max 6 chars) */
+   "MDM",	/* MCD table name (max 19 chars) */
+   "",	/* VSD table name (max 19 chars) */
+END
+
+/* resource typeID=9 (size=140 bytes) */
+RCDATA 32
+BEGIN
+   "IBMSEQMPU401",	/* install name (max 17 chars) */
+   "8",	/* device type (max 3 chars) */
+   "1",	/* device flag (max 3 chars) */
+   "MIDIMCD",	/* MCD driver name (max 19 chars) */
+   "AUDIOIF",	/* VSD driver name (max 19 chars) */
+   "3",	/* share type (max 3 chars) */
+   "MPU-401SEQ",	/* resource name (max 17 chars) */
+   "1",	/* # of resource units (max 2 chars) */
+   "1",	/* # of resource classes (max 2 chars) */
+   "1",	/* resource classes (max 2 chars ea) */
+   "0",	/* # valid resource class combos (max 2 chars) */
+	/* valid resource class combos */
+   "1",	/* # of connectors  (max 2 chars) */
+   "1","IBMAMPMIXMPU401","1",	/* connectors */
+   "1",	/* # of extensions (max 2 chars) */
+   "MID",	/* extensions */
+   "MIDI",	/* extended attributes (max 255 chars) */
+   "MIDI",	/* alias name (max 17 chars) */
+   "CHANNELS=1111111111111111 MIDITYPE=General MIDI",	/* device parms (max 255 chars) */
+END
+
+/* resource typeID=9 (size=158 bytes) */
+RCDATA 33
+BEGIN
+   "IBMAMPMIXMPU401",	/* install name (max 17 chars) */
+   "9",	/* device type (max 3 chars) */
+   "2",	/* device flag (max 3 chars) */
+   "AMPMXMCD",	/* MCD driver name (max 19 chars) */
+   "AUDIOIF",	/* VSD driver name (max 19 chars) */
+   "3",	/* share type (max 3 chars) */
+   "MPU-401AMPMIX",	/* resource name (max 17 chars) */
+   "1",	/* # of resource units (max 2 chars) */
+   "1",	/* # of resource classes (max 2 chars) */
+   "1",	/* resource classes (max 2 chars ea) */
+   "0",	/* # valid resource class combos (max 2 chars) */
+	/* valid resource class combos */
+   "2",	/* # of connectors  (max 2 chars) */
+   "4","","0","14","","0",	/* connectors */
+   "0",	/* # of extensions (max 2 chars) */
+	/* extensions */
+   "",	/* extended attributes (max 255 chars) */
+   "",	/* alias name (max 17 chars) */
+   "TREBLE=50,BASS=50,PITCH=50,GAIN=70,BALANCE=50,VOL=100,INPUT=LINE,OUTPUT=SPEAKER",	/* device parms (max 255 chars) */
+END
+
+/* resource typeID=9 (size=2 bytes) */
+RCDATA 39
+BEGIN
+   "0",	/* number of prompts */
+
+END

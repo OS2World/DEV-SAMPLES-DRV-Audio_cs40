@@ -1,0 +1,279 @@
+
+Module: D:\dev\csrc\os2dd\scd\audiohw.c
+Group: 'DGROUP' CONST,CONST2,_DATA,_BSS
+
+Segment: _TEXT  PARA   000000c5 bytes  
+
+//
+// audiohw.c
+// 27-Jan-99
+//
+//
+// USHORT hwGetType(USHORT dataType, USHORT opType, USHORT lDev);
+// USHORT hwSetType(USHORT devType, USHORT dataType, USHORT opType, USHORT lDev);
+
+#include "cs40.h"
+
+// datatype/optype to device list
+
+AUDIOHW_T2DLIST t2dList[] = {
+ {AUDIOHW_WAVE_PLAY,0,DATATYPE_WAVEFORM,OPERATION_PLAY},
+ {AUDIOHW_WAVE_PLAY,0,PCM,OPERATION_PLAY},
+ {AUDIOHW_WAVE_PLAY,0,DATATYPE_ALAW,OPERATION_PLAY},
+ {AUDIOHW_WAVE_PLAY,0,DATATYPE_RIFF_ALAW,OPERATION_PLAY},
+ {AUDIOHW_WAVE_PLAY,0,A_LAW,OPERATION_PLAY},
+ {AUDIOHW_WAVE_PLAY,0,DATATYPE_MULAW,OPERATION_PLAY},
+ {AUDIOHW_WAVE_PLAY,0,DATATYPE_RIFF_MULAW,OPERATION_PLAY},
+ {AUDIOHW_WAVE_PLAY,0,MU_LAW,OPERATION_PLAY},
+ {AUDIOHW_WAVE_CAPTURE,0,DATATYPE_WAVEFORM,OPERATION_RECORD},
+ {AUDIOHW_WAVE_CAPTURE,0,PCM,OPERATION_RECORD},
+ {AUDIOHW_WAVE_CAPTURE,0,DATATYPE_ALAW,OPERATION_RECORD},
+ {AUDIOHW_WAVE_CAPTURE,0,DATATYPE_RIFF_ALAW,OPERATION_RECORD},
+ {AUDIOHW_WAVE_CAPTURE,0,A_LAW,OPERATION_RECORD},
+ {AUDIOHW_WAVE_CAPTURE,0,DATATYPE_MULAW,OPERATION_RECORD},
+ {AUDIOHW_WAVE_CAPTURE,0,DATATYPE_RIFF_MULAW,OPERATION_RECORD},
+ {AUDIOHW_WAVE_CAPTURE,0,MU_LAW,OPERATION_RECORD},
+ {AUDIOHW_INVALID_DEVICE,-1,-1,-1},
+ {AUDIOHW_INVALID_DEVICE,-1,-1,-1},
+ {AUDIOHW_INVALID_DEVICE,-1,-1,-1},
+ {AUDIOHW_INVALID_DEVICE,-1,-1,-1},
+ {AUDIOHW_INVALID_DEVICE,-1,-1,-1},
+ {AUDIOHW_INVALID_DEVICE,-1,-1,-1},
+ {AUDIOHW_INVALID_DEVICE,-1,-1,-1},
+ {AUDIOHW_INVALID_DEVICE,-1,-1,-1},
+ {AUDIOHW_INVALID_DEVICE,-1,-1,-1},
+ {AUDIOHW_INVALID_DEVICE,-1,-1,-1},
+ {AUDIOHW_INVALID_DEVICE,-1,-1,-1},
+ {AUDIOHW_INVALID_DEVICE,-1,-1,-1},
+ {AUDIOHW_INVALID_DEVICE,-1,-1,-1},
+ {AUDIOHW_INVALID_DEVICE,-1,-1,-1},
+ {AUDIOHW_INVALID_DEVICE,-1,-1,-1},
+ {AUDIOHW_INVALID_DEVICE,-1,-1,-1},  // last device is a no-device, always AUDIOHW_INVALID_DEVICE
+};
+
+#define MAX_T2D_ENTRIES ((sizeof(t2dList) / sizeof(AUDIOHW_T2DLIST)) -1) // -1 to leave last untouched
+
+
+// ----------------------------------
+// in: dataType |
+//     opType   | to match
+//     lDev     |
+//out: devType of matching entry
+//nts: original had devType as ULONG all around, I use USHORT
+//     devType == 0 is a valid type (AUDIOHW_READ_DEVICE) though not used here, so -1 is rc on error
+
+USHORT hwGetType(USHORT dataType, USHORT opType, USHORT lDev) {
+
+ USHORT i;
+ 0000  51                hwGetType_      push    cx
+ 0001  56                                push    si
+ 0002  89 c6                             mov     si,ax
+ 0004  89 d1                             mov     cx,dx
+ 0006  89 da                             mov     dx,bx
+
+ USHORT devType = AUDIOHW_INVALID_DEVICE;
+
+ // allow invalid device to be mixed in t2dList, so check all 32 entries in t2d
+ // though that is not a useful condition since that data/op type can just not be entered in list
+
+ 0008  b8 ff ff                          mov     ax,0ffffH
+
+ for (i=0; i < MAX_T2D_ENTRIES; i++) {
+
+ 000b  31 db                             xor     bx,bx
+
+    if (t2dList[i].devType != AUDIOHW_INVALID_DEVICE  &&
+        t2dList[i].dataType == dataType  &&
+        t2dList[i].opType == opType      &&
+        t2dList[i].lDev == lDev) {
+
+ 000d  83 bf 00 00 ff    L1              cmp     word ptr [bx+_t2dList],0ffffH
+ 0012  74 16                             je      L2
+ 0014  3b b7 04 00                       cmp     si,[bx+_t2dList+4H]
+ 0018  75 10                             jne     L2
+ 001a  3b 8f 06 00                       cmp     cx,[bx+_t2dList+6H]
+ 001e  75 0a                             jne     L2
+ 0020  3b 97 02 00                       cmp     dx,[bx+_t2dList+2H]
+ 0024  75 04                             jne     L2
+
+       devType = t2dList[i].devType;
+    }
+ 0026  8b 87 00 00                       mov     ax,[bx+_t2dList]
+
+ }
+
+ return devType;
+ 002a  83 c3 08          L2              add     bx,0008H
+ 002d  81 fb f8 00                       cmp     bx,00f8H
+ 0031  75 da                             jne     L1
+
+}
+
+// ----------------------------------
+// in: devType  |
+//     dataType |
+//     opType   | to match or add
+//     lDev     |
+//out: 0 if okay, else 87
+//nts: sets matching record, or if no exact match adds entry (if room)
+
+ 0033  5e                                pop     si
+ 0034  59                                pop     cx
+ 0035  c3                                ret     
+ 0036  89 c0                             mov     ax,ax
+
+USHORT hwSetType(USHORT devType, USHORT dataType, USHORT opType, USHORT lDev) {
+
+ USHORT i;
+ USHORT rc = 0;
+ 0038  56                hwSetType_      push    si
+ 0039  57                                push    di
+ 003a  55                                push    bp
+ 003b  89 e5                             mov     bp,sp
+ 003d  83 ec 08                          sub     sp,0008H
+ 0040  89 46 f8                          mov     [bp-8H],ax
+ 0043  89 56 fc                          mov     [bp-4H],dx
+ 0046  89 de                             mov     si,bx
+
+ 0048  bb ff ff                          mov     bx,0ffffH
+
+ USHORT match = 0xFFFF, firstAvail = 0xFFFF;
+
+ // check if matches current entry
+
+ 004b  31 d2                             xor     dx,dx
+
+ for (i=0; i < MAX_T2D_ENTRIES; i++) {
+
+ 004d  31 c0                             xor     ax,ax
+ 004f  89 56 fa                          mov     [bp-6H],dx
+ 0052  89 5e fe                          mov     [bp-2H],bx
+ 0055  89 da                             mov     dx,bx
+ 0057  31 db                             xor     bx,bx
+
+    if (t2dList[i].devType != AUDIOHW_INVALID_DEVICE) {
+ 0059  8b bf 00 00       L3              mov     di,[bx+_t2dList]
+ 005d  83 ff ff                          cmp     di,0ffffH
+ 0060  74 1a                             je      L4
+
+       if (t2dList[i].dataType==dataType && t2dList[i].opType==opType && t2dList[i].lDev==lDev) {
+ 0062  8b bf 04 00                       mov     di,[bx+_t2dList+4H]
+ 0066  3b 7e fc                          cmp     di,[bp-4H]
+ 0069  75 17                             jne     L5
+ 006b  3b b7 06 00                       cmp     si,[bx+_t2dList+6H]
+ 006f  75 11                             jne     L5
+ 0071  3b 8f 02 00                       cmp     cx,[bx+_t2dList+2H]
+ 0075  75 0b                             jne     L5
+
+          match = i;
+ 0077  89 46 fe                          mov     [bp-2H],ax
+
+       }
+    }
+    else {
+ 007a  eb 06                             jmp     L5
+
+       if (firstAvail == 0xFFFF) firstAvail = i;  // track first open slot in case need to insert
+ 007c  39 fa             L4              cmp     dx,di
+ 007e  75 02                             jne     L5
+ 0080  89 c2                             mov     dx,ax
+
+    }
+ 0082  40                L5              inc     ax
+
+ }
+
+ // check if no match, and if not, check if room available
+
+ 0083  83 c3 08                          add     bx,0008H
+ 0086  3d 1f 00                          cmp     ax,001fH
+ 0089  72 ce                             jb      L3
+
+ if (match == 0xFFFF) {
+ 008b  83 7e fe ff                       cmp     word ptr [bp-2H],0ffffH
+ 008f  75 0a                             jne     L6
+
+    if (firstAvail >= MAX_T2D_ENTRIES) rc = 68; // CP error, "Too Many Names" (close enough)
+ }
+
+ // update or insert entry
+
+ 0091  83 fa 1f                          cmp     dx,001fH
+ 0094  72 05                             jb      L6
+ 0096  c7 46 fa 44 00                    mov     word ptr [bp-6H],0044H
+
+ if (rc == 0) {
+ 009b  83 7e fa 00       L6              cmp     word ptr [bp-6H],0000H
+ 009f  75 1b                             jne     L7
+
+    t2dList[i].devType = devType;
+    t2dList[i].dataType = dataType;
+ 00a1  89 c3                             mov     bx,ax
+ 00a3  c1 e3 03                          shl     bx,03H
+ 00a6  8b 46 f8                          mov     ax,[bp-8H]
+ 00a9  89 87 00 00                       mov     [bx+_t2dList],ax
+
+    t2dList[i].opType = opType;
+ 00ad  89 b7 06 00                       mov     [bx+_t2dList+6H],si
+
+    t2dList[i].lDev = lDev;
+ }
+
+ return rc;
+ 00b1  89 8f 02 00                       mov     [bx+_t2dList+2H],cx
+ 00b5  8b 46 fc                          mov     ax,[bp-4H]
+ 00b8  89 87 04 00                       mov     [bx+_t2dList+4H],ax
+
+}
+
+
+ 00bc  8b 46 fa          L7              mov     ax,[bp-6H]
+ 00bf  89 ec                             mov     sp,bp
+ 00c1  5d                                pop     bp
+ 00c2  5f                                pop     di
+ 00c3  5e                                pop     si
+ 00c4  c3                                ret     
+
+No disassembly errors
+
+List of external symbols
+
+Symbol
+----------------
+_t2dList         000000ba 000000b3 000000af 000000ab 00000073 0000006d 00000064 0000005b 00000028 00000022
+                 0000001c 00000016 0000000f
+------------------------------------------------------------
+
+Segment: _DATA  WORD   00000100 bytes  
+ 0000  11 00 00 00 01 00 01 00 _t2dList        - ........
+ 0008  11 00 00 00 02 00 01 00                 - ........
+ 0010  11 00 00 00 02 01 01 00                 - ........
+ 0018  11 00 00 00 06 00 01 00                 - ........
+ 0020  11 00 00 00 05 00 01 00                 - ........
+ 0028  11 00 00 00 01 01 01 00                 - ........
+ 0030  11 00 00 00 07 00 01 00                 - ........
+ 0038  11 00 00 00 03 00 01 00                 - ........
+ 0040  10 00 00 00 01 00 02 00                 - ........
+ 0048  10 00 00 00 02 00 02 00                 - ........
+ 0050  10 00 00 00 02 01 02 00                 - ........
+ 0058  10 00 00 00 06 00 02 00                 - ........
+ 0060  10 00 00 00 05 00 02 00                 - ........
+ 0068  10 00 00 00 01 01 02 00                 - ........
+ 0070  10 00 00 00 07 00 02 00                 - ........
+ 0078  10 00 00 00 03 00 02 00                 - ........
+ 0080  ff ff ff ff ff ff ff ff                 - ........
+       --- Above line repeats 15 time(s) --- 
+
+No disassembly errors
+
+------------------------------------------------------------
+List of public symbols
+
+SYMBOL          GROUP           SEGMENT          ADDRESS
+---------------------------------------------------------
+_t2dList        DGROUP          _DATA            00000000
+hwGetType_                      _TEXT            00000000
+hwSetType_                      _TEXT            00000038
+
+------------------------------------------------------------
+

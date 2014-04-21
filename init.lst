@@ -1,0 +1,4019 @@
+
+Module: D:\dev\csrc\os2dd\scd\init.c
+Group: 'DGROUP' CONST,CONST2,_DATA,_BSS,_INITDATA
+
+Segment: CONST  WORD   00000215 bytes  
+ 0000  2d 2d 58 2d 2d 0d 0a 00 L1              - --X--...
+ 0008  49 52 51 20 28 2d 69 3a L2              - IRQ (-i:
+ 0010  6e 29 0d 0a 00 00                       - n)....
+ 0016  42 61 73 65 20 70 6f 72 L3              - Base por
+ 001e  74 20 28 2d 62 70 3a 78                 - t (-bp:x
+ 0026  29 0d 0a 00                             - )...
+ 002a  43 6f 6e 74 72 6f 6c 20 L4              - Control 
+ 0032  70 6f 72 74 20 28 2d 63                 - port (-c
+ 003a  70 3a 78 29 0d 0a 00 00                 - p:x)....
+ 0042  4d 6f 64 65 20 28 2d 78 L5              - Mode (-x
+ 004a  6d 3a 6e 29 0d 0a 00 00                 - m:n)....
+ 0052  44 65 76 69 63 65 20 28 L6              - Device (
+ 005a  2d 64 65 76 3a 6e 29 0d                 - -dev:n).
+ 0062  0a 00                                   - ..
+ 0064  50 6c 61 79 20 44 4d 41 L7              - Play DMA
+ 006c  20 28 2d 64 70 3a 6e 29                 -  (-dp:n)
+ 0074  0d 0a 00 00                             - ....
+ 0078  50 6c 61 79 20 44 4d 41 L8              - Play DMA
+ 0080  20 73 69 7a 65 20 28 2d                 -  size (-
+ 0088  64 70 73 3a 78 29 0d 0a                 - dps:x)..
+ 0090  00 00                                   - ..
+ 0092  50 6c 61 79 20 44 4d 41 L9              - Play DMA
+ 009a  20 49 50 42 20 28 2d 64                 -  IPB (-d
+ 00a2  70 69 3a 6e 29 0d 0a 00                 - pi:n)...
+ 00aa  50 6c 61 79 20 44 4d 41 L10             - Play DMA
+ 00b2  20 6d 6f 64 65 20 28 2d                 -  mode (-
+ 00ba  64 70 6d 3a 6e 29 0d 0a                 - dpm:n)..
+ 00c2  00 0a                                   - ..
+ 00c4  52 65 63 20 44 4d 41 20 L11             - Rec DMA 
+ 00cc  28 2d 64 72 3a 6e 29 0d                 - (-dr:n).
+ 00d4  0a 00                                   - ..
+ 00d6  52 65 63 20 44 4d 41 20 L12             - Rec DMA 
+ 00de  73 69 7a 65 20 28 2d 64                 - size (-d
+ 00e6  72 73 3a 78 29 0d 0a 00                 - rs:x)...
+ 00ee  52 65 63 20 44 4d 41 20 L13             - Rec DMA 
+ 00f6  49 50 42 20 28 2d 64 72                 - IPB (-dr
+ 00fe  69 3a 6e 29 0d 0a 00 2d                 - i:n)...-
+ 0106  52 65 63 20 44 4d 41 20 L14             - Rec DMA 
+ 010e  6d 6f 64 65 20 28 2d 64                 - mode (-d
+ 0116  72 6d 3a 6e 29 0d 0a 00                 - rm:n)...
+ 011e  46 6c 61 67 73 20 28 76 L15             - Flags (v
+ 0126  61 72 69 6f 75 73 29 0d                 - arious).
+ 012e  0a 00                                   - ..
+ 0130  55 6e 6b 6e 6f 77 6e 20 L16             - Unknown 
+ 0138  28 3f 29 0d 0a 00                       - (?)...
+ 013e  20 28 43 53 34 32 33 78 L17             -  (CS423x
+ 0146  29 00                                   - ).
+ 0148  20 28 31 3f 29 00       L18             -  (1?).
+ 014e  20 28 32 3f 29 00       L19             -  (2?).
+ 0154  20 28 4f 50 4c 33 53 41 L20             -  (OPL3SA
+ 015c  33 29 00 70 43 53 34 30                 - 3).pCS40
+ 0164  3a 20 49 6e 73 74 61 6c                 - : Instal
+ 016c  6c 65 64 0d 0a 00                       - led...
+ 0172  77 61 76 65 70 6c 61 79 L21             - waveplay
+ 017a  49 6e 69 74 28 29 20 66                 - Init() f
+ 0182  61 69 6c 65 64 2c 20 72                 - ailed, r
+ 018a  63 3d 25 75 0a 00 77 61                 - c=%u..wa
+ 0192  76 65 72 65 63 49 6e 69                 - verecIni
+ 019a  74 28 29 20 66 61 69 6c                 - t() fail
+ 01a2  65 64 00 3a                             - ed.:
+ 01a6  77 61 76 65 72 65 63 49 L22             - waverecI
+ 01ae  6e 69 74 28 29 20 66 61                 - nit() fa
+ 01b6  69 6c 65 64 2c 20 72 63                 - iled, rc
+ 01be  3d 25 75 0a 00 52                       - =%u..R
+ 01c4  73 74 72 61 74 4d 6f 64 L23             - stratMod
+ 01cc  65 32 49 6e 69 74 3a 65                 - e2Init:e
+ 01d4  6e 64 43 6f 64 65 3d 25                 - ndCode=%
+ 01dc  78 2c 20 65 6e 64 44 61                 - x, endDa
+ 01e4  74 61 3d 25 78 2c 20 64                 - ta=%x, d
+ 01ec  73 3d 25 78 0a 00                       - s=%x..
+ 01f2  0d 0a 00 28             L24             - ...(
+ 01f6  64 65 76 69 63 65 3d 63 L25             - device=c
+ 01fe  73 34 30 2e 73 79 73 20                 - s40.sys 
+ 0206  00 31                                   - .1
+ 0208  20 2a 6e 6f 74 20 73 65 L26             -  *not se
+ 0210  74 2a 0d 0a 00                          - t*...
+
+No disassembly errors
+
+------------------------------------------------------------
+
+Segment: CONST2  WORD   00000113 bytes  
+ 0000  0d 0a 43 53 34 32 33 78 _signOnMsg      - ..CS423x
+ 0008  20 26 20 4f 50 4c 33 53                 -  & OPL3S
+ 0010  41 78 20 61 75 64 69 6f                 - Ax audio
+ 0018  20 64 72 69 76 65 72 20                 -  driver 
+ 0020  5b 43 53 34 30 3a 39 39                 - [CS40:99
+ 0028  30 39 32 39 5d 0d 0a 00                 - 0929]...
+ 0030  20 20 20 20 20 49 52 51 _irqMsg         -      IRQ
+ 0038  3d 20 20 00                             - =  .
+ 003c  62 61 73 65 50 6f 72 74 _basePortMsg    - basePort
+ 0044  3d 30 78 00                             - =0x.
+ 0048  63 74 72 6c 50 6f 72 74 _ctrlPortMsg    - ctrlPort
+ 0050  3d 30 78 00                             - =0x.
+ 0054  20 20 20 20 6d 6f 64 65 _modeMsg        -     mode
+ 005c  3d 20 20 00                             - =  .
+ 0060  20 20 64 65 76 69 63 65 _deviceMsg      -   device
+ 0068  3d 20 20 00                             - =  .
+ 006c  70 6c 61 79 20 44 4d 41 _playDMAMsg     - play DMA
+ 0074  3d 20 20 00                             - =  .
+ 0078  20 20 20 20 73 69 7a 65 _playSizeMsg    -     size
+ 0080  3d 30 78 00                             - =0x.
+ 0084  20 20 20 20 20 49 50 42 _playIPBMsg     -      IPB
+ 008c  3d 20 20 00                             - =  .
+ 0090  20 20 20 20 6d 6f 64 65 _playModeMsg    -     mode
+ 0098  3d 20 20 00                             - =  .
+ 009c  20 72 65 63 20 44 4d 41 _recDMAMsg      -  rec DMA
+ 00a4  3d 20 20 00                             - =  .
+ 00a8  20 20 20 20 73 69 7a 65 _recSizeMsg     -     size
+ 00b0  3d 30 78 00                             - =0x.
+ 00b4  20 20 20 20 20 49 50 42 _recIPBMsg      -      IPB
+ 00bc  3d 20 20 00                             - =  .
+ 00c0  20 20 20 20 6d 6f 64 65 _recModeMsg     -     mode
+ 00c8  3d 20 20 00                             - =  .
+ 00cc  20 20 20 66 6c 61 67 73 _clFlagsMsg     -    flags
+ 00d4  3d 30 78 00                             - =0x.
+ 00d8  43 53 34 30 2e 53 59 53 _errorPrepMsg   - CS40.SYS
+ 00e0  20 63 6d 64 6c 69 6e 65                 -  cmdline
+ 00e8  20 70 61 72 73 65 20 65                 -  parse e
+ 00f0  72 72 6f 72 3a 20 00                    - rror: .
+ 00f7  43 53 34 30 2e 53 59 53 _initExitMsg    - CS40.SYS
+ 00ff  20 69 6e 73 74 61 6c 6c                 -  install
+ 0107  20 65 72 72 6f 72 2c 20                 -  error, 
+ 010f  72 63 3d 00                             - rc=.
+
+No disassembly errors
+
+------------------------------------------------------------
+
+Segment: _DATA  WORD   00000028 bytes  
+ 0000  00 00                   _errorMsg       DW      DGROUP:L1
+ 0002  08 00                                   DW      DGROUP:L2
+ 0004  16 00                                   DW      DGROUP:L3
+ 0006  2a 00                                   DW      DGROUP:L4
+ 0008  42 00                                   DW      DGROUP:L5
+ 000a  52 00                                   DW      DGROUP:L6
+ 000c  64 00                                   DW      DGROUP:L7
+ 000e  78 00                                   DW      DGROUP:L8
+ 0010  92 00                                   DW      DGROUP:L9
+ 0012  aa 00                                   DW      DGROUP:L10
+ 0014  c4 00                                   DW      DGROUP:L11
+ 0016  d6 00                                   DW      DGROUP:L12
+ 0018  ee 00                                   DW      DGROUP:L13
+ 001a  06 01                                   DW      DGROUP:L14
+ 001c  1e 01                                   DW      DGROUP:L15
+ 001e  30 01                                   DW      DGROUP:L16
+ 0020  3e 01                   _deviceStr      DW      DGROUP:L17
+ 0022  48 01                                   DW      DGROUP:L18
+ 0024  4e 01                                   DW      DGROUP:L19
+ 0026  54 01                                   DW      DGROUP:L20
+
+No disassembly errors
+
+------------------------------------------------------------
+
+Segment: _INITTEXT  PARA   0000166d bytes  
+
+//
+// init.c
+// 3-Feb-99
+//
+// USHORT stratMode2Init(REQPACK __far *rpPtr);
+//
+// will make call into slam basedev to get resources (won't use RM... but have to
+// write a slam, with IDC hook, probably use assembly like wacker...?)
+
+#include "cs40.h"
+
+// if these are put in initdata they'll increase file size by 8K
+
+const CHAR   signOnMsg[] = "\r\nCS423x & OPL3SAx audio driver [CS40:990929]\r\n";
+const CHAR      irqMsg[] = "     IRQ=  ";
+const CHAR basePortMsg[] = "basePort=0x";
+const CHAR ctrlPortMsg[] = "ctrlPort=0x";
+const CHAR     modeMsg[] = "    mode=  ";
+const CHAR   deviceMsg[] = "  device=  ";
+const CHAR  playDMAMsg[] = "play DMA=  ";
+const CHAR playSizeMsg[] = "    size=0x";
+const CHAR  playIPBMsg[] = "     IPB=  ";
+const CHAR playModeMsg[] = "    mode=  ";
+const CHAR   recDMAMsg[] = " rec DMA=  ";
+const CHAR  recSizeMsg[] = "    size=0x";
+const CHAR   recIPBMsg[] = "     IPB=  ";
+const CHAR  recModeMsg[] = "    mode=  ";
+const CHAR  clFlagsMsg[] = "   flags=0x";
+
+const CHAR  errorPrepMsg[] = "CS40.SYS cmdline parse error: ";
+const CHAR *errorMsg[] = {"--X--\r\n",
+                          "IRQ (-i:n)\r\n",
+                          "Base port (-bp:x)\r\n",
+                          "Control port (-cp:x)\r\n",
+                          "Mode (-xm:n)\r\n",
+                          "Device (-dev:n)\r\n",
+                          "Play DMA (-dp:n)\r\n",
+                          "Play DMA size (-dps:x)\r\n",
+                          "Play DMA IPB (-dpi:n)\r\n",
+                          "Play DMA mode (-dpm:n)\r\n",
+                          "Rec DMA (-dr:n)\r\n",
+                          "Rec DMA size (-drs:x)\r\n",
+                          "Rec DMA IPB (-dri:n)\r\n",
+                          "Rec DMA mode (-drm:n)\r\n",
+                          "Flags (various)\r\n",
+                          "Unknown (?)\r\n"};
+
+const CHAR *deviceStr[] = {" (CS423x)",
+                           " (1?)",
+                           " (2?)",
+                           " (OPL3SA3)"};
+
+const CHAR  initExitMsg[] = "CS40.SYS install error, rc=";
+
+#pragma code_seg ("_INITTEXT");
+#pragma data_seg ("_INITDATA","ENDDS");
+
+#pragma intrinsic (strlen,strcat);
+#include "d:\w10a\h\string.h"   // use explicit else uses ddk, etc.
+
+extern USHORT endCode;
+extern USHORT endData;
+
+USHORT ParseCL(UCHAR __far *clPtr);
+char __far * __cdecl _itoa (int val,char __far *buf,int radix);
+char __far * __cdecl _ltoa (long val,char __far *buf,int radix);
+char __far * __cdecl _ultoa (unsigned long val,char __far *buf,int radix);
+long __cdecl strtol (const char __far *nptr,char __far * __far *endptr,int ibase);
+unsigned long __cdecl strtoul (const char __far *nptr,char __far * __far *endptr,int ibase);
+
+// -------------------------------------
+// in:
+//out:
+//nts:
+
+USHORT stratMode2Init(REQPACK __far *rpPtr) {
+
+ USHORT rc = 0;
+ USHORT heapSize;
+ USHORT flags = 0;
+ CHAR __far *errPtr = 0;
+ CHAR valueMsg[64];
+
+ 0000  53                stratMode2Init_ push    bx
+ 0001  51                                push    cx
+ 0002  56                                push    si
+ 0003  57                                push    di
+ 0004  55                                push    bp
+ 0005  89 e5                             mov     bp,sp
+ 0007  83 ec 42                          sub     sp,0042H
+ 000a  89 c6                             mov     si,ax
+ 000c  89 d1                             mov     cx,dx
+
+ Device_Help = rpPtr->init.Device_Help;
+
+ rpPtr->status = RPDONE | RPERR | RPGENFAIL;
+ 000e  8e c2                             mov     es,dx
+ 0010  26 8b 44 0e                       mov     ax,es:[si+0eH]
+ 0014  26 8b 54 10                       mov     dx,es:[si+10H]
+ 0018  a3 00 00                          mov     _Device_Help,ax
+ 001b  89 16 02 00                       mov     _Device_Help+2H,dx
+
+ 001f  26 c7 44 0e 00 00                 mov     word ptr es:[si+0eH],0000H
+
+ rpPtr->init.sizeCS = 0;
+ rpPtr->init.sizeDS = 0;
+
+ 0025  26 c7 44 03 0c 81                 mov     word ptr es:[si+3H],810cH
+
+ heapSize = HeapInit(8192);
+
+ // do any log setup here...
+
+ 002b  b8 00 20                          mov     ax,2000H
+ 002e  26 c7 44 10 00 00                 mov     word ptr es:[si+10H],0000H
+ 0034  e8 00 00                          call    HeapInit_
+
+ rc = ParseCL(rpPtr->init.argsPtr);
+ 0037  8e c1                             mov     es,cx
+ 0039  26 8b 44 12                       mov     ax,es:[si+12H]
+ 003d  26 8b 54 14                       mov     dx,es:[si+14H]
+ 0041  e8 00 00                          call    ParseCL_
+ 0044  89 46 fe                          mov     [bp-2H],ax
+
+ if (rc) goto ExitRightNow;
+
+ errPtr = "CS40: Installed\r\n";
+
+ // resource manager access here (create, detect PnP, etc.) here...
+
+ // had created IRQ object for timer here...
+ // had setup more hardware types here (FMSYNTH or MPU...)
+
+ flags = 0;
+ 0047  85 c0                             test    ax,ax
+ 0049  0f 85 7c 01                       jne     L40
+
+ 004d  a1 00 00                          mov     ax,_gDMAplay
+ 0050  8b 1e 00 00                       mov     bx,_gDMArec
+
+ if (gDMAplay != gDMArec) flags = flags | FLAGS_WAVEAUDIO_FULLDUPLEX;
+ 0054  31 d2                             xor     dx,dx
+ 0056  39 d8                             cmp     ax,bx
+ 0058  74 03                             je      L27
+ 005a  ba 01 00                          mov     dx,0001H
+
+ if (gDMAplay >= 4)       flags = flags | FLAGS_WAVEAUDIO_DMA16;
+ 005d  83 3e 00 00 04    L27             cmp     word ptr _gDMAplay,0004H
+ 0062  72 03                             jb      L28
+ 0064  80 ca 02                          or      dl,02H
+
+ if (gDMAplayMode != 0)   flags = flags | FLAGS_WAVEAUDIO_FTYPEDMA;
+
+ 0067  83 3e 00 00 00    L28             cmp     word ptr _gDMAplayMode,0000H
+ 006c  74 03                             je      L29
+ 006e  80 ca 04                          or      dl,04H
+
+ rc = waveplayInit(gDMAplay, flags, gIRQ);
+
+ 0071  8b 1e 00 00       L29             mov     bx,_gIRQ
+ 0075  a1 00 00                          mov     ax,_gDMAplay
+ 0078  e8 00 00                          call    waveplayInit_
+ 007b  89 46 fe                          mov     [bp-2H],ax
+
+ if (rc) {
+ 007e  85 c0                             test    ax,ax
+ 0080  74 16                             je      L30
+
+if (gCLflags & FLAGS_CL_DDPRINT) ddprintf("waveplayInit() failed, rc=%u\n");
+    goto ExitNow;
+ }
+
+ flags = 0;
+ 0082  f6 06 01 00 40                    test    byte ptr _gCLflags+1H,40H
+ 0087  0f 84 b6 00                       je      L37
+ 008b  1e                                push    ds
+ 008c  68 72 01                          push    offset L21
+ 008f  e8 00 00                          call    _ddprintf
+ 0092  83 c4 04                          add     sp,0004H
+ 0095  e9 a9 00                          jmp     L37
+
+ 0098  a1 00 00          L30             mov     ax,_gDMAplay
+ 009b  8b 1e 00 00                       mov     bx,_gDMArec
+
+ if (gDMAplay != gDMArec) flags = flags | FLAGS_WAVEAUDIO_FULLDUPLEX;
+ 009f  31 d2                             xor     dx,dx
+ 00a1  39 d8                             cmp     ax,bx
+ 00a3  74 03                             je      L31
+ 00a5  ba 01 00                          mov     dx,0001H
+
+ if (gDMArec >= 4)        flags = flags | FLAGS_WAVEAUDIO_DMA16;
+ 00a8  83 3e 00 00 04    L31             cmp     word ptr _gDMArec,0004H
+ 00ad  72 03                             jb      L32
+ 00af  80 ca 02                          or      dl,02H
+
+ if (gDMArecMode != 0)    flags = flags | FLAGS_WAVEAUDIO_FTYPEDMA;
+
+ 00b2  83 3e 00 00 00    L32             cmp     word ptr _gDMArecMode,0000H
+ 00b7  74 03                             je      L33
+ 00b9  80 ca 04                          or      dl,04H
+
+ rc = waverecInit(gDMArec, flags, gIRQ);
+
+ 00bc  8b 1e 00 00       L33             mov     bx,_gIRQ
+ 00c0  a1 00 00                          mov     ax,_gDMArec
+ 00c3  e8 00 00                          call    waverecInit_
+ 00c6  89 46 fe                          mov     [bp-2H],ax
+
+ if (rc) {
+    errPtr = "waverecInit() failed";
+ 00c9  85 c0                             test    ax,ax
+ 00cb  74 13                             je      L34
+
+if (gCLflags & FLAGS_CL_DDPRINT) ddprintf("waverecInit() failed, rc=%u\n");
+    goto ExitNow;
+ }
+
+ 00cd  f6 06 01 00 40                    test    byte ptr _gCLflags+1H,40H
+ 00d2  74 6d                             je      L37
+ 00d4  1e                                push    ds
+ 00d5  68 a6 01                          push    offset L22
+ 00d8  e8 00 00                          call    _ddprintf
+ 00db  83 c4 04                          add     sp,0004H
+ 00de  eb 61                             jmp     L37
+
+ rc = chipsetInit();
+ 00e0  e8 00 00          L34             call    chipsetInit_
+ 00e3  89 46 fe                          mov     [bp-2H],ax
+
+ if (rc) goto ExitNow;
+
+ 00e6  85 c0                             test    ax,ax
+ 00e8  75 57                             jne     L37
+
+ if (gCLflags & FLAGS_CL_SETDTM) chipsetSetDTM(gCLflags & FLAGS_CL_SETDTM);
+
+ // had init'ed mixer here...
+ //InitMixer();
+
+ // had done VDD setup here...
+ // fill in the ADAPTERINFO
+ //codec_info.ulNumPorts = NUMIORANGES;
+ //codec_info.Range[0].ulPort  =  pResourcesWSS->uIOBase[0];
+ //codec_info.Range[0].ulRange =  pResourcesWSS->uIOLength[0];
+ //...
+ //// set up the addressing to the codec data for the vdd
+ //pfcodec_info = (ADAPTERINFO __far *)&codec_info;
+ //DevHelp_VirtToLin (SELECTOROF(pfcodec_info), (ULONG)(OFFSETOF(pfcodec_info)),(PLIN)&pLincodec);
+ // copy the pdd name out of the header.
+ //for (i = 0; i < sizeof(szPddName)-1 ; i++) {
+ //   if (phdr->abName[i] <= ' ')
+ //      break;
+ //   szPddName[i] = phdr->abName[i];
+ //}
+ //// register the VDD IDC entry point..
+ //DevHelp_RegisterPDD ((NPSZ)szPddName, (PFN)IDCEntry_VDD);
+
+ 00ea  f6 06 00 00 02                    test    byte ptr _gCLflags,02H
+ 00ef  74 0a                             je      L35
+ 00f1  a1 00 00                          mov     ax,_gCLflags
+ 00f4  30 e4                             xor     ah,ah
+ 00f6  24 02                             and     al,02H
+ 00f8  e8 00 00                          call    chipsetSetDTM_
+
+ if (gCLflags & FLAGS_CL_TESTONLY) rc = 666;
+
+ 00fb  f6 06 01 00 80    L35             test    byte ptr _gCLflags+1H,80H
+ 0100  74 05                             je      L36
+ 0102  c7 46 fe 9a 02                    mov     word ptr [bp-2H],029aH
+
+ if (rc) goto ExitNow;
+
+ 0107  83 7e fe 00       L36             cmp     word ptr [bp-2H],0000H
+ 010b  75 34                             jne     L37
+
+ rpPtr->status = RPDONE;
+ 010d  8e c1                             mov     es,cx
+ 010f  26 c7 44 03 00 01                 mov     word ptr es:[si+3H],0100H
+
+ rpPtr->init.sizeCS = (USHORT)&endCode;
+ rpPtr->init.sizeDS = (USHORT)&endData;
+
+ 0115  26 c7 44 0e 00 00                 mov     word ptr es:[si+0eH],offset _endCode
+
+if (gCLflags & FLAGS_CL_DDPRINT) ddprintf("stratMode2Init:endCode=%x, endData=%x, ds=%x\n",rpPtr->init.sizeCS,rpPtr->init.sizeDS,_DS());
+
+ExitNow:
+
+ 011b  8a 36 01 00                       mov     dh,_gCLflags+1H
+ 011f  26 c7 44 10 00 00                 mov     word ptr es:[si+10H],offset _endData
+ 0125  f6 c6 40                          test    dh,40H
+ 0128  74 17                             je      L37
+ 012a  8c d8                             mov     ax,ds
+ 012c  50                                push    ax
+ 012d  26 8b 7c 10                       mov     di,es:[si+10H]
+ 0131  57                                push    di
+ 0132  26 8b 44 0e                       mov     ax,es:[si+0eH]
+ 0136  50                                push    ax
+ 0137  1e                                push    ds
+ 0138  68 c4 01                          push    offset L23
+ 013b  e8 00 00                          call    _ddprintf
+ 013e  83 c4 0a                          add     sp,000aH
+
+ if (rc && (gCLflags & FLAGS_CL_QUIET) == 0) {
+ 0141  83 7e fe 00       L37             cmp     word ptr [bp-2H],0000H
+ 0145  0f 84 80 00                       je      L40
+ 0149  f6 06 00 00 80                    test    byte ptr _gCLflags,80H
+ 014e  75 79                             jne     L40
+
+    DosPutMessage(STDOUT,_fstrlen(initExitMsg),initExitMsg);
+ 0150  6a 01                             push    0001H
+ 0152  8c d8                             mov     ax,ds
+ 0154  bf 00 00                          mov     di,offset _initExitMsg
+ 0157  8e c0                             mov     es,ax
+ 0159  b9 ff ff                          mov     cx,0ffffH
+ 015c  31 c0                             xor     ax,ax
+ 015e  f2 ae                             repne   scasb    
+ 0160  f7 d1                             not     cx
+ 0162  49                                dec     cx
+ 0163  51                                push    cx
+ 0164  1e                                push    ds
+ 0165  68 00 00                          push    offset _initExitMsg
+ 0168  9a 00 00 00 00                    call    far DOS16PUTMESSAGE
+
+    _ultoa(rc,valueMsg,10);
+ 016d  6a 00                             push    0000H
+ 016f  6a 0a                             push    000aH
+ 0171  16                                push    ss
+ 0172  8d 56 be                          lea     dx,[bp-42H]
+ 0175  52                                push    dx
+ 0176  8b 5e fe                          mov     bx,[bp-2H]
+ 0179  6a 00                             push    0000H
+ 017b  8c de                             mov     si,ds
+ 017d  53                                push    bx
+ 017e  8d 7e be                          lea     di,[bp-42H]
+ 0181  e8 00 00                          call    _xtoa
+
+    _fstrcat(valueMsg,"\r\n");
+ 0184  b8 f2 01                          mov     ax,offset L24
+ 0187  8c d2                             mov     dx,ss
+ 0189  83 c4 0c                          add     sp,000cH
+ 018c  8e c2                             mov     es,dx
+ 018e  1e                                push    ds
+ 018f  57                                push    di
+ 0190  96                                xchg    ax,si
+ 0191  8e d8                             mov     ds,ax
+ 0193  b9 ff ff                          mov     cx,0ffffH
+ 0196  b0 00                             mov     al,00H
+ 0198  f2 ae                             repne   scasb    
+ 019a  4f                                dec     di
+ 019b  8a 04             L38             mov     al,[si]
+ 019d  aa                                stosb   
+ 019e  3c 00                             cmp     al,00H
+ 01a0  74 0b                             je      L39
+ 01a2  8a 44 01                          mov     al,[si+1H]
+ 01a5  83 c6 02                          add     si,0002H
+ 01a8  aa                                stosb   
+ 01a9  3c 00                             cmp     al,00H
+ 01ab  75 ee                             jne     L38
+ 01ad  5f                L39             pop     di
+ 01ae  1f                                pop     ds
+
+    DosPutMessage(STDOUT,_fstrlen(valueMsg),valueMsg);
+ }
+
+ExitRightNow:
+ return rc;
+ 01af  6a 01                             push    0001H
+ 01b1  8d 7e be                          lea     di,[bp-42H]
+ 01b4  b9 ff ff                          mov     cx,0ffffH
+ 01b7  31 c0                             xor     ax,ax
+ 01b9  f2 ae                             repne   scasb    
+ 01bb  f7 d1                             not     cx
+ 01bd  49                                dec     cx
+ 01be  51                                push    cx
+ 01bf  16                                push    ss
+ 01c0  8d 56 be                          lea     dx,[bp-42H]
+ 01c3  52                                push    dx
+ 01c4  9a 00 00 00 00                    call    far DOS16PUTMESSAGE
+
+}
+
+// ------------------------------------------------------
+//USHORT gIRQ          = 99;       // 1  -i:5
+//USHORT gBasePort     = 0;        // 2  -bp:534
+//USHORT gCtrlPort     = 0;        // 3  -cp:390
+//USHORT gMode         = 2;        // 4  -xm:2
+//USHORT gDevice       = 99;       // 5  -dev:3       0=CS 3=OPL3SA3
+//USHORT gDMAplay      = 99;       // 6  -dp:1
+//USHORT gDMAplaySize  = 0x8000;   // 7  -dps:8000    DMA buffer size (max is 60KB)
+//USHORT gDMAplayIPB   = 2;        // 8  -dpi:2       ints per buffer -- power of 2 (2,4,8,16,32)
+//USHORT gDMAplayMode  = 1;        // 9  -dpm:1       1=typeF DMA, else not
+//USHORT gDMArec       = 99;       //10  -dr:0        can be same -dp: (then is not full duplex)
+//USHORT gDMArecSize   = 0x8000;   //11  -drs:8000    DMA buffer size (max is 60KB)
+//USHORT gDMArecIPB    = 2;        //12  -dri:2       ints per buffer -- power of 2 (2,4,8,16,32)
+//USHORT gDMArecMode   = 1;        //13  -drm:1       1=typeF DMA, else not
+//USHORT gCLflags      = 0;        //14  various flags (-v bit0=1, ...)
+//                                 //15 none of the above
+//#define FLAGS_CL_VERBOSE  1
+
+ 01c9  8b 46 fe          L40             mov     ax,[bp-2H]
+ 01cc  89 ec                             mov     sp,bp
+ 01ce  5d                                pop     bp
+ 01cf  5f                                pop     di
+ 01d0  5e                                pop     si
+ 01d1  59                                pop     cx
+ 01d2  5b                                pop     bx
+ 01d3  c3                                ret     
+ 01d4  fc 02             L41             DW      L50
+ 01d6  04 03                             DW      L51
+ 01d8  fc 02                             DW      L50
+ 01da  04 03                             DW      L51
+ 01dc  fc 02                             DW      L50
+ 01de  04 03                             DW      L51
+ 01e0  fc 02                             DW      L50
+ 01e2  fc 02                             DW      L50
+ 01e4  fc 02                             DW      L50
+ 01e6  fc 02                             DW      L50
+
+USHORT ParseCL(UCHAR __far *clPtr) {
+
+ USHORT rc = 0;
+ ULONG tVal;
+ 01e8  53                ParseCL_        push    bx
+ 01e9  51                                push    cx
+ 01ea  56                                push    si
+ 01eb  57                                push    di
+ 01ec  55                                push    bp
+ 01ed  89 e5                             mov     bp,sp
+ 01ef  83 ec 4c                          sub     sp,004cH
+ 01f2  89 c3                             mov     bx,ax
+ 01f4  8e c2                             mov     es,dx
+
+ UCHAR __far *tPtr = clPtr;
+ 01f6  89 c7                             mov     di,ax
+ 01f8  31 d2                             xor     dx,dx
+ 01fa  8c c1                             mov     cx,es
+ 01fc  89 56 fa                          mov     [bp-6H],dx
+
+ UCHAR __far *ePtr = 0;
+ 01ff  89 56 f4                          mov     [bp-0cH],dx
+ 0202  89 56 f6                          mov     [bp-0aH],dx
+
+ UCHAR __far *argListPtr = 0;
+
+ UCHAR sw0, sw1, sw2, sw3;
+ CHAR valueMsg[64];
+
+ // cs40.sys -
+ // skip over filename
+
+ 0205  89 56 fc                          mov     [bp-4H],dx
+ 0208  26 8a 27                          mov     ah,es:[bx]
+ 020b  89 56 fe                          mov     [bp-2H],dx
+ 020e  84 e4                             test    ah,ah
+ 0210  74 17                             je      L43
+
+ while (*tPtr && *tPtr != ' ') {
+    tPtr++;
+ 0212  8e c1             L42             mov     es,cx
+ 0214  26 8a 05                          mov     al,es:[di]
+ 0217  30 e4                             xor     ah,ah
+ 0219  3d 20 00                          cmp     ax,0020H
+ 021c  74 0b                             je      L43
+
+ }
+
+ 021e  8e c1                             mov     es,cx
+ 0220  26 8a 55 01                       mov     dl,es:[di+1H]
+ 0224  47                                inc     di
+ 0225  84 d2                             test    dl,dl
+ 0227  75 e9                             jne     L42
+ 0229  8e c1             L43             mov     es,cx
+ 022b  26 80 3d 00                       cmp     byte ptr es:[di],00H
+ 022f  0f 84 05 06                       je      L119
+
+ while (*tPtr && (rc == 0)) {
+
+    tPtr++;            // skip to next
+
+ 0233  83 7e fa 00                       cmp     word ptr [bp-6H],0000H
+ 0237  0f 85 fd 05                       jne     L119
+
+    if (*tPtr == '-') {
+
+ 023b  26 8a 45 01                       mov     al,es:[di+1H]
+ 023f  30 e4                             xor     ah,ah
+ 0241  47                                inc     di
+ 0242  3d 2d 00                          cmp     ax,002dH
+ 0245  75 e2                             jne     L43
+
+       if (argListPtr == 0) argListPtr = tPtr;
+
+ 0247  8b 76 fe                          mov     si,[bp-2H]
+ 024a  8b 46 fc                          mov     ax,[bp-4H]
+ 024d  85 f6                             test    si,si
+ 024f  75 0a                             jne     L44
+ 0251  85 c0                             test    ax,ax
+ 0253  75 06                             jne     L44
+ 0255  89 7e fc                          mov     [bp-4H],di
+ 0258  89 4e fe                          mov     [bp-2H],cx
+
+       tPtr++;          // after - switch
+ 025b  47                L44             inc     di
+
+       sw0 = *(tPtr+0); // first (eg, d)
+       sw1 = *(tPtr+1); // next char, eg, ':'
+ 025c  8e c1                             mov     es,cx
+ 025e  26 8a 25                          mov     ah,es:[di]
+
+ 0261  26 8a 75 02                       mov     dh,es:[di+2H]
+
+       sw2 = *(tPtr+2); // ...
+ 0265  26 8a 45 01                       mov     al,es:[di+1H]
+
+       sw3 = *(tPtr+3); // ... (if used can only be :)
+
+ 0269  26 8a 55 03                       mov     dl,es:[di+3H]
+
+       switch(sw0) {
+       case 'i':
+ 026d  88 e3                             mov     bl,ah
+ 026f  80 fc 69                          cmp     ah,69H
+ 0272  72 2a                             jb      L46
+ 0274  76 4a                             jbe     L48
+ 0276  80 fc 76                          cmp     ah,76H
+ 0279  72 19                             jb      L45
+ 027b  0f 86 f6 04                       jbe     L108
+ 027f  80 fc 78                          cmp     ah,78H
+ 0282  0f 82 aa 05                       jb      L118
+ 0286  0f 86 31 01                       jbe     L60
+ 028a  80 fc 7a                          cmp     ah,7aH
+ 028d  0f 84 0b 05                       je      L110
+ 0291  e9 9c 05                          jmp     L118
+ 0294  80 fc 74          L45             cmp     ah,74H
+ 0297  0f 84 6d 05                       je      L116
+ 029b  e9 92 05                          jmp     L118
+ 029e  80 fc 62          L46             cmp     ah,62H
+ 02a1  72 13                             jb      L47
+ 02a3  76 68                             jbe     L52
+ 02a5  80 fc 63                          cmp     ah,63H
+ 02a8  0f 86 b9 00                       jbe     L56
+ 02ac  80 fc 64                          cmp     ah,64H
+ 02af  0f 84 28 01                       je      L61
+ 02b3  e9 7a 05                          jmp     L118
+ 02b6  80 fc 51          L47             cmp     ah,51H
+ 02b9  0f 84 24 05                       je      L114
+ 02bd  e9 70 05                          jmp     L118
+
+          rc = 1;
+ 02c0  ba 01 00          L48             mov     dx,0001H
+
+          if (sw1 == ':') {
+ 02c3  30 e4                             xor     ah,ah
+ 02c5  89 56 fa                          mov     [bp-6H],dx
+ 02c8  3d 3a 00                          cmp     ax,003aH
+ 02cb  0f 85 5a ff                       jne     L43
+ 02cf  52                                push    dx
+ 02d0  6a 0a                             push    000aH
+ 02d2  16                                push    ss
+ 02d3  8d 56 f4                          lea     dx,[bp-0cH]
+ 02d6  52                                push    dx
+ 02d7  51                                push    cx
+
+             tVal = strtoul((tPtr+2),&ePtr,10);
+ 02d8  83 c7 02                          add     di,0002H
+ 02db  57                                push    di
+ 02dc  e8 00 00                          call    _strtoxl
+ 02df  89 c7                             mov     di,ax
+ 02e1  83 c4 0c                          add     sp,000cH
+
+             switch(tVal) {
+             case 3:
+             case 5:
+             case 7:
+             case 9:
+             case 10:
+             case 11:
+             case 12: // i12 not for OPL3SA3 though
+                gIRQ = tVal;
+ 02e4  83 ef 03                          sub     di,0003H
+ 02e7  83 da 00                          sbb     dx,0000H
+ 02ea  85 d2                             test    dx,dx
+ 02ec  72 07                             jb      L49
+ 02ee  75 14                             jne     L51
+ 02f0  83 ff 09                          cmp     di,0009H
+ 02f3  77 0f                             ja      L51
+ 02f5  01 ff             L49             add     di,di
+ 02f7  2e ff a5 d4 01                    jmp     word ptr cs:[di+L41]
+
+ 02fc  31 db             L50             xor     bx,bx
+
+                rc = 0;
+                break;
+             }
+ 02fe  a3 00 00                          mov     _gIRQ,ax
+ 0301  89 5e fa                          mov     [bp-6H],bx
+
+             tPtr = ePtr;
+ 0304  8b 7e f4          L51             mov     di,[bp-0cH]
+ 0307  8b 4e f6                          mov     cx,[bp-0aH]
+
+          }
+          break;
+
+       case 'b':
+ 030a  e9 1c ff                          jmp     L43
+
+          rc = 2;
+ 030d  bb 02 00          L52             mov     bx,0002H
+
+          if (sw1 == 'p' && sw2 == ':') {
+ 0310  30 e4                             xor     ah,ah
+ 0312  89 5e fa                          mov     [bp-6H],bx
+ 0315  3d 70 00                          cmp     ax,0070H
+ 0318  0f 85 0d ff                       jne     L43
+ 031c  88 f0                             mov     al,dh
+ 031e  3d 3a 00                          cmp     ax,003aH
+ 0321  0f 85 04 ff                       jne     L43
+
+int3();
+ 0325  cc                                int     3
+ 0326  6a 01                             push    0001H
+ 0328  b8 10 00                          mov     ax,0010H
+ 032b  50                                push    ax
+ 032c  16                                push    ss
+ 032d  8d 76 f4                          lea     si,[bp-0cH]
+ 0330  56                                push    si
+ 0331  51                                push    cx
+
+             tVal = strtoul((tPtr+3),&ePtr,16);
+ 0332  83 c7 03                          add     di,0003H
+ 0335  57                                push    di
+ 0336  e8 00 00                          call    _strtoxl
+ 0339  83 c4 0c                          add     sp,000cH
+ 033c  89 d7                             mov     di,dx
+
+             if (tVal >= 0x100 && tVal <= 0xFFF) {
+                gBasePort = tVal;
+ 033e  85 d2                             test    dx,dx
+ 0340  77 07                             ja      L53
+ 0342  75 18                             jne     L55
+ 0344  3d 00 01                          cmp     ax,0100H
+ 0347  72 13                             jb      L55
+ 0349  85 d2             L53             test    dx,dx
+ 034b  72 07                             jb      L54
+ 034d  75 0d                             jne     L55
+ 034f  3d ff 0f                          cmp     ax,0fffH
+ 0352  77 08                             ja      L55
+
+ 0354  31 c9             L54             xor     cx,cx
+
+                rc = 0;
+             }
+ 0356  a3 00 00                          mov     _gBasePort,ax
+ 0359  89 4e fa                          mov     [bp-6H],cx
+
+             tPtr = ePtr;
+ 035c  8b 7e f4          L55             mov     di,[bp-0cH]
+ 035f  8b 4e f6                          mov     cx,[bp-0aH]
+
+          }
+          break;
+
+       case 'c':
+ 0362  e9 c4 fe                          jmp     L43
+
+          rc = 3;
+ 0365  be 03 00          L56             mov     si,0003H
+
+          if (sw1 == 'p' && sw2 == ':') {
+ 0368  30 e4                             xor     ah,ah
+ 036a  89 76 fa                          mov     [bp-6H],si
+ 036d  3d 70 00                          cmp     ax,0070H
+ 0370  0f 85 b5 fe                       jne     L43
+ 0374  88 f0                             mov     al,dh
+ 0376  3d 3a 00                          cmp     ax,003aH
+ 0379  0f 85 ac fe                       jne     L43
+ 037d  6a 01                             push    0001H
+ 037f  b8 10 00                          mov     ax,0010H
+ 0382  50                                push    ax
+ 0383  16                                push    ss
+ 0384  8d 5e f4                          lea     bx,[bp-0cH]
+ 0387  53                                push    bx
+ 0388  51                                push    cx
+
+             tVal = strtoul((tPtr+3),&ePtr,16);
+ 0389  01 f7                             add     di,si
+ 038b  57                                push    di
+ 038c  e8 00 00                          call    _strtoxl
+ 038f  83 c4 0c                          add     sp,000cH
+ 0392  89 d7                             mov     di,dx
+
+             if (tVal >= 0x100 && tVal <= 0xFFF) {
+                gCtrlPort = tVal;
+ 0394  85 d2                             test    dx,dx
+ 0396  77 07                             ja      L57
+ 0398  75 18                             jne     L59
+ 039a  3d 00 01                          cmp     ax,0100H
+ 039d  72 13                             jb      L59
+ 039f  85 d2             L57             test    dx,dx
+ 03a1  72 07                             jb      L58
+ 03a3  75 0d                             jne     L59
+ 03a5  3d ff 0f                          cmp     ax,0fffH
+ 03a8  77 08                             ja      L59
+
+ 03aa  31 d7             L58             xor     di,dx
+
+                rc = 0;
+             }
+ 03ac  a3 00 00                          mov     _gCtrlPort,ax
+ 03af  89 7e fa                          mov     [bp-6H],di
+
+             tPtr = ePtr;
+ 03b2  8b 7e f4          L59             mov     di,[bp-0cH]
+ 03b5  8b 4e f6                          mov     cx,[bp-0aH]
+
+          }
+          break;
+
+       case 'x':
+ 03b8  e9 6e fe                          jmp     L43
+
+          rc = 4;
+ 03bb  bb 04 00          L60             mov     bx,0004H
+
+          if (sw1 == 'm' && sw2 == ':') {
+             // only know mode2
+ 03be  30 e4                             xor     ah,ah
+ 03c0  89 5e fa                          mov     [bp-6H],bx
+ 03c3  3d 6d 00                          cmp     ax,006dH
+ 03c6  0f 85 5f fe                       jne     L43
+ 03ca  88 f0                             mov     al,dh
+ 03cc  3d 3a 00                          cmp     ax,003aH
+ 03cf  0f 85 56 fe                       jne     L43
+
+             rc = 0;
+ 03d3  31 f6                             xor     si,si
+ 03d5  89 76 fa                          mov     [bp-6H],si
+
+          }
+          break;
+
+       case 'd':
+ 03d8  e9 4e fe                          jmp     L43
+
+          rc = 5;
+ 03db  be 05 00          L61             mov     si,0005H
+
+          switch(sw1) {
+          case 'e':                                    // dev:
+ 03de  88 c4                             mov     ah,al
+ 03e0  89 76 fa                          mov     [bp-6H],si
+ 03e3  3c 70                             cmp     al,70H
+ 03e5  72 0b                             jb      L62
+ 03e7  76 5d                             jbe     L66
+ 03e9  3c 72                             cmp     al,72H
+ 03eb  0f 84 f2 01                       je      L87
+ 03ef  e9 37 fe                          jmp     L43
+ 03f2  3c 65             L62             cmp     al,65H
+ 03f4  0f 85 31 fe                       jne     L43
+
+             if (sw2 == 'v' && sw3 == ':') {
+ 03f8  88 f0                             mov     al,dh
+ 03fa  30 e4                             xor     ah,ah
+ 03fc  3d 76 00                          cmp     ax,0076H
+ 03ff  0f 85 26 fe                       jne     L43
+ 0403  88 d0                             mov     al,dl
+ 0405  3d 3a 00                          cmp     ax,003aH
+ 0408  0f 85 1d fe                       jne     L43
+ 040c  6a 01                             push    0001H
+ 040e  ba 0a 00                          mov     dx,000aH
+ 0411  52                                push    dx
+ 0412  16                                push    ss
+ 0413  8d 5e f4                          lea     bx,[bp-0cH]
+ 0416  53                                push    bx
+ 0417  51                                push    cx
+
+                tVal = strtoul((tPtr+4),&ePtr,10);
+ 0418  83 c7 04                          add     di,0004H
+ 041b  57                                push    di
+ 041c  e8 00 00                          call    _strtoxl
+ 041f  83 c4 0c                          add     sp,000cH
+ 0422  89 d7                             mov     di,dx
+
+                if (tVal == 0 || tVal == 3) {
+                   gDevice = tVal;
+ 0424  85 d2                             test    dx,dx
+ 0426  75 04                             jne     L63
+ 0428  85 c0                             test    ax,ax
+ 042a  74 09                             je      L64
+ 042c  85 d2             L63             test    dx,dx
+ 042e  75 0d                             jne     L65
+ 0430  3d 03 00                          cmp     ax,0003H
+ 0433  75 08                             jne     L65
+
+ 0435  31 c9             L64             xor     cx,cx
+
+                   rc = 0;
+                }
+ 0437  a3 00 00                          mov     _gDevice,ax
+ 043a  89 4e fa                          mov     [bp-6H],cx
+
+                tPtr = ePtr;
+ 043d  8b 7e f4          L65             mov     di,[bp-0cH]
+ 0440  8b 4e f6                          mov     cx,[bp-0aH]
+
+             }
+             break;
+
+          case 'p':                                    // dp*:
+ 0443  e9 e3 fd                          jmp     L43
+
+             rc = 6;
+ 0446  be 06 00          L66             mov     si,0006H
+
+             switch(sw2) {
+             case ':':                                 // dp:
+ 0449  88 f0                             mov     al,dh
+ 044b  89 76 fa                          mov     [bp-6H],si
+ 044e  80 fe 69                          cmp     dh,69H
+ 0451  72 17                             jb      L67
+ 0453  0f 86 a9 00                       jbe     L73
+ 0457  80 fe 6d                          cmp     dh,6dH
+ 045a  0f 82 cb fd                       jb      L43
+ 045e  0f 86 34 01                       jbe     L83
+ 0462  80 fe 73                          cmp     dh,73H
+ 0465  74 53                             je      L71
+ 0467  e9 bf fd                          jmp     L43
+ 046a  80 fe 3a          L67             cmp     dh,3aH
+ 046d  0f 85 b8 fd                       jne     L43
+
+                tVal = strtoul((tPtr+3),&ePtr,10);
+ 0471  8d 45 03                          lea     ax,[di+3H]
+ 0474  6a 01                             push    0001H
+ 0476  bf 0a 00                          mov     di,000aH
+ 0479  57                                push    di
+ 047a  16                                push    ss
+ 047b  8d 76 f4                          lea     si,[bp-0cH]
+ 047e  56                                push    si
+ 047f  51                                push    cx
+ 0480  50                                push    ax
+ 0481  e8 00 00                          call    _strtoxl
+ 0484  89 d7                             mov     di,dx
+
+                switch(tVal) {
+                case 0:
+                case 1:
+                case 3:
+                   gDMAplay = tVal;
+ 0486  89 c2                             mov     dx,ax
+ 0488  83 c4 0c                          add     sp,000cH
+ 048b  83 c2 00                          add     dx,0000H
+ 048e  83 d7 00                          adc     di,0000H
+ 0491  85 ff                             test    di,di
+ 0493  72 1c                             jb      L70
+ 0495  85 ff                             test    di,di
+ 0497  72 10                             jb      L69
+ 0499  75 05                             jne     L68
+ 049b  83 fa 01                          cmp     dx,0001H
+ 049e  76 09                             jbe     L69
+ 04a0  85 ff             L68             test    di,di
+ 04a2  75 0d                             jne     L70
+ 04a4  83 fa 03                          cmp     dx,0003H
+ 04a7  75 08                             jne     L70
+
+ 04a9  31 db             L69             xor     bx,bx
+
+                   rc = 0;
+                }
+ 04ab  a3 00 00                          mov     _gDMAplay,ax
+ 04ae  89 5e fa                          mov     [bp-6H],bx
+
+                tPtr = ePtr;
+ 04b1  8b 7e f4          L70             mov     di,[bp-0cH]
+ 04b4  8b 4e f6                          mov     cx,[bp-0aH]
+
+                break; // case dp:
+
+             case 's':
+ 04b7  e9 6f fd                          jmp     L43
+
+                rc = 7;
+ 04ba  c7 46 fa 07 00    L71             mov     word ptr [bp-6H],0007H
+
+                if (sw3 == ':') {
+ 04bf  88 d0                             mov     al,dl
+ 04c1  30 e4                             xor     ah,ah
+ 04c3  3d 3a 00                          cmp     ax,003aH
+ 04c6  0f 85 5f fd                       jne     L43
+ 04ca  8d 56 f4                          lea     dx,[bp-0cH]
+ 04cd  bb 10 00                          mov     bx,0010H
+ 04d0  6a 01                             push    0001H
+
+                   tVal = strtoul((tPtr+4),&ePtr,16);
+ 04d2  8d 75 04                          lea     si,[di+4H]
+ 04d5  89 56 f8                          mov     [bp-8H],dx
+ 04d8  53                                push    bx
+ 04d9  89 f2                             mov     dx,si
+ 04db  16                                push    ss
+ 04dc  8b 76 f8                          mov     si,[bp-8H]
+ 04df  56                                push    si
+ 04e0  51                                push    cx
+ 04e1  52                                push    dx
+ 04e2  e8 00 00                          call    _strtoxl
+ 04e5  89 d7                             mov     di,dx
+ 04e7  83 c4 0c                          add     sp,000cH
+
+                   if ((tVal & 0xFFF) == 0) {  // align 4K
+                      gDMAplaySize = tVal;
+ 04ea  a9 ff 0f                          test    ax,0fffH
+ 04ed  75 08                             jne     L72
+
+ 04ef  31 d2                             xor     dx,dx
+
+                      rc = 0;
+                   }
+ 04f1  a3 00 00                          mov     _gDMAplaySize,ax
+ 04f4  89 56 fa                          mov     [bp-6H],dx
+
+                   tPtr = ePtr;
+ 04f7  8b 7e f4          L72             mov     di,[bp-0cH]
+ 04fa  8b 4e f6                          mov     cx,[bp-0aH]
+
+                }
+                break; // case dps
+
+             case 'i':
+                rc = 8;
+ 04fd  e9 29 fd                          jmp     L43
+
+ 0500  88 d0             L73             mov     al,dl
+
+                if (sw3 == ':') {
+ 0502  be 08 00                          mov     si,0008H
+ 0505  30 e4                             xor     ah,ah
+ 0507  89 76 fa                          mov     [bp-6H],si
+ 050a  3d 3a 00                          cmp     ax,003aH
+ 050d  0f 85 18 fd                       jne     L43
+ 0511  6a 01                             push    0001H
+ 0513  b8 0a 00                          mov     ax,000aH
+ 0516  50                                push    ax
+ 0517  16                                push    ss
+ 0518  8d 4e f4                          lea     cx,[bp-0cH]
+ 051b  51                                push    cx
+ 051c  06                                push    es
+
+                   tVal = strtoul((tPtr+4),&ePtr,10);
+ 051d  8d 55 04                          lea     dx,[di+4H]
+ 0520  52                                push    dx
+ 0521  e8 00 00                          call    _strtoxl
+ 0524  89 d7                             mov     di,dx
+
+                   switch(tVal) {
+                   case 2:
+                   case 4:
+                   case 8:
+                   case 16:
+                   case 32:
+                      gDMAplayIPB = tVal;
+ 0526  89 c2                             mov     dx,ax
+ 0528  83 c4 0c                          add     sp,000cH
+ 052b  83 c2 00                          add     dx,0000H
+ 052e  83 d7 00                          adc     di,0000H
+ 0531  85 ff                             test    di,di
+ 0533  72 31                             jb      L78
+ 0535  75 04                             jne     L74
+ 0537  39 f2                             cmp     dx,si
+ 0539  72 2b                             jb      L78
+ 053b  85 ff             L74             test    di,di
+ 053d  72 46                             jb      L81
+ 053f  75 04                             jne     L75
+ 0541  39 f2                             cmp     dx,si
+ 0543  76 40                             jbe     L81
+ 0545  85 ff             L75             test    di,di
+ 0547  72 44                             jb      L82
+ 0549  75 05                             jne     L76
+ 054b  83 fa 10                          cmp     dx,0010H
+ 054e  72 3d                             jb      L82
+ 0550  85 ff             L76             test    di,di
+ 0552  72 31                             jb      L81
+ 0554  75 05                             jne     L77
+ 0556  83 fa 10                          cmp     dx,0010H
+ 0559  76 2a                             jbe     L81
+ 055b  85 ff             L77             test    di,di
+ 055d  75 2e                             jne     L82
+ 055f  83 fa 20                          cmp     dx,0020H
+ 0562  74 21                             je      L81
+ 0564  eb 27                             jmp     L82
+ 0566  85 ff             L78             test    di,di
+ 0568  72 23                             jb      L82
+ 056a  75 05                             jne     L79
+ 056c  83 fa 02                          cmp     dx,0002H
+ 056f  72 1c                             jb      L82
+ 0571  85 ff             L79             test    di,di
+ 0573  72 10                             jb      L81
+ 0575  75 05                             jne     L80
+ 0577  83 fa 02                          cmp     dx,0002H
+ 057a  76 09                             jbe     L81
+ 057c  85 ff             L80             test    di,di
+ 057e  75 0d                             jne     L82
+ 0580  83 fa 04                          cmp     dx,0004H
+ 0583  75 08                             jne     L82
+
+ 0585  31 d2             L81             xor     dx,dx
+
+                      rc = 0;
+                   }
+ 0587  a3 00 00                          mov     _gDMAplayIPB,ax
+ 058a  89 56 fa                          mov     [bp-6H],dx
+
+                   tPtr = ePtr;
+ 058d  8b 7e f4          L82             mov     di,[bp-0cH]
+ 0590  8b 4e f6                          mov     cx,[bp-0aH]
+
+                }
+                break; // case dpi
+
+             case 'm':
+                rc = 9;
+ 0593  e9 93 fc                          jmp     L43
+
+ 0596  88 d0             L83             mov     al,dl
+
+                if (sw3 == ':') {
+ 0598  bb 09 00                          mov     bx,0009H
+ 059b  30 e4                             xor     ah,ah
+ 059d  89 5e fa                          mov     [bp-6H],bx
+ 05a0  3d 3a 00                          cmp     ax,003aH
+ 05a3  0f 85 82 fc                       jne     L43
+ 05a7  6a 01                             push    0001H
+ 05a9  b9 0a 00                          mov     cx,000aH
+ 05ac  51                                push    cx
+ 05ad  16                                push    ss
+ 05ae  8d 5e f4                          lea     bx,[bp-0cH]
+ 05b1  53                                push    bx
+ 05b2  06                                push    es
+
+                   tVal = strtoul((tPtr+4),&ePtr,10);
+ 05b3  83 c7 04                          add     di,0004H
+ 05b6  57                                push    di
+ 05b7  e8 00 00                          call    _strtoxl
+ 05ba  83 c4 0c                          add     sp,000cH
+ 05bd  89 d7                             mov     di,dx
+
+                   if (tVal == 0 || tVal == 1) {
+                      gDMAplayMode = tVal;
+ 05bf  85 d2                             test    dx,dx
+ 05c1  75 04                             jne     L84
+ 05c3  85 c0                             test    ax,ax
+ 05c5  74 09                             je      L85
+ 05c7  85 d2             L84             test    dx,dx
+ 05c9  75 0d                             jne     L86
+ 05cb  3d 01 00                          cmp     ax,0001H
+ 05ce  75 08                             jne     L86
+
+ 05d0  31 c9             L85             xor     cx,cx
+
+                      rc = 0;
+                   }
+ 05d2  a3 00 00                          mov     _gDMAplayMode,ax
+ 05d5  89 4e fa                          mov     [bp-6H],cx
+
+                   tPtr = ePtr;
+ 05d8  8b 7e f4          L86             mov     di,[bp-0cH]
+ 05db  8b 4e f6                          mov     cx,[bp-0aH]
+
+                }
+                break;  // case dpm
+             }
+             break;  // case dp
+
+          case 'r':                                    // dr*:
+ 05de  e9 48 fc                          jmp     L43
+
+             rc = 10;
+ 05e1  c7 46 fa 0a 00    L87             mov     word ptr [bp-6H],000aH
+
+             switch(sw2) {
+ 05e6  88 f0                             mov     al,dh
+ 05e8  80 fe 69                          cmp     dh,69H
+ 05eb  72 17                             jb      L88
+ 05ed  0f 86 a2 00                       jbe     L94
+ 05f1  80 fe 6d                          cmp     dh,6dH
+ 05f4  0f 82 31 fc                       jb      L43
+ 05f8  0f 86 2e 01                       jbe     L104
+ 05fc  80 fe 73                          cmp     dh,73H
+ 05ff  74 53                             je      L92
+ 0601  e9 25 fc                          jmp     L43
+ 0604  80 fe 3a          L88             cmp     dh,3aH
+ 0607  0f 85 1e fc                       jne     L43
+
+             case ':':                                 // dp:
+ 060b  6a 01                             push    0001H
+ 060d  b8 0a 00                          mov     ax,000aH
+ 0610  50                                push    ax
+ 0611  16                                push    ss
+ 0612  8d 5e f4                          lea     bx,[bp-0cH]
+ 0615  53                                push    bx
+ 0616  51                                push    cx
+
+                tVal = strtoul((tPtr+3),&ePtr,10);
+ 0617  83 c7 03                          add     di,0003H
+ 061a  57                                push    di
+ 061b  e8 00 00                          call    _strtoxl
+ 061e  89 d7                             mov     di,dx
+
+                switch(tVal) {
+                case 0:
+                case 1:
+                case 3:
+                   gDMArec = tVal;
+ 0620  89 c2                             mov     dx,ax
+ 0622  83 c4 0c                          add     sp,000cH
+ 0625  83 c2 00                          add     dx,0000H
+ 0628  83 d7 00                          adc     di,0000H
+ 062b  85 ff                             test    di,di
+ 062d  72 1c                             jb      L91
+ 062f  85 ff                             test    di,di
+ 0631  72 10                             jb      L90
+ 0633  75 05                             jne     L89
+ 0635  83 fa 01                          cmp     dx,0001H
+ 0638  76 09                             jbe     L90
+ 063a  85 ff             L89             test    di,di
+ 063c  75 0d                             jne     L91
+ 063e  83 fa 03                          cmp     dx,0003H
+ 0641  75 08                             jne     L91
+
+ 0643  31 db             L90             xor     bx,bx
+
+                   rc = 0;
+                }
+ 0645  a3 00 00                          mov     _gDMArec,ax
+ 0648  89 5e fa                          mov     [bp-6H],bx
+
+                tPtr = ePtr;
+ 064b  8b 7e f4          L91             mov     di,[bp-0cH]
+ 064e  8b 4e f6                          mov     cx,[bp-0aH]
+
+                break; // case dr:
+
+             case 's':
+                rc = 11;
+ 0651  e9 d5 fb                          jmp     L43
+
+ 0654  88 d0             L92             mov     al,dl
+
+                if (sw3 == ':') {
+ 0656  bb 0b 00                          mov     bx,000bH
+ 0659  30 e4                             xor     ah,ah
+ 065b  89 5e fa                          mov     [bp-6H],bx
+ 065e  3d 3a 00                          cmp     ax,003aH
+ 0661  0f 85 c4 fb                       jne     L43
+ 0665  6a 01                             push    0001H
+ 0667  b9 10 00                          mov     cx,0010H
+ 066a  51                                push    cx
+ 066b  16                                push    ss
+ 066c  8d 56 f4                          lea     dx,[bp-0cH]
+ 066f  52                                push    dx
+ 0670  06                                push    es
+
+                   tVal = strtoul((tPtr+4),&ePtr,16);
+ 0671  83 c7 04                          add     di,0004H
+ 0674  57                                push    di
+ 0675  e8 00 00                          call    _strtoxl
+ 0678  89 d7                             mov     di,dx
+ 067a  83 c4 0c                          add     sp,000cH
+
+                   if ((tVal & 0xFFF) == 0) {  // align 4K
+                      gDMArecSize = tVal;
+ 067d  a9 ff 0f                          test    ax,0fffH
+ 0680  75 08                             jne     L93
+
+ 0682  31 c9                             xor     cx,cx
+
+                      rc = 0;
+                   }
+ 0684  a3 00 00                          mov     _gDMArecSize,ax
+ 0687  89 4e fa                          mov     [bp-6H],cx
+
+                   tPtr = ePtr;
+ 068a  8b 7e f4          L93             mov     di,[bp-0cH]
+ 068d  8b 4e f6                          mov     cx,[bp-0aH]
+
+                }
+                break; // case drs
+
+             case 'i':
+ 0690  e9 96 fb                          jmp     L43
+
+                rc = 12;
+ 0693  c7 46 fa 0c 00    L94             mov     word ptr [bp-6H],000cH
+
+                if (sw3 == ':') {
+ 0698  88 d0                             mov     al,dl
+ 069a  30 e4                             xor     ah,ah
+ 069c  3d 3a 00                          cmp     ax,003aH
+ 069f  0f 85 86 fb                       jne     L43
+ 06a3  6a 01                             push    0001H
+ 06a5  b9 0a 00                          mov     cx,000aH
+ 06a8  51                                push    cx
+ 06a9  16                                push    ss
+ 06aa  8d 56 f4                          lea     dx,[bp-0cH]
+ 06ad  52                                push    dx
+ 06ae  06                                push    es
+
+                   tVal = strtoul((tPtr+4),&ePtr,10);
+ 06af  83 c7 04                          add     di,0004H
+ 06b2  57                                push    di
+ 06b3  e8 00 00                          call    _strtoxl
+ 06b6  89 d7                             mov     di,dx
+
+                   switch(tVal) {
+                   case 2:
+                   case 4:
+                   case 8:
+                   case 16:
+                   case 32:
+                      gDMArecIPB = tVal;
+ 06b8  89 c2                             mov     dx,ax
+ 06ba  83 c4 0c                          add     sp,000cH
+ 06bd  83 c2 00                          add     dx,0000H
+ 06c0  83 d7 00                          adc     di,0000H
+ 06c3  85 ff                             test    di,di
+ 06c5  72 33                             jb      L99
+ 06c7  75 05                             jne     L95
+ 06c9  83 fa 08                          cmp     dx,0008H
+ 06cc  72 2c                             jb      L99
+ 06ce  85 ff             L95             test    di,di
+ 06d0  72 47                             jb      L102
+ 06d2  75 05                             jne     L96
+ 06d4  83 fa 08                          cmp     dx,0008H
+ 06d7  76 40                             jbe     L102
+ 06d9  85 ff             L96             test    di,di
+ 06db  72 44                             jb      L103
+ 06dd  75 05                             jne     L97
+ 06df  83 fa 10                          cmp     dx,0010H
+ 06e2  72 3d                             jb      L103
+ 06e4  85 ff             L97             test    di,di
+ 06e6  72 31                             jb      L102
+ 06e8  75 05                             jne     L98
+ 06ea  83 fa 10                          cmp     dx,0010H
+ 06ed  76 2a                             jbe     L102
+ 06ef  85 ff             L98             test    di,di
+ 06f1  75 2e                             jne     L103
+ 06f3  83 fa 20                          cmp     dx,0020H
+ 06f6  74 21                             je      L102
+ 06f8  eb 27                             jmp     L103
+ 06fa  85 ff             L99             test    di,di
+ 06fc  72 23                             jb      L103
+ 06fe  75 05                             jne     L100
+ 0700  83 fa 02                          cmp     dx,0002H
+ 0703  72 1c                             jb      L103
+ 0705  85 ff             L100            test    di,di
+ 0707  72 10                             jb      L102
+ 0709  75 05                             jne     L101
+ 070b  83 fa 02                          cmp     dx,0002H
+ 070e  76 09                             jbe     L102
+ 0710  85 ff             L101            test    di,di
+ 0712  75 0d                             jne     L103
+ 0714  83 fa 04                          cmp     dx,0004H
+ 0717  75 08                             jne     L103
+
+ 0719  31 d2             L102            xor     dx,dx
+
+                      rc = 0;
+                   }
+ 071b  a3 00 00                          mov     _gDMArecIPB,ax
+ 071e  89 56 fa                          mov     [bp-6H],dx
+
+                   tPtr = ePtr;
+ 0721  8b 7e f4          L103            mov     di,[bp-0cH]
+ 0724  8b 4e f6                          mov     cx,[bp-0aH]
+
+                }
+                break; // case dri
+
+             case 'm':
+                rc = 13;
+ 0727  e9 ff fa                          jmp     L43
+
+ 072a  88 d0             L104            mov     al,dl
+
+                if (sw3 == ':') {
+ 072c  be 0d 00                          mov     si,000dH
+ 072f  30 e4                             xor     ah,ah
+ 0731  89 76 fa                          mov     [bp-6H],si
+ 0734  3d 3a 00                          cmp     ax,003aH
+ 0737  0f 85 ee fa                       jne     L43
+ 073b  6a 01                             push    0001H
+ 073d  b8 0a 00                          mov     ax,000aH
+ 0740  50                                push    ax
+ 0741  16                                push    ss
+ 0742  8d 4e f4                          lea     cx,[bp-0cH]
+ 0745  51                                push    cx
+ 0746  06                                push    es
+
+                   tVal = strtoul((tPtr+4),&ePtr,10);
+ 0747  83 c7 04                          add     di,0004H
+ 074a  57                                push    di
+ 074b  e8 00 00                          call    _strtoxl
+ 074e  83 c4 0c                          add     sp,000cH
+ 0751  89 d7                             mov     di,dx
+
+                   if (tVal == 0 || tVal == 1) {
+                      gDMArecMode = tVal;
+ 0753  85 d2                             test    dx,dx
+ 0755  75 04                             jne     L105
+ 0757  85 c0                             test    ax,ax
+ 0759  74 09                             je      L106
+ 075b  85 d2             L105            test    dx,dx
+ 075d  75 0d                             jne     L107
+ 075f  3d 01 00                          cmp     ax,0001H
+ 0762  75 08                             jne     L107
+
+ 0764  31 ff             L106            xor     di,di
+
+                      rc = 0;
+                   }
+ 0766  a3 00 00                          mov     _gDMArecMode,ax
+ 0769  89 7e fa                          mov     [bp-6H],di
+
+                   tPtr = ePtr;
+ 076c  8b 7e f4          L107            mov     di,[bp-0cH]
+ 076f  8b 4e f6                          mov     cx,[bp-0aH]
+
+                }
+                break; // case drm
+                //
+             }
+             break; // case 'dr'
+          }
+          break;  // case 'd'
+
+       case 'v':
+ 0772  e9 b4 fa                          jmp     L43
+
+          rc = 30;
+ 0775  c7 46 fa 1e 00    L108            mov     word ptr [bp-6H],001eH
+
+          if (sw1 == ' ' || sw1 == 0) {
+ 077a  88 c2                             mov     dl,al
+ 077c  30 f6                             xor     dh,dh
+ 077e  83 fa 20                          cmp     dx,0020H
+ 0781  74 06                             je      L109
+ 0783  84 c0                             test    al,al
+ 0785  0f 85 a0 fa                       jne     L43
+
+             gCLflags = gCLflags | FLAGS_CL_VERBOSE;
+ 0789  8a 26 00 00       L109            mov     ah,_gCLflags
+
+             rc = 0;
+ 078d  31 db                             xor     bx,bx
+ 078f  80 cc 01                          or      ah,01H
+ 0792  89 5e fa                          mov     [bp-6H],bx
+ 0795  88 26 00 00                       mov     _gCLflags,ah
+
+          }
+          break;
+
+       case 'z':
+ 0799  e9 8d fa                          jmp     L43
+
+          rc = 30;
+ 079c  c7 46 fa 1e 00    L110            mov     word ptr [bp-6H],001eH
+
+          switch(sw1) {
+          case '1':
+ 07a1  3c 32                             cmp     al,32H
+ 07a3  72 09                             jb      L111
+ 07a5  76 1a                             jbe     L112
+ 07a7  3c 65                             cmp     al,65H
+ 07a9  74 29                             je      L113
+ 07ab  e9 7b fa                          jmp     L43
+ 07ae  3c 31             L111            cmp     al,31H
+ 07b0  0f 85 75 fa                       jne     L43
+
+             gCLflags = gCLflags | FLAGS_CL_SETDTM;
+ 07b4  80 0e 00 00 02                    or      byte ptr _gCLflags,02H
+
+             rc = 0;
+ 07b9  31 c0                             xor     ax,ax
+ 07bb  89 46 fa                          mov     [bp-6H],ax
+
+             break;
+          case '2':
+ 07be  e9 68 fa                          jmp     L43
+
+             gCLflags = gCLflags | FLAGS_CL_SETACAL;
+ 07c1  8a 3e 00 00       L112            mov     bh,_gCLflags
+
+             rc = 0;
+ 07c5  31 f6                             xor     si,si
+ 07c7  80 cf 04                          or      bh,04H
+ 07ca  89 76 fa                          mov     [bp-6H],si
+ 07cd  88 3e 00 00                       mov     _gCLflags,bh
+
+             break;
+
+          case 'e':
+ 07d1  e9 55 fa                          jmp     L43
+
+             gCLflags = gCLflags | FLAGS_CL_DDPRINT;
+ 07d4  80 0e 01 00 40    L113            or      byte ptr _gCLflags+1H,40H
+
+             rc = 0;
+ 07d9  31 db                             xor     bx,bx
+ 07db  89 5e fa                          mov     [bp-6H],bx
+
+             break;
+          }
+          break;
+
+       case 'Q':
+ 07de  e9 48 fa                          jmp     L43
+
+          rc = 30;
+ 07e1  c7 46 fa 1e 00    L114            mov     word ptr [bp-6H],001eH
+
+          if (sw1 == ' ' || sw1 == 0) {
+ 07e6  88 c2                             mov     dl,al
+ 07e8  30 f6                             xor     dh,dh
+ 07ea  83 fa 20                          cmp     dx,0020H
+ 07ed  74 06                             je      L115
+ 07ef  84 c0                             test    al,al
+ 07f1  0f 85 34 fa                       jne     L43
+
+             gCLflags = gCLflags | FLAGS_CL_QUIET;
+ 07f5  8a 36 00 00       L115            mov     dh,_gCLflags
+
+             rc = 0;
+ 07f9  31 db                             xor     bx,bx
+ 07fb  80 ce 80                          or      dh,80H
+ 07fe  89 5e fa                          mov     [bp-6H],bx
+ 0801  88 36 00 00                       mov     _gCLflags,dh
+
+          }
+          break;
+
+       case 't':
+          rc = 30;
+ 0805  e9 21 fa                          jmp     L43
+
+ 0808  88 c2             L116            mov     dl,al
+
+          if (sw1 == ' ' || sw1 == 0) {
+ 080a  be 1e 00                          mov     si,001eH
+ 080d  30 f6                             xor     dh,dh
+ 080f  89 76 fa                          mov     [bp-6H],si
+ 0812  83 fa 20                          cmp     dx,0020H
+ 0815  74 06                             je      L117
+ 0817  84 c0                             test    al,al
+ 0819  0f 85 0c fa                       jne     L43
+
+             gCLflags = gCLflags | FLAGS_CL_TESTONLY;
+ 081d  8a 16 01 00       L117            mov     dl,_gCLflags+1H
+
+             rc = 0;
+ 0821  31 c0                             xor     ax,ax
+ 0823  80 ca 80                          or      dl,80H
+ 0826  89 46 fa                          mov     [bp-6H],ax
+ 0829  88 16 01 00                       mov     _gCLflags+1H,dl
+
+          }
+          break;
+
+       default:
+ 082d  e9 f9 f9                          jmp     L43
+
+          rc = 31;
+ 0830  c7 46 fa 1f 00    L118            mov     word ptr [bp-6H],001fH
+
+       }
+
+    } // if *tPtr = '-'
+ }    // while (*tPtr && (rc == 0)) {
+
+ 0835  e9 f1 f9                          jmp     L43
+
+ if ((gCLflags & FLAGS_CL_QUIET) == 0) {
+ 0838  f6 06 00 00 80    L119            test    byte ptr _gCLflags,80H
+ 083d  75 1d                             jne     L120
+
+    DosPutMessage(STDOUT,_fstrlen(signOnMsg),signOnMsg);
+ }
+
+ 083f  6a 01                             push    0001H
+ 0841  8c d8                             mov     ax,ds
+ 0843  bf 00 00                          mov     di,offset _signOnMsg
+ 0846  8e c0                             mov     es,ax
+ 0848  b9 ff ff                          mov     cx,0ffffH
+ 084b  31 c0                             xor     ax,ax
+ 084d  f2 ae                             repne   scasb    
+ 084f  f7 d1                             not     cx
+ 0851  49                                dec     cx
+ 0852  51                                push    cx
+ 0853  1e                                push    ds
+ 0854  68 00 00                          push    offset _signOnMsg
+ 0857  9a 00 00 00 00                    call    far DOS16PUTMESSAGE
+
+ if (gCLflags & FLAGS_CL_VERBOSE) {
+
+ 085c  f6 06 00 00 01    L120            test    byte ptr _gCLflags,01H
+ 0861  0f 84 38 09                       je      L182
+
+    if (argListPtr) {
+ 0865  8b 56 fe                          mov     dx,[bp-2H]
+ 0868  8b 5e fc                          mov     bx,[bp-4H]
+ 086b  85 d2                             test    dx,dx
+ 086d  75 06                             jne     L121
+ 086f  85 db                             test    bx,bx
+ 0871  0f 84 ab 00                       je      L126
+
+       _fstrcpy(valueMsg,"device=cs40.sys ");
+ 0875  b8 f6 01          L121            mov     ax,offset L25
+ 0878  8d 7e b4                          lea     di,[bp-4cH]
+ 087b  8c d2                             mov     dx,ss
+ 087d  8c de                             mov     si,ds
+ 087f  8e c2                             mov     es,dx
+ 0881  1e                                push    ds
+ 0882  57                                push    di
+ 0883  96                                xchg    ax,si
+ 0884  8e d8                             mov     ds,ax
+ 0886  8a 04             L122            mov     al,[si]
+ 0888  26 88 05                          mov     es:[di],al
+ 088b  3c 00                             cmp     al,00H
+ 088d  74 11                             je      L123
+ 088f  8a 44 01                          mov     al,[si+1H]
+ 0892  83 c6 02                          add     si,0002H
+ 0895  26 88 45 01                       mov     es:[di+1H],al
+ 0899  83 c7 02                          add     di,0002H
+ 089c  3c 00                             cmp     al,00H
+ 089e  75 e6                             jne     L122
+ 08a0  5f                L123            pop     di
+ 08a1  1f                                pop     ds
+
+       DosPutMessage(STDOUT,_fstrlen(valueMsg),valueMsg);
+ 08a2  6a 01                             push    0001H
+ 08a4  8d 7e b4                          lea     di,[bp-4cH]
+ 08a7  b9 ff ff                          mov     cx,0ffffH
+ 08aa  31 c0                             xor     ax,ax
+ 08ac  f2 ae                             repne   scasb    
+ 08ae  f7 d1                             not     cx
+ 08b0  49                                dec     cx
+ 08b1  51                                push    cx
+ 08b2  16                                push    ss
+ 08b3  8d 56 b4                          lea     dx,[bp-4cH]
+ 08b6  52                                push    dx
+ 08b7  8b 7e fc                          mov     di,[bp-4H]
+ 08ba  9a 00 00 00 00                    call    far DOS16PUTMESSAGE
+
+       DosPutMessage(STDOUT,_fstrlen(argListPtr),argListPtr);
+ 08bf  6a 01                             push    0001H
+ 08c1  8e 46 fe                          mov     es,[bp-2H]
+ 08c4  b9 ff ff                          mov     cx,0ffffH
+ 08c7  31 c0                             xor     ax,ax
+ 08c9  f2 ae                             repne   scasb    
+ 08cb  f7 d1                             not     cx
+ 08cd  49                                dec     cx
+ 08ce  51                                push    cx
+ 08cf  06                                push    es
+ 08d0  8b 76 fc                          mov     si,[bp-4H]
+ 08d3  56                                push    si
+ 08d4  8d 7e b4                          lea     di,[bp-4cH]
+ 08d7  9a 00 00 00 00                    call    far DOS16PUTMESSAGE
+
+       _fstrcpy(valueMsg,"\r\n");
+ 08dc  b8 f2 01                          mov     ax,offset L24
+ 08df  8c d2                             mov     dx,ss
+ 08e1  8c de                             mov     si,ds
+ 08e3  8e c2                             mov     es,dx
+ 08e5  1e                                push    ds
+ 08e6  57                                push    di
+ 08e7  96                                xchg    ax,si
+ 08e8  8e d8                             mov     ds,ax
+ 08ea  8a 04             L124            mov     al,[si]
+ 08ec  26 88 05                          mov     es:[di],al
+ 08ef  3c 00                             cmp     al,00H
+ 08f1  74 11                             je      L125
+ 08f3  8a 44 01                          mov     al,[si+1H]
+ 08f6  83 c6 02                          add     si,0002H
+ 08f9  26 88 45 01                       mov     es:[di+1H],al
+ 08fd  83 c7 02                          add     di,0002H
+ 0900  3c 00                             cmp     al,00H
+ 0902  75 e6                             jne     L124
+ 0904  5f                L125            pop     di
+ 0905  1f                                pop     ds
+
+       DosPutMessage(STDOUT,_fstrlen(valueMsg),valueMsg);
+    }
+
+ 0906  6a 01                             push    0001H
+ 0908  8d 7e b4                          lea     di,[bp-4cH]
+ 090b  b9 ff ff                          mov     cx,0ffffH
+ 090e  31 c0                             xor     ax,ax
+ 0910  f2 ae                             repne   scasb    
+ 0912  f7 d1                             not     cx
+ 0914  49                                dec     cx
+ 0915  51                                push    cx
+ 0916  16                                push    ss
+ 0917  8d 56 b4                          lea     dx,[bp-4cH]
+ 091a  52                                push    dx
+ 091b  9a 00 00 00 00                    call    far DOS16PUTMESSAGE
+
+    DosPutMessage(STDOUT,_fstrlen(irqMsg),irqMsg);
+ 0920  6a 01             L126            push    0001H
+ 0922  8c d8                             mov     ax,ds
+ 0924  bf 00 00                          mov     di,offset _irqMsg
+ 0927  8e c0                             mov     es,ax
+ 0929  b9 ff ff                          mov     cx,0ffffH
+ 092c  31 c0                             xor     ax,ax
+ 092e  f2 ae                             repne   scasb    
+ 0930  f7 d1                             not     cx
+ 0932  49                                dec     cx
+ 0933  51                                push    cx
+ 0934  1e                                push    ds
+ 0935  68 00 00                          push    offset _irqMsg
+ 0938  9a 00 00 00 00                    call    far DOS16PUTMESSAGE
+
+    if (gIRQ == 99) {
+ 093d  8b 3e 00 00                       mov     di,_gIRQ
+ 0941  83 ff 63                          cmp     di,0063H
+ 0944  75 2f                             jne     L129
+
+       _fstrcpy(valueMsg," *not set*\r\n");
+    }
+ 0946  b8 08 02                          mov     ax,offset L26
+ 0949  8d 7e b4                          lea     di,[bp-4cH]
+ 094c  8c d2                             mov     dx,ss
+ 094e  8c de                             mov     si,ds
+ 0950  8e c2                             mov     es,dx
+ 0952  1e                                push    ds
+ 0953  57                                push    di
+ 0954  96                                xchg    ax,si
+ 0955  8e d8                             mov     ds,ax
+ 0957  8a 04             L127            mov     al,[si]
+ 0959  26 88 05                          mov     es:[di],al
+ 095c  3c 00                             cmp     al,00H
+ 095e  74 11                             je      L128
+ 0960  8a 44 01                          mov     al,[si+1H]
+ 0963  83 c6 02                          add     si,0002H
+ 0966  26 88 45 01                       mov     es:[di+1H],al
+ 096a  83 c7 02                          add     di,0002H
+ 096d  3c 00                             cmp     al,00H
+ 096f  75 e6                             jne     L127
+ 0971  5f                L128            pop     di
+ 0972  1f                                pop     ds
+
+    else {
+       valueMsg[0] = 0;
+ 0973  eb 44                             jmp     L132
+
+ 0975  6a 00             L129            push    0000H
+ 0977  6a 0a                             push    000aH
+ 0979  16                                push    ss
+ 097a  8d 5e b4                          lea     bx,[bp-4cH]
+ 097d  53                                push    bx
+ 097e  8c de                             mov     si,ds
+ 0980  6a 00                             push    0000H
+
+       _ultoa(gIRQ,valueMsg,10);
+ 0982  30 c9                             xor     cl,cl
+ 0984  57                                push    di
+ 0985  88 4e b4                          mov     [bp-4cH],cl
+ 0988  e8 00 00                          call    _xtoa
+
+       _fstrcat(valueMsg,"\r\n");
+    }
+ 098b  b8 f2 01                          mov     ax,offset L24
+ 098e  8d 7e b4                          lea     di,[bp-4cH]
+ 0991  8c d2                             mov     dx,ss
+ 0993  83 c4 0c                          add     sp,000cH
+ 0996  8e c2                             mov     es,dx
+ 0998  1e                                push    ds
+ 0999  57                                push    di
+ 099a  96                                xchg    ax,si
+ 099b  8e d8                             mov     ds,ax
+ 099d  b9 ff ff                          mov     cx,0ffffH
+ 09a0  b0 00                             mov     al,00H
+ 09a2  f2 ae                             repne   scasb    
+ 09a4  4f                                dec     di
+ 09a5  8a 04             L130            mov     al,[si]
+ 09a7  aa                                stosb   
+ 09a8  3c 00                             cmp     al,00H
+ 09aa  74 0b                             je      L131
+ 09ac  8a 44 01                          mov     al,[si+1H]
+ 09af  83 c6 02                          add     si,0002H
+ 09b2  aa                                stosb   
+ 09b3  3c 00                             cmp     al,00H
+ 09b5  75 ee                             jne     L130
+ 09b7  5f                L131            pop     di
+ 09b8  1f                                pop     ds
+
+    DosPutMessage(STDOUT,_fstrlen(valueMsg),valueMsg);
+
+ 09b9  6a 01             L132            push    0001H
+ 09bb  8c d0                             mov     ax,ss
+ 09bd  8d 7e b4                          lea     di,[bp-4cH]
+ 09c0  8e c0                             mov     es,ax
+ 09c2  b9 ff ff                          mov     cx,0ffffH
+ 09c5  31 c0                             xor     ax,ax
+ 09c7  f2 ae                             repne   scasb    
+ 09c9  f7 d1                             not     cx
+ 09cb  49                                dec     cx
+ 09cc  51                                push    cx
+ 09cd  16                                push    ss
+ 09ce  8d 56 b4                          lea     dx,[bp-4cH]
+ 09d1  52                                push    dx
+ 09d2  bf 00 00                          mov     di,offset _basePortMsg
+ 09d5  9a 00 00 00 00                    call    far DOS16PUTMESSAGE
+ 09da  8c d8                             mov     ax,ds
+
+    DosPutMessage(STDOUT,_fstrlen(basePortMsg),basePortMsg);
+ 09dc  6a 01                             push    0001H
+ 09de  8e c0                             mov     es,ax
+ 09e0  b9 ff ff                          mov     cx,0ffffH
+ 09e3  31 c0                             xor     ax,ax
+ 09e5  f2 ae                             repne   scasb    
+ 09e7  f7 d1                             not     cx
+ 09e9  49                                dec     cx
+ 09ea  51                                push    cx
+ 09eb  1e                                push    ds
+ 09ec  68 00 00                          push    offset _basePortMsg
+ 09ef  9a 00 00 00 00                    call    far DOS16PUTMESSAGE
+
+    if (gBasePort == 99) {
+ 09f4  a1 00 00                          mov     ax,_gBasePort
+ 09f7  3d 63 00                          cmp     ax,0063H
+ 09fa  75 2f                             jne     L135
+
+       _fstrcpy(valueMsg," *not set*\r\n");
+    }
+ 09fc  b8 08 02                          mov     ax,offset L26
+ 09ff  8d 7e b4                          lea     di,[bp-4cH]
+ 0a02  8c d2                             mov     dx,ss
+ 0a04  8c de                             mov     si,ds
+ 0a06  8e c2                             mov     es,dx
+ 0a08  1e                                push    ds
+ 0a09  57                                push    di
+ 0a0a  96                                xchg    ax,si
+ 0a0b  8e d8                             mov     ds,ax
+ 0a0d  8a 04             L133            mov     al,[si]
+ 0a0f  26 88 05                          mov     es:[di],al
+ 0a12  3c 00                             cmp     al,00H
+ 0a14  74 11                             je      L134
+ 0a16  8a 44 01                          mov     al,[si+1H]
+ 0a19  83 c6 02                          add     si,0002H
+ 0a1c  26 88 45 01                       mov     es:[di+1H],al
+ 0a20  83 c7 02                          add     di,0002H
+ 0a23  3c 00                             cmp     al,00H
+ 0a25  75 e6                             jne     L133
+ 0a27  5f                L134            pop     di
+ 0a28  1f                                pop     ds
+
+    else {
+       valueMsg[0] = 0;
+ 0a29  eb 44                             jmp     L138
+
+ 0a2b  6a 00             L135            push    0000H
+ 0a2d  6a 10                             push    0010H
+ 0a2f  8d 56 b4                          lea     dx,[bp-4cH]
+ 0a32  16                                push    ss
+ 0a33  8d 7e b4                          lea     di,[bp-4cH]
+ 0a36  52                                push    dx
+ 0a37  8c de                             mov     si,ds
+ 0a39  6a 00                             push    0000H
+
+       _ultoa(gBasePort,valueMsg,16);
+ 0a3b  30 ed                             xor     ch,ch
+ 0a3d  50                                push    ax
+ 0a3e  88 6e b4                          mov     [bp-4cH],ch
+ 0a41  e8 00 00                          call    _xtoa
+
+       _fstrcat(valueMsg,"\r\n");
+    }
+ 0a44  b8 f2 01                          mov     ax,offset L24
+ 0a47  8c d2                             mov     dx,ss
+ 0a49  83 c4 0c                          add     sp,000cH
+ 0a4c  8e c2                             mov     es,dx
+ 0a4e  1e                                push    ds
+ 0a4f  57                                push    di
+ 0a50  96                                xchg    ax,si
+ 0a51  8e d8                             mov     ds,ax
+ 0a53  b9 ff ff                          mov     cx,0ffffH
+ 0a56  b0 00                             mov     al,00H
+ 0a58  f2 ae                             repne   scasb    
+ 0a5a  4f                                dec     di
+ 0a5b  8a 04             L136            mov     al,[si]
+ 0a5d  aa                                stosb   
+ 0a5e  3c 00                             cmp     al,00H
+ 0a60  74 0b                             je      L137
+ 0a62  8a 44 01                          mov     al,[si+1H]
+ 0a65  83 c6 02                          add     si,0002H
+ 0a68  aa                                stosb   
+ 0a69  3c 00                             cmp     al,00H
+ 0a6b  75 ee                             jne     L136
+ 0a6d  5f                L137            pop     di
+ 0a6e  1f                                pop     ds
+
+    DosPutMessage(STDOUT,_fstrlen(valueMsg),valueMsg);
+
+ 0a6f  6a 01             L138            push    0001H
+ 0a71  8c d0                             mov     ax,ss
+ 0a73  8d 7e b4                          lea     di,[bp-4cH]
+ 0a76  8e c0                             mov     es,ax
+ 0a78  b9 ff ff                          mov     cx,0ffffH
+ 0a7b  31 c0                             xor     ax,ax
+ 0a7d  f2 ae                             repne   scasb    
+ 0a7f  f7 d1                             not     cx
+ 0a81  49                                dec     cx
+ 0a82  51                                push    cx
+ 0a83  16                                push    ss
+ 0a84  8d 56 b4                          lea     dx,[bp-4cH]
+ 0a87  52                                push    dx
+ 0a88  bf 00 00                          mov     di,offset _ctrlPortMsg
+ 0a8b  9a 00 00 00 00                    call    far DOS16PUTMESSAGE
+ 0a90  8c d8                             mov     ax,ds
+
+    DosPutMessage(STDOUT,_fstrlen(ctrlPortMsg),ctrlPortMsg);
+ 0a92  6a 01                             push    0001H
+ 0a94  8e c0                             mov     es,ax
+ 0a96  b9 ff ff                          mov     cx,0ffffH
+ 0a99  31 c0                             xor     ax,ax
+ 0a9b  f2 ae                             repne   scasb    
+ 0a9d  f7 d1                             not     cx
+ 0a9f  49                                dec     cx
+ 0aa0  51                                push    cx
+ 0aa1  1e                                push    ds
+ 0aa2  68 00 00                          push    offset _ctrlPortMsg
+ 0aa5  9a 00 00 00 00                    call    far DOS16PUTMESSAGE
+
+    if (gCtrlPort == 99) {
+ 0aaa  8b 16 00 00                       mov     dx,_gCtrlPort
+ 0aae  83 fa 63                          cmp     dx,0063H
+ 0ab1  75 2f                             jne     L141
+
+       _fstrcpy(valueMsg," *not set*\r\n");
+    }
+ 0ab3  b8 08 02                          mov     ax,offset L26
+ 0ab6  8d 7e b4                          lea     di,[bp-4cH]
+ 0ab9  8c d2                             mov     dx,ss
+ 0abb  8c de                             mov     si,ds
+ 0abd  8e c2                             mov     es,dx
+ 0abf  1e                                push    ds
+ 0ac0  57                                push    di
+ 0ac1  96                                xchg    ax,si
+ 0ac2  8e d8                             mov     ds,ax
+ 0ac4  8a 04             L139            mov     al,[si]
+ 0ac6  26 88 05                          mov     es:[di],al
+ 0ac9  3c 00                             cmp     al,00H
+ 0acb  74 11                             je      L140
+ 0acd  8a 44 01                          mov     al,[si+1H]
+ 0ad0  83 c6 02                          add     si,0002H
+ 0ad3  26 88 45 01                       mov     es:[di+1H],al
+ 0ad7  83 c7 02                          add     di,0002H
+ 0ada  3c 00                             cmp     al,00H
+ 0adc  75 e6                             jne     L139
+ 0ade  5f                L140            pop     di
+ 0adf  1f                                pop     ds
+
+    else {
+       valueMsg[0] = 0;
+ 0ae0  eb 44                             jmp     L144
+
+ 0ae2  6a 00             L141            push    0000H
+ 0ae4  6a 10                             push    0010H
+ 0ae6  8d 5e b4                          lea     bx,[bp-4cH]
+ 0ae9  16                                push    ss
+ 0aea  8d 7e b4                          lea     di,[bp-4cH]
+ 0aed  53                                push    bx
+ 0aee  8c de                             mov     si,ds
+ 0af0  6a 00                             push    0000H
+
+       _ultoa(gCtrlPort,valueMsg,16);
+ 0af2  30 c0                             xor     al,al
+ 0af4  52                                push    dx
+ 0af5  88 46 b4                          mov     [bp-4cH],al
+ 0af8  e8 00 00                          call    _xtoa
+
+       _fstrcat(valueMsg,"\r\n");
+    }
+ 0afb  b8 f2 01                          mov     ax,offset L24
+ 0afe  8c d2                             mov     dx,ss
+ 0b00  83 c4 0c                          add     sp,000cH
+ 0b03  8e c2                             mov     es,dx
+ 0b05  1e                                push    ds
+ 0b06  57                                push    di
+ 0b07  96                                xchg    ax,si
+ 0b08  8e d8                             mov     ds,ax
+ 0b0a  b9 ff ff                          mov     cx,0ffffH
+ 0b0d  b0 00                             mov     al,00H
+ 0b0f  f2 ae                             repne   scasb    
+ 0b11  4f                                dec     di
+ 0b12  8a 04             L142            mov     al,[si]
+ 0b14  aa                                stosb   
+ 0b15  3c 00                             cmp     al,00H
+ 0b17  74 0b                             je      L143
+ 0b19  8a 44 01                          mov     al,[si+1H]
+ 0b1c  83 c6 02                          add     si,0002H
+ 0b1f  aa                                stosb   
+ 0b20  3c 00                             cmp     al,00H
+ 0b22  75 ee                             jne     L142
+ 0b24  5f                L143            pop     di
+ 0b25  1f                                pop     ds
+
+    DosPutMessage(STDOUT,_fstrlen(valueMsg),valueMsg);
+
+ 0b26  6a 01             L144            push    0001H
+ 0b28  8c d0                             mov     ax,ss
+ 0b2a  8d 7e b4                          lea     di,[bp-4cH]
+ 0b2d  8e c0                             mov     es,ax
+ 0b2f  b9 ff ff                          mov     cx,0ffffH
+ 0b32  31 c0                             xor     ax,ax
+ 0b34  f2 ae                             repne   scasb    
+ 0b36  f7 d1                             not     cx
+ 0b38  49                                dec     cx
+ 0b39  51                                push    cx
+ 0b3a  16                                push    ss
+ 0b3b  8d 56 b4                          lea     dx,[bp-4cH]
+ 0b3e  52                                push    dx
+ 0b3f  bf 00 00                          mov     di,offset _modeMsg
+ 0b42  9a 00 00 00 00                    call    far DOS16PUTMESSAGE
+ 0b47  8c d8                             mov     ax,ds
+
+    DosPutMessage(STDOUT,_fstrlen(modeMsg),modeMsg);
+    valueMsg[0] = 0;
+ 0b49  6a 01                             push    0001H
+ 0b4b  8e c0                             mov     es,ax
+ 0b4d  b9 ff ff                          mov     cx,0ffffH
+ 0b50  31 c0                             xor     ax,ax
+ 0b52  f2 ae                             repne   scasb    
+ 0b54  f7 d1                             not     cx
+ 0b56  49                                dec     cx
+ 0b57  51                                push    cx
+ 0b58  1e                                push    ds
+ 0b59  68 00 00                          push    offset _modeMsg
+ 0b5c  9a 00 00 00 00                    call    far DOS16PUTMESSAGE
+ 0b61  6a 00                             push    0000H
+ 0b63  8c de                             mov     si,ds
+ 0b65  6a 0a                             push    000aH
+ 0b67  8d 56 b4                          lea     dx,[bp-4cH]
+ 0b6a  16                                push    ss
+ 0b6b  8d 7e b4                          lea     di,[bp-4cH]
+ 0b6e  52                                push    dx
+
+ 0b6f  8b 1e 00 00                       mov     bx,_gMode
+ 0b73  6a 00                             push    0000H
+
+    _ultoa(gMode,valueMsg,10);
+ 0b75  30 e4                             xor     ah,ah
+ 0b77  53                                push    bx
+ 0b78  88 66 b4                          mov     [bp-4cH],ah
+ 0b7b  e8 00 00                          call    _xtoa
+
+    _fstrcat(valueMsg,"\r\n");
+ 0b7e  b8 f2 01                          mov     ax,offset L24
+ 0b81  8c d2                             mov     dx,ss
+ 0b83  83 c4 0c                          add     sp,000cH
+ 0b86  8e c2                             mov     es,dx
+ 0b88  1e                                push    ds
+ 0b89  57                                push    di
+ 0b8a  96                                xchg    ax,si
+ 0b8b  8e d8                             mov     ds,ax
+ 0b8d  b9 ff ff                          mov     cx,0ffffH
+ 0b90  b0 00                             mov     al,00H
+ 0b92  f2 ae                             repne   scasb    
+ 0b94  4f                                dec     di
+ 0b95  8a 04             L145            mov     al,[si]
+ 0b97  aa                                stosb   
+ 0b98  3c 00                             cmp     al,00H
+ 0b9a  74 0b                             je      L146
+ 0b9c  8a 44 01                          mov     al,[si+1H]
+ 0b9f  83 c6 02                          add     si,0002H
+ 0ba2  aa                                stosb   
+ 0ba3  3c 00                             cmp     al,00H
+ 0ba5  75 ee                             jne     L145
+ 0ba7  5f                L146            pop     di
+ 0ba8  1f                                pop     ds
+
+    DosPutMessage(STDOUT,_fstrlen(valueMsg),valueMsg);
+
+ 0ba9  6a 01                             push    0001H
+ 0bab  8d 7e b4                          lea     di,[bp-4cH]
+ 0bae  b9 ff ff                          mov     cx,0ffffH
+ 0bb1  31 c0                             xor     ax,ax
+ 0bb3  f2 ae                             repne   scasb    
+ 0bb5  f7 d1                             not     cx
+ 0bb7  49                                dec     cx
+ 0bb8  51                                push    cx
+ 0bb9  16                                push    ss
+ 0bba  8d 56 b4                          lea     dx,[bp-4cH]
+ 0bbd  52                                push    dx
+ 0bbe  bf 00 00                          mov     di,offset _deviceMsg
+ 0bc1  9a 00 00 00 00                    call    far DOS16PUTMESSAGE
+ 0bc6  8c d8                             mov     ax,ds
+
+    DosPutMessage(STDOUT,_fstrlen(deviceMsg),deviceMsg);
+ 0bc8  6a 01                             push    0001H
+ 0bca  8e c0                             mov     es,ax
+ 0bcc  b9 ff ff                          mov     cx,0ffffH
+ 0bcf  31 c0                             xor     ax,ax
+ 0bd1  f2 ae                             repne   scasb    
+ 0bd3  f7 d1                             not     cx
+ 0bd5  49                                dec     cx
+ 0bd6  51                                push    cx
+ 0bd7  1e                                push    ds
+ 0bd8  68 00 00                          push    offset _deviceMsg
+ 0bdb  9a 00 00 00 00                    call    far DOS16PUTMESSAGE
+
+    if (gDevice > 3) gDevice = 99;
+ 0be0  83 3e 00 00 03                    cmp     word ptr _gDevice,0003H
+ 0be5  76 06                             jbe     L147
+ 0be7  c7 06 00 00 63 00                 mov     word ptr _gDevice,0063H
+
+    if (gDevice == 99) {
+ 0bed  8b 36 00 00       L147            mov     si,_gDevice
+ 0bf1  83 fe 63                          cmp     si,0063H
+ 0bf4  75 2f                             jne     L150
+
+       _fstrcpy(valueMsg," *not set*\r\n");
+    }
+ 0bf6  b8 08 02                          mov     ax,offset L26
+ 0bf9  8d 7e b4                          lea     di,[bp-4cH]
+ 0bfc  8c d2                             mov     dx,ss
+ 0bfe  8c de                             mov     si,ds
+ 0c00  8e c2                             mov     es,dx
+ 0c02  1e                                push    ds
+ 0c03  57                                push    di
+ 0c04  96                                xchg    ax,si
+ 0c05  8e d8                             mov     ds,ax
+ 0c07  8a 04             L148            mov     al,[si]
+ 0c09  26 88 05                          mov     es:[di],al
+ 0c0c  3c 00                             cmp     al,00H
+ 0c0e  74 11                             je      L149
+ 0c10  8a 44 01                          mov     al,[si+1H]
+ 0c13  83 c6 02                          add     si,0002H
+ 0c16  26 88 45 01                       mov     es:[di+1H],al
+ 0c1a  83 c7 02                          add     di,0002H
+ 0c1d  3c 00                             cmp     al,00H
+ 0c1f  75 e6                             jne     L148
+ 0c21  5f                L149            pop     di
+ 0c22  1f                                pop     ds
+
+    else {
+       valueMsg[0] = 0;
+ 0c23  eb 74                             jmp     L155
+
+ 0c25  6a 00             L150            push    0000H
+
+       _ultoa(gDevice,valueMsg,10);
+ 0c27  30 d2                             xor     dl,dl
+ 0c29  6a 0a                             push    000aH
+ 0c2b  88 56 b4                          mov     [bp-4cH],dl
+ 0c2e  16                                push    ss
+ 0c2f  8d 56 b4                          lea     dx,[bp-4cH]
+ 0c32  52                                push    dx
+ 0c33  6a 00                             push    0000H
+ 0c35  56                                push    si
+ 0c36  8d 7e b4                          lea     di,[bp-4cH]
+ 0c39  e8 00 00                          call    _xtoa
+
+       _fstrcat(valueMsg,deviceStr[gDevice]);
+ 0c3c  8b 1e 00 00                       mov     bx,_gDevice
+ 0c40  83 c4 0c                          add     sp,000cH
+ 0c43  8c de                             mov     si,ds
+ 0c45  01 db                             add     bx,bx
+ 0c47  8c d2                             mov     dx,ss
+ 0c49  8b 87 00 00                       mov     ax,[bx+_deviceStr]
+ 0c4d  8e c2                             mov     es,dx
+ 0c4f  1e                                push    ds
+ 0c50  57                                push    di
+ 0c51  96                                xchg    ax,si
+ 0c52  8e d8                             mov     ds,ax
+ 0c54  b9 ff ff                          mov     cx,0ffffH
+ 0c57  b0 00                             mov     al,00H
+ 0c59  f2 ae                             repne   scasb    
+ 0c5b  4f                                dec     di
+ 0c5c  8a 04             L151            mov     al,[si]
+ 0c5e  aa                                stosb   
+ 0c5f  3c 00                             cmp     al,00H
+ 0c61  74 0b                             je      L152
+ 0c63  8a 44 01                          mov     al,[si+1H]
+ 0c66  83 c6 02                          add     si,0002H
+ 0c69  aa                                stosb   
+ 0c6a  3c 00                             cmp     al,00H
+ 0c6c  75 ee                             jne     L151
+ 0c6e  5f                L152            pop     di
+ 0c6f  1f                                pop     ds
+
+       _fstrcat(valueMsg,"\r\n");
+    }
+ 0c70  b8 f2 01                          mov     ax,offset L24
+ 0c73  8d 7e b4                          lea     di,[bp-4cH]
+ 0c76  8c de                             mov     si,ds
+ 0c78  1e                                push    ds
+ 0c79  57                                push    di
+ 0c7a  96                                xchg    ax,si
+ 0c7b  8e d8                             mov     ds,ax
+ 0c7d  b9 ff ff                          mov     cx,0ffffH
+ 0c80  b0 00                             mov     al,00H
+ 0c82  f2 ae                             repne   scasb    
+ 0c84  4f                                dec     di
+ 0c85  8a 04             L153            mov     al,[si]
+ 0c87  aa                                stosb   
+ 0c88  3c 00                             cmp     al,00H
+ 0c8a  74 0b                             je      L154
+ 0c8c  8a 44 01                          mov     al,[si+1H]
+ 0c8f  83 c6 02                          add     si,0002H
+ 0c92  aa                                stosb   
+ 0c93  3c 00                             cmp     al,00H
+ 0c95  75 ee                             jne     L153
+ 0c97  5f                L154            pop     di
+ 0c98  1f                                pop     ds
+
+    DosPutMessage(STDOUT,_fstrlen(valueMsg),valueMsg);
+
+ 0c99  6a 01             L155            push    0001H
+ 0c9b  8c d0                             mov     ax,ss
+ 0c9d  8d 7e b4                          lea     di,[bp-4cH]
+ 0ca0  8e c0                             mov     es,ax
+ 0ca2  b9 ff ff                          mov     cx,0ffffH
+ 0ca5  31 c0                             xor     ax,ax
+ 0ca7  f2 ae                             repne   scasb    
+ 0ca9  f7 d1                             not     cx
+ 0cab  49                                dec     cx
+ 0cac  51                                push    cx
+ 0cad  16                                push    ss
+ 0cae  8d 56 b4                          lea     dx,[bp-4cH]
+ 0cb1  52                                push    dx
+ 0cb2  bf 00 00                          mov     di,offset _playDMAMsg
+ 0cb5  9a 00 00 00 00                    call    far DOS16PUTMESSAGE
+ 0cba  8c d8                             mov     ax,ds
+
+    DosPutMessage(STDOUT,_fstrlen(playDMAMsg),playDMAMsg);
+ 0cbc  6a 01                             push    0001H
+ 0cbe  8e c0                             mov     es,ax
+ 0cc0  b9 ff ff                          mov     cx,0ffffH
+ 0cc3  31 c0                             xor     ax,ax
+ 0cc5  f2 ae                             repne   scasb    
+ 0cc7  f7 d1                             not     cx
+ 0cc9  49                                dec     cx
+ 0cca  51                                push    cx
+ 0ccb  1e                                push    ds
+ 0ccc  68 00 00                          push    offset _playDMAMsg
+ 0ccf  9a 00 00 00 00                    call    far DOS16PUTMESSAGE
+
+    if (gDMAplay == 99) {
+ 0cd4  8b 3e 00 00                       mov     di,_gDMAplay
+ 0cd8  83 ff 63                          cmp     di,0063H
+ 0cdb  75 2f                             jne     L158
+
+       _fstrcpy(valueMsg," *not set*\r\n");
+    }
+ 0cdd  b8 08 02                          mov     ax,offset L26
+ 0ce0  8d 7e b4                          lea     di,[bp-4cH]
+ 0ce3  8c d2                             mov     dx,ss
+ 0ce5  8c de                             mov     si,ds
+ 0ce7  8e c2                             mov     es,dx
+ 0ce9  1e                                push    ds
+ 0cea  57                                push    di
+ 0ceb  96                                xchg    ax,si
+ 0cec  8e d8                             mov     ds,ax
+ 0cee  8a 04             L156            mov     al,[si]
+ 0cf0  26 88 05                          mov     es:[di],al
+ 0cf3  3c 00                             cmp     al,00H
+ 0cf5  74 11                             je      L157
+ 0cf7  8a 44 01                          mov     al,[si+1H]
+ 0cfa  83 c6 02                          add     si,0002H
+ 0cfd  26 88 45 01                       mov     es:[di+1H],al
+ 0d01  83 c7 02                          add     di,0002H
+ 0d04  3c 00                             cmp     al,00H
+ 0d06  75 e6                             jne     L156
+ 0d08  5f                L157            pop     di
+ 0d09  1f                                pop     ds
+
+    else {
+       valueMsg[0] = 0;
+ 0d0a  eb 44                             jmp     L161
+
+ 0d0c  6a 00             L158            push    0000H
+ 0d0e  6a 0a                             push    000aH
+ 0d10  16                                push    ss
+ 0d11  8d 5e b4                          lea     bx,[bp-4cH]
+ 0d14  53                                push    bx
+ 0d15  8c de                             mov     si,ds
+ 0d17  6a 00                             push    0000H
+
+       _ultoa(gDMAplay,valueMsg,10);
+ 0d19  30 f6                             xor     dh,dh
+ 0d1b  57                                push    di
+ 0d1c  88 76 b4                          mov     [bp-4cH],dh
+ 0d1f  e8 00 00                          call    _xtoa
+
+       _fstrcat(valueMsg,"\r\n");
+    }
+ 0d22  b8 f2 01                          mov     ax,offset L24
+ 0d25  8d 7e b4                          lea     di,[bp-4cH]
+ 0d28  8c d2                             mov     dx,ss
+ 0d2a  83 c4 0c                          add     sp,000cH
+ 0d2d  8e c2                             mov     es,dx
+ 0d2f  1e                                push    ds
+ 0d30  57                                push    di
+ 0d31  96                                xchg    ax,si
+ 0d32  8e d8                             mov     ds,ax
+ 0d34  b9 ff ff                          mov     cx,0ffffH
+ 0d37  b0 00                             mov     al,00H
+ 0d39  f2 ae                             repne   scasb    
+ 0d3b  4f                                dec     di
+ 0d3c  8a 04             L159            mov     al,[si]
+ 0d3e  aa                                stosb   
+ 0d3f  3c 00                             cmp     al,00H
+ 0d41  74 0b                             je      L160
+ 0d43  8a 44 01                          mov     al,[si+1H]
+ 0d46  83 c6 02                          add     si,0002H
+ 0d49  aa                                stosb   
+ 0d4a  3c 00                             cmp     al,00H
+ 0d4c  75 ee                             jne     L159
+ 0d4e  5f                L160            pop     di
+ 0d4f  1f                                pop     ds
+
+    DosPutMessage(STDOUT,_fstrlen(valueMsg),valueMsg);
+
+ 0d50  6a 01             L161            push    0001H
+ 0d52  8c d0                             mov     ax,ss
+ 0d54  8d 7e b4                          lea     di,[bp-4cH]
+ 0d57  8e c0                             mov     es,ax
+ 0d59  b9 ff ff                          mov     cx,0ffffH
+ 0d5c  31 c0                             xor     ax,ax
+ 0d5e  f2 ae                             repne   scasb    
+ 0d60  f7 d1                             not     cx
+ 0d62  49                                dec     cx
+ 0d63  51                                push    cx
+ 0d64  16                                push    ss
+ 0d65  8d 56 b4                          lea     dx,[bp-4cH]
+ 0d68  52                                push    dx
+ 0d69  bf 00 00                          mov     di,offset _playSizeMsg
+ 0d6c  9a 00 00 00 00                    call    far DOS16PUTMESSAGE
+ 0d71  8c d8                             mov     ax,ds
+
+    DosPutMessage(STDOUT,_fstrlen(playSizeMsg),playSizeMsg);
+ 0d73  6a 01                             push    0001H
+ 0d75  8e c0                             mov     es,ax
+ 0d77  b9 ff ff                          mov     cx,0ffffH
+ 0d7a  31 c0                             xor     ax,ax
+ 0d7c  f2 ae                             repne   scasb    
+ 0d7e  f7 d1                             not     cx
+ 0d80  49                                dec     cx
+ 0d81  51                                push    cx
+ 0d82  1e                                push    ds
+ 0d83  68 00 00                          push    offset _playSizeMsg
+ 0d86  9a 00 00 00 00                    call    far DOS16PUTMESSAGE
+ 0d8b  6a 00                             push    0000H
+ 0d8d  8d 56 b4                          lea     dx,[bp-4cH]
+ 0d90  6a 10                             push    0010H
+
+    valueMsg[0] = 0;
+ 0d92  30 db                             xor     bl,bl
+ 0d94  16                                push    ss
+ 0d95  88 5e b4                          mov     [bp-4cH],bl
+ 0d98  52                                push    dx
+
+    _ultoa(gDMAplaySize,valueMsg,16);
+ 0d99  8b 1e 00 00                       mov     bx,_gDMAplaySize
+ 0d9d  6a 00                             push    0000H
+ 0d9f  8c de                             mov     si,ds
+ 0da1  53                                push    bx
+ 0da2  8d 7e b4                          lea     di,[bp-4cH]
+ 0da5  e8 00 00                          call    _xtoa
+
+    _fstrcat(valueMsg,"\r\n");
+ 0da8  b8 f2 01                          mov     ax,offset L24
+ 0dab  8c d2                             mov     dx,ss
+ 0dad  83 c4 0c                          add     sp,000cH
+ 0db0  8e c2                             mov     es,dx
+ 0db2  1e                                push    ds
+ 0db3  57                                push    di
+ 0db4  96                                xchg    ax,si
+ 0db5  8e d8                             mov     ds,ax
+ 0db7  b9 ff ff                          mov     cx,0ffffH
+ 0dba  b0 00                             mov     al,00H
+ 0dbc  f2 ae                             repne   scasb    
+ 0dbe  4f                                dec     di
+ 0dbf  8a 04             L162            mov     al,[si]
+ 0dc1  aa                                stosb   
+ 0dc2  3c 00                             cmp     al,00H
+ 0dc4  74 0b                             je      L163
+ 0dc6  8a 44 01                          mov     al,[si+1H]
+ 0dc9  83 c6 02                          add     si,0002H
+ 0dcc  aa                                stosb   
+ 0dcd  3c 00                             cmp     al,00H
+ 0dcf  75 ee                             jne     L162
+ 0dd1  5f                L163            pop     di
+ 0dd2  1f                                pop     ds
+
+    DosPutMessage(STDOUT,_fstrlen(valueMsg),valueMsg);
+
+ 0dd3  6a 01                             push    0001H
+ 0dd5  8d 7e b4                          lea     di,[bp-4cH]
+ 0dd8  b9 ff ff                          mov     cx,0ffffH
+ 0ddb  31 c0                             xor     ax,ax
+ 0ddd  f2 ae                             repne   scasb    
+ 0ddf  f7 d1                             not     cx
+ 0de1  49                                dec     cx
+ 0de2  51                                push    cx
+ 0de3  16                                push    ss
+ 0de4  8d 56 b4                          lea     dx,[bp-4cH]
+ 0de7  52                                push    dx
+ 0de8  bf 00 00                          mov     di,offset _playIPBMsg
+ 0deb  9a 00 00 00 00                    call    far DOS16PUTMESSAGE
+ 0df0  8c d8                             mov     ax,ds
+
+    DosPutMessage(STDOUT,_fstrlen(playIPBMsg),playIPBMsg);
+ 0df2  6a 01                             push    0001H
+ 0df4  8e c0                             mov     es,ax
+ 0df6  b9 ff ff                          mov     cx,0ffffH
+ 0df9  31 c0                             xor     ax,ax
+ 0dfb  f2 ae                             repne   scasb    
+ 0dfd  f7 d1                             not     cx
+ 0dff  49                                dec     cx
+ 0e00  51                                push    cx
+ 0e01  1e                                push    ds
+ 0e02  68 00 00                          push    offset _playIPBMsg
+ 0e05  9a 00 00 00 00                    call    far DOS16PUTMESSAGE
+ 0e0a  6a 00                             push    0000H
+ 0e0c  6a 0a                             push    000aH
+ 0e0e  8d 56 b4                          lea     dx,[bp-4cH]
+ 0e11  16                                push    ss
+
+    valueMsg[0] = 0;
+ 0e12  30 ff                             xor     bh,bh
+ 0e14  52                                push    dx
+ 0e15  88 7e b4                          mov     [bp-4cH],bh
+ 0e18  6a 00                             push    0000H
+
+    _ultoa(gDMAplayIPB,valueMsg,10);
+ 0e1a  8b 1e 00 00                       mov     bx,_gDMAplayIPB
+ 0e1e  53                                push    bx
+ 0e1f  e8 00 00                          call    _xtoa
+ 0e22  83 c4 0c                          add     sp,000cH
+
+    _fstrcat(valueMsg,"\r\n");
+ 0e25  b8 f2 01                          mov     ax,offset L24
+ 0e28  8d 7e b4                          lea     di,[bp-4cH]
+ 0e2b  8c d2                             mov     dx,ss
+ 0e2d  8c de                             mov     si,ds
+ 0e2f  8e c2                             mov     es,dx
+ 0e31  1e                                push    ds
+ 0e32  57                                push    di
+ 0e33  96                                xchg    ax,si
+ 0e34  8e d8                             mov     ds,ax
+ 0e36  b9 ff ff                          mov     cx,0ffffH
+ 0e39  b0 00                             mov     al,00H
+ 0e3b  f2 ae                             repne   scasb    
+ 0e3d  4f                                dec     di
+ 0e3e  8a 04             L164            mov     al,[si]
+ 0e40  aa                                stosb   
+ 0e41  3c 00                             cmp     al,00H
+ 0e43  74 0b                             je      L165
+ 0e45  8a 44 01                          mov     al,[si+1H]
+ 0e48  83 c6 02                          add     si,0002H
+ 0e4b  aa                                stosb   
+ 0e4c  3c 00                             cmp     al,00H
+ 0e4e  75 ee                             jne     L164
+ 0e50  5f                L165            pop     di
+ 0e51  1f                                pop     ds
+
+    DosPutMessage(STDOUT,_fstrlen(valueMsg),valueMsg);
+
+ 0e52  6a 01                             push    0001H
+ 0e54  8d 7e b4                          lea     di,[bp-4cH]
+ 0e57  b9 ff ff                          mov     cx,0ffffH
+ 0e5a  31 c0                             xor     ax,ax
+ 0e5c  f2 ae                             repne   scasb    
+ 0e5e  f7 d1                             not     cx
+ 0e60  49                                dec     cx
+ 0e61  51                                push    cx
+ 0e62  16                                push    ss
+ 0e63  8d 56 b4                          lea     dx,[bp-4cH]
+ 0e66  52                                push    dx
+ 0e67  bf 00 00                          mov     di,offset _playModeMsg
+ 0e6a  9a 00 00 00 00                    call    far DOS16PUTMESSAGE
+ 0e6f  8c d8                             mov     ax,ds
+
+    DosPutMessage(STDOUT,_fstrlen(playModeMsg),playModeMsg);
+    valueMsg[0] = 0;
+ 0e71  6a 01                             push    0001H
+ 0e73  8e c0                             mov     es,ax
+ 0e75  b9 ff ff                          mov     cx,0ffffH
+ 0e78  31 c0                             xor     ax,ax
+ 0e7a  f2 ae                             repne   scasb    
+ 0e7c  f7 d1                             not     cx
+ 0e7e  49                                dec     cx
+ 0e7f  51                                push    cx
+ 0e80  1e                                push    ds
+ 0e81  68 00 00                          push    offset _playModeMsg
+ 0e84  9a 00 00 00 00                    call    far DOS16PUTMESSAGE
+ 0e89  6a 00                             push    0000H
+ 0e8b  8c de                             mov     si,ds
+ 0e8d  6a 0a                             push    000aH
+ 0e8f  8d 56 b4                          lea     dx,[bp-4cH]
+ 0e92  16                                push    ss
+ 0e93  8d 7e b4                          lea     di,[bp-4cH]
+ 0e96  52                                push    dx
+
+ 0e97  8b 1e 00 00                       mov     bx,_gDMAplayMode
+ 0e9b  6a 00                             push    0000H
+
+    _ultoa(gDMAplayMode,valueMsg,10);
+ 0e9d  30 c9                             xor     cl,cl
+ 0e9f  53                                push    bx
+ 0ea0  88 4e b4                          mov     [bp-4cH],cl
+ 0ea3  e8 00 00                          call    _xtoa
+
+    _fstrcat(valueMsg,"\r\n");
+ 0ea6  b8 f2 01                          mov     ax,offset L24
+ 0ea9  8c d2                             mov     dx,ss
+ 0eab  83 c4 0c                          add     sp,000cH
+ 0eae  8e c2                             mov     es,dx
+ 0eb0  1e                                push    ds
+ 0eb1  57                                push    di
+ 0eb2  96                                xchg    ax,si
+ 0eb3  8e d8                             mov     ds,ax
+ 0eb5  b9 ff ff                          mov     cx,0ffffH
+ 0eb8  b0 00                             mov     al,00H
+ 0eba  f2 ae                             repne   scasb    
+ 0ebc  4f                                dec     di
+ 0ebd  8a 04             L166            mov     al,[si]
+ 0ebf  aa                                stosb   
+ 0ec0  3c 00                             cmp     al,00H
+ 0ec2  74 0b                             je      L167
+ 0ec4  8a 44 01                          mov     al,[si+1H]
+ 0ec7  83 c6 02                          add     si,0002H
+ 0eca  aa                                stosb   
+ 0ecb  3c 00                             cmp     al,00H
+ 0ecd  75 ee                             jne     L166
+ 0ecf  5f                L167            pop     di
+ 0ed0  1f                                pop     ds
+
+    DosPutMessage(STDOUT,_fstrlen(valueMsg),valueMsg);
+
+ 0ed1  6a 01                             push    0001H
+ 0ed3  8d 7e b4                          lea     di,[bp-4cH]
+ 0ed6  b9 ff ff                          mov     cx,0ffffH
+ 0ed9  31 c0                             xor     ax,ax
+ 0edb  f2 ae                             repne   scasb    
+ 0edd  f7 d1                             not     cx
+ 0edf  49                                dec     cx
+ 0ee0  51                                push    cx
+ 0ee1  16                                push    ss
+ 0ee2  8d 56 b4                          lea     dx,[bp-4cH]
+ 0ee5  52                                push    dx
+ 0ee6  bf 00 00                          mov     di,offset _recDMAMsg
+ 0ee9  9a 00 00 00 00                    call    far DOS16PUTMESSAGE
+ 0eee  8c d8                             mov     ax,ds
+
+    DosPutMessage(STDOUT,_fstrlen(recDMAMsg),recDMAMsg);
+ 0ef0  6a 01                             push    0001H
+ 0ef2  8e c0                             mov     es,ax
+ 0ef4  b9 ff ff                          mov     cx,0ffffH
+ 0ef7  31 c0                             xor     ax,ax
+ 0ef9  f2 ae                             repne   scasb    
+ 0efb  f7 d1                             not     cx
+ 0efd  49                                dec     cx
+ 0efe  51                                push    cx
+ 0eff  1e                                push    ds
+ 0f00  68 00 00                          push    offset _recDMAMsg
+ 0f03  9a 00 00 00 00                    call    far DOS16PUTMESSAGE
+
+    if (gDMArec == 99) {
+ 0f08  a1 00 00                          mov     ax,_gDMArec
+ 0f0b  3d 63 00                          cmp     ax,0063H
+ 0f0e  75 2f                             jne     L170
+
+       _fstrcpy(valueMsg," *not set*\r\n");
+    }
+ 0f10  b8 08 02                          mov     ax,offset L26
+ 0f13  8d 7e b4                          lea     di,[bp-4cH]
+ 0f16  8c d2                             mov     dx,ss
+ 0f18  8c de                             mov     si,ds
+ 0f1a  8e c2                             mov     es,dx
+ 0f1c  1e                                push    ds
+ 0f1d  57                                push    di
+ 0f1e  96                                xchg    ax,si
+ 0f1f  8e d8                             mov     ds,ax
+ 0f21  8a 04             L168            mov     al,[si]
+ 0f23  26 88 05                          mov     es:[di],al
+ 0f26  3c 00                             cmp     al,00H
+ 0f28  74 11                             je      L169
+ 0f2a  8a 44 01                          mov     al,[si+1H]
+ 0f2d  83 c6 02                          add     si,0002H
+ 0f30  26 88 45 01                       mov     es:[di+1H],al
+ 0f34  83 c7 02                          add     di,0002H
+ 0f37  3c 00                             cmp     al,00H
+ 0f39  75 e6                             jne     L168
+ 0f3b  5f                L169            pop     di
+ 0f3c  1f                                pop     ds
+
+    else {
+       valueMsg[0] = 0;
+ 0f3d  eb 44                             jmp     L173
+
+ 0f3f  6a 00             L170            push    0000H
+ 0f41  6a 0a                             push    000aH
+ 0f43  8d 5e b4                          lea     bx,[bp-4cH]
+ 0f46  16                                push    ss
+ 0f47  8d 7e b4                          lea     di,[bp-4cH]
+ 0f4a  53                                push    bx
+ 0f4b  8c de                             mov     si,ds
+ 0f4d  6a 00                             push    0000H
+
+       _ultoa(gDMArec,valueMsg,10);
+ 0f4f  30 ed                             xor     ch,ch
+ 0f51  50                                push    ax
+ 0f52  88 6e b4                          mov     [bp-4cH],ch
+ 0f55  e8 00 00                          call    _xtoa
+
+       _fstrcat(valueMsg,"\r\n");
+    }
+ 0f58  b8 f2 01                          mov     ax,offset L24
+ 0f5b  8c d2                             mov     dx,ss
+ 0f5d  83 c4 0c                          add     sp,000cH
+ 0f60  8e c2                             mov     es,dx
+ 0f62  1e                                push    ds
+ 0f63  57                                push    di
+ 0f64  96                                xchg    ax,si
+ 0f65  8e d8                             mov     ds,ax
+ 0f67  b9 ff ff                          mov     cx,0ffffH
+ 0f6a  b0 00                             mov     al,00H
+ 0f6c  f2 ae                             repne   scasb    
+ 0f6e  4f                                dec     di
+ 0f6f  8a 04             L171            mov     al,[si]
+ 0f71  aa                                stosb   
+ 0f72  3c 00                             cmp     al,00H
+ 0f74  74 0b                             je      L172
+ 0f76  8a 44 01                          mov     al,[si+1H]
+ 0f79  83 c6 02                          add     si,0002H
+ 0f7c  aa                                stosb   
+ 0f7d  3c 00                             cmp     al,00H
+ 0f7f  75 ee                             jne     L171
+ 0f81  5f                L172            pop     di
+ 0f82  1f                                pop     ds
+
+    DosPutMessage(STDOUT,_fstrlen(valueMsg),valueMsg);
+
+ 0f83  6a 01             L173            push    0001H
+ 0f85  8c d0                             mov     ax,ss
+ 0f87  8d 7e b4                          lea     di,[bp-4cH]
+ 0f8a  8e c0                             mov     es,ax
+ 0f8c  b9 ff ff                          mov     cx,0ffffH
+ 0f8f  31 c0                             xor     ax,ax
+ 0f91  f2 ae                             repne   scasb    
+ 0f93  f7 d1                             not     cx
+ 0f95  49                                dec     cx
+ 0f96  51                                push    cx
+ 0f97  16                                push    ss
+ 0f98  8d 56 b4                          lea     dx,[bp-4cH]
+ 0f9b  52                                push    dx
+ 0f9c  bf 00 00                          mov     di,offset _recSizeMsg
+ 0f9f  9a 00 00 00 00                    call    far DOS16PUTMESSAGE
+ 0fa4  8c d8                             mov     ax,ds
+
+    DosPutMessage(STDOUT,_fstrlen(recSizeMsg),recSizeMsg);
+    valueMsg[0] = 0;
+ 0fa6  6a 01                             push    0001H
+ 0fa8  8e c0                             mov     es,ax
+ 0faa  b9 ff ff                          mov     cx,0ffffH
+ 0fad  31 c0                             xor     ax,ax
+ 0faf  f2 ae                             repne   scasb    
+ 0fb1  f7 d1                             not     cx
+ 0fb3  49                                dec     cx
+ 0fb4  51                                push    cx
+ 0fb5  1e                                push    ds
+ 0fb6  68 00 00                          push    offset _recSizeMsg
+ 0fb9  9a 00 00 00 00                    call    far DOS16PUTMESSAGE
+ 0fbe  6a 00                             push    0000H
+ 0fc0  8c de                             mov     si,ds
+ 0fc2  6a 10                             push    0010H
+ 0fc4  8d 56 b4                          lea     dx,[bp-4cH]
+ 0fc7  16                                push    ss
+ 0fc8  8d 7e b4                          lea     di,[bp-4cH]
+ 0fcb  52                                push    dx
+
+ 0fcc  8b 1e 00 00                       mov     bx,_gDMArecSize
+ 0fd0  6a 00                             push    0000H
+
+    _ultoa(gDMArecSize,valueMsg,16);
+ 0fd2  30 c0                             xor     al,al
+ 0fd4  53                                push    bx
+ 0fd5  88 46 b4                          mov     [bp-4cH],al
+ 0fd8  e8 00 00                          call    _xtoa
+
+    _fstrcat(valueMsg,"\r\n");
+ 0fdb  b8 f2 01                          mov     ax,offset L24
+ 0fde  8c d2                             mov     dx,ss
+ 0fe0  83 c4 0c                          add     sp,000cH
+ 0fe3  8e c2                             mov     es,dx
+ 0fe5  1e                                push    ds
+ 0fe6  57                                push    di
+ 0fe7  96                                xchg    ax,si
+ 0fe8  8e d8                             mov     ds,ax
+ 0fea  b9 ff ff                          mov     cx,0ffffH
+ 0fed  b0 00                             mov     al,00H
+ 0fef  f2 ae                             repne   scasb    
+ 0ff1  4f                                dec     di
+ 0ff2  8a 04             L174            mov     al,[si]
+ 0ff4  aa                                stosb   
+ 0ff5  3c 00                             cmp     al,00H
+ 0ff7  74 0b                             je      L175
+ 0ff9  8a 44 01                          mov     al,[si+1H]
+ 0ffc  83 c6 02                          add     si,0002H
+ 0fff  aa                                stosb   
+ 1000  3c 00                             cmp     al,00H
+ 1002  75 ee                             jne     L174
+ 1004  5f                L175            pop     di
+ 1005  1f                                pop     ds
+
+    DosPutMessage(STDOUT,_fstrlen(valueMsg),valueMsg);
+
+ 1006  6a 01                             push    0001H
+ 1008  8d 7e b4                          lea     di,[bp-4cH]
+ 100b  b9 ff ff                          mov     cx,0ffffH
+ 100e  31 c0                             xor     ax,ax
+ 1010  f2 ae                             repne   scasb    
+ 1012  f7 d1                             not     cx
+ 1014  49                                dec     cx
+ 1015  51                                push    cx
+ 1016  16                                push    ss
+ 1017  8d 56 b4                          lea     dx,[bp-4cH]
+ 101a  52                                push    dx
+ 101b  bf 00 00                          mov     di,offset _recIPBMsg
+ 101e  9a 00 00 00 00                    call    far DOS16PUTMESSAGE
+ 1023  8c d8                             mov     ax,ds
+
+    DosPutMessage(STDOUT,_fstrlen(recIPBMsg),recIPBMsg);
+    valueMsg[0] = 0;
+ 1025  6a 01                             push    0001H
+ 1027  8e c0                             mov     es,ax
+ 1029  b9 ff ff                          mov     cx,0ffffH
+ 102c  31 c0                             xor     ax,ax
+ 102e  f2 ae                             repne   scasb    
+ 1030  f7 d1                             not     cx
+ 1032  49                                dec     cx
+ 1033  51                                push    cx
+ 1034  1e                                push    ds
+ 1035  68 00 00                          push    offset _recIPBMsg
+ 1038  9a 00 00 00 00                    call    far DOS16PUTMESSAGE
+ 103d  6a 00                             push    0000H
+ 103f  6a 0a                             push    000aH
+ 1041  16                                push    ss
+ 1042  8d 56 b4                          lea     dx,[bp-4cH]
+ 1045  52                                push    dx
+
+ 1046  8b 1e 00 00                       mov     bx,_gDMArecIPB
+ 104a  6a 00                             push    0000H
+
+    _ultoa(gDMArecIPB,valueMsg,10);
+ 104c  30 e4                             xor     ah,ah
+ 104e  53                                push    bx
+ 104f  88 66 b4                          mov     [bp-4cH],ah
+ 1052  e8 00 00                          call    _xtoa
+ 1055  83 c4 0c                          add     sp,000cH
+
+    _fstrcat(valueMsg,"\r\n");
+ 1058  b8 f2 01                          mov     ax,offset L24
+ 105b  8d 7e b4                          lea     di,[bp-4cH]
+ 105e  8c d2                             mov     dx,ss
+ 1060  8c de                             mov     si,ds
+ 1062  8e c2                             mov     es,dx
+ 1064  1e                                push    ds
+ 1065  57                                push    di
+ 1066  96                                xchg    ax,si
+ 1067  8e d8                             mov     ds,ax
+ 1069  b9 ff ff                          mov     cx,0ffffH
+ 106c  b0 00                             mov     al,00H
+ 106e  f2 ae                             repne   scasb    
+ 1070  4f                                dec     di
+ 1071  8a 04             L176            mov     al,[si]
+ 1073  aa                                stosb   
+ 1074  3c 00                             cmp     al,00H
+ 1076  74 0b                             je      L177
+ 1078  8a 44 01                          mov     al,[si+1H]
+ 107b  83 c6 02                          add     si,0002H
+ 107e  aa                                stosb   
+ 107f  3c 00                             cmp     al,00H
+ 1081  75 ee                             jne     L176
+ 1083  5f                L177            pop     di
+ 1084  1f                                pop     ds
+
+    DosPutMessage(STDOUT,_fstrlen(valueMsg),valueMsg);
+
+ 1085  6a 01                             push    0001H
+ 1087  8d 7e b4                          lea     di,[bp-4cH]
+ 108a  b9 ff ff                          mov     cx,0ffffH
+ 108d  31 c0                             xor     ax,ax
+ 108f  f2 ae                             repne   scasb    
+ 1091  f7 d1                             not     cx
+ 1093  49                                dec     cx
+ 1094  51                                push    cx
+ 1095  16                                push    ss
+ 1096  8d 56 b4                          lea     dx,[bp-4cH]
+ 1099  52                                push    dx
+ 109a  bf 00 00                          mov     di,offset _recModeMsg
+ 109d  9a 00 00 00 00                    call    far DOS16PUTMESSAGE
+ 10a2  8c d8                             mov     ax,ds
+
+    DosPutMessage(STDOUT,_fstrlen(recModeMsg),recModeMsg);
+ 10a4  6a 01                             push    0001H
+ 10a6  8e c0                             mov     es,ax
+ 10a8  b9 ff ff                          mov     cx,0ffffH
+ 10ab  31 c0                             xor     ax,ax
+ 10ad  f2 ae                             repne   scasb    
+ 10af  f7 d1                             not     cx
+ 10b1  49                                dec     cx
+ 10b2  51                                push    cx
+ 10b3  1e                                push    ds
+ 10b4  68 00 00                          push    offset _recModeMsg
+ 10b7  9a 00 00 00 00                    call    far DOS16PUTMESSAGE
+ 10bc  6a 00                             push    0000H
+
+    valueMsg[0] = 0;
+ 10be  30 d2                             xor     dl,dl
+ 10c0  6a 0a                             push    000aH
+ 10c2  88 56 b4                          mov     [bp-4cH],dl
+ 10c5  16                                push    ss
+ 10c6  8d 56 b4                          lea     dx,[bp-4cH]
+ 10c9  52                                push    dx
+
+    _ultoa(gDMArecMode,valueMsg,10);
+ 10ca  8b 1e 00 00                       mov     bx,_gDMArecMode
+ 10ce  6a 00                             push    0000H
+ 10d0  8c de                             mov     si,ds
+ 10d2  53                                push    bx
+ 10d3  8d 7e b4                          lea     di,[bp-4cH]
+ 10d6  e8 00 00                          call    _xtoa
+
+    _fstrcat(valueMsg,"\r\n");
+ 10d9  b8 f2 01                          mov     ax,offset L24
+ 10dc  8c d2                             mov     dx,ss
+ 10de  83 c4 0c                          add     sp,000cH
+ 10e1  8e c2                             mov     es,dx
+ 10e3  1e                                push    ds
+ 10e4  57                                push    di
+ 10e5  96                                xchg    ax,si
+ 10e6  8e d8                             mov     ds,ax
+ 10e8  b9 ff ff                          mov     cx,0ffffH
+ 10eb  b0 00                             mov     al,00H
+ 10ed  f2 ae                             repne   scasb    
+ 10ef  4f                                dec     di
+ 10f0  8a 04             L178            mov     al,[si]
+ 10f2  aa                                stosb   
+ 10f3  3c 00                             cmp     al,00H
+ 10f5  74 0b                             je      L179
+ 10f7  8a 44 01                          mov     al,[si+1H]
+ 10fa  83 c6 02                          add     si,0002H
+ 10fd  aa                                stosb   
+ 10fe  3c 00                             cmp     al,00H
+ 1100  75 ee                             jne     L178
+ 1102  5f                L179            pop     di
+ 1103  1f                                pop     ds
+
+    DosPutMessage(STDOUT,_fstrlen(valueMsg),valueMsg);
+
+ 1104  6a 01                             push    0001H
+ 1106  8d 7e b4                          lea     di,[bp-4cH]
+ 1109  b9 ff ff                          mov     cx,0ffffH
+ 110c  31 c0                             xor     ax,ax
+ 110e  f2 ae                             repne   scasb    
+ 1110  f7 d1                             not     cx
+ 1112  49                                dec     cx
+ 1113  51                                push    cx
+ 1114  16                                push    ss
+ 1115  8d 56 b4                          lea     dx,[bp-4cH]
+ 1118  52                                push    dx
+ 1119  bf 00 00                          mov     di,offset _clFlagsMsg
+ 111c  9a 00 00 00 00                    call    far DOS16PUTMESSAGE
+ 1121  8c d8                             mov     ax,ds
+
+    DosPutMessage(STDOUT,_fstrlen(clFlagsMsg),clFlagsMsg);
+ 1123  6a 01                             push    0001H
+ 1125  8e c0                             mov     es,ax
+ 1127  b9 ff ff                          mov     cx,0ffffH
+ 112a  31 c0                             xor     ax,ax
+ 112c  f2 ae                             repne   scasb    
+ 112e  f7 d1                             not     cx
+ 1130  49                                dec     cx
+ 1131  51                                push    cx
+ 1132  1e                                push    ds
+ 1133  68 00 00                          push    offset _clFlagsMsg
+ 1136  9a 00 00 00 00                    call    far DOS16PUTMESSAGE
+ 113b  6a 00                             push    0000H
+
+    valueMsg[0] = 0;
+ 113d  30 f6                             xor     dh,dh
+ 113f  6a 10                             push    0010H
+ 1141  88 76 b4                          mov     [bp-4cH],dh
+ 1144  16                                push    ss
+ 1145  8d 56 b4                          lea     dx,[bp-4cH]
+ 1148  52                                push    dx
+
+    _ultoa(gCLflags,valueMsg,16);
+ 1149  8b 1e 00 00                       mov     bx,_gCLflags
+ 114d  6a 00                             push    0000H
+ 114f  8c de                             mov     si,ds
+ 1151  53                                push    bx
+ 1152  8d 7e b4                          lea     di,[bp-4cH]
+ 1155  e8 00 00                          call    _xtoa
+
+    _fstrcat(valueMsg,"\r\n");
+ 1158  b8 f2 01                          mov     ax,offset L24
+ 115b  8c d2                             mov     dx,ss
+ 115d  83 c4 0c                          add     sp,000cH
+ 1160  8e c2                             mov     es,dx
+ 1162  1e                                push    ds
+ 1163  57                                push    di
+ 1164  96                                xchg    ax,si
+ 1165  8e d8                             mov     ds,ax
+ 1167  b9 ff ff                          mov     cx,0ffffH
+ 116a  b0 00                             mov     al,00H
+ 116c  f2 ae                             repne   scasb    
+ 116e  4f                                dec     di
+ 116f  8a 04             L180            mov     al,[si]
+ 1171  aa                                stosb   
+ 1172  3c 00                             cmp     al,00H
+ 1174  74 0b                             je      L181
+ 1176  8a 44 01                          mov     al,[si+1H]
+ 1179  83 c6 02                          add     si,0002H
+ 117c  aa                                stosb   
+ 117d  3c 00                             cmp     al,00H
+ 117f  75 ee                             jne     L180
+ 1181  5f                L181            pop     di
+ 1182  1f                                pop     ds
+
+    DosPutMessage(STDOUT,_fstrlen(valueMsg),valueMsg);
+
+ }
+
+ 1183  6a 01                             push    0001H
+ 1185  8d 7e b4                          lea     di,[bp-4cH]
+ 1188  b9 ff ff                          mov     cx,0ffffH
+ 118b  31 c0                             xor     ax,ax
+ 118d  f2 ae                             repne   scasb    
+ 118f  f7 d1                             not     cx
+ 1191  49                                dec     cx
+ 1192  51                                push    cx
+ 1193  16                                push    ss
+ 1194  8d 56 b4                          lea     dx,[bp-4cH]
+ 1197  52                                push    dx
+ 1198  9a 00 00 00 00                    call    far DOS16PUTMESSAGE
+
+ if (gIRQ == 99)           rc = 1;
+ 119d  83 3e 00 00 63    L182            cmp     word ptr _gIRQ,0063H
+ 11a2  75 07                             jne     L183
+ 11a4  c7 46 fa 01 00                    mov     word ptr [bp-6H],0001H
+
+ else if (gBasePort == 99) rc = 2;
+ 11a9  eb 44                             jmp     L188
+ 11ab  83 3e 00 00 63    L183            cmp     word ptr _gBasePort,0063H
+ 11b0  75 07                             jne     L184
+ 11b2  c7 46 fa 02 00                    mov     word ptr [bp-6H],0002H
+
+ else if (gCtrlPort == 99) rc = 3;
+ 11b7  eb 36                             jmp     L188
+ 11b9  83 3e 00 00 63    L184            cmp     word ptr _gCtrlPort,0063H
+ 11be  75 07                             jne     L185
+ 11c0  c7 46 fa 03 00                    mov     word ptr [bp-6H],0003H
+
+ else if (gDevice == 99)   rc = 5;
+ 11c5  eb 28                             jmp     L188
+ 11c7  83 3e 00 00 63    L185            cmp     word ptr _gDevice,0063H
+ 11cc  75 07                             jne     L186
+ 11ce  c7 46 fa 05 00                    mov     word ptr [bp-6H],0005H
+
+ else if (gDMAplay == 99)  rc = 6;
+ 11d3  eb 1a                             jmp     L188
+ 11d5  83 3e 00 00 63    L186            cmp     word ptr _gDMAplay,0063H
+ 11da  75 07                             jne     L187
+ 11dc  c7 46 fa 06 00                    mov     word ptr [bp-6H],0006H
+
+ else if (gDMArec == 99)   rc = 10;
+ // rest are optional
+
+ 11e1  eb 0c                             jmp     L188
+ 11e3  83 3e 00 00 63    L187            cmp     word ptr _gDMArec,0063H
+ 11e8  75 05                             jne     L188
+ 11ea  c7 46 fa 0a 00                    mov     word ptr [bp-6H],000aH
+
+ if (rc) {
+ 11ef  8b 56 fa          L188            mov     dx,[bp-6H]
+ 11f2  85 d2                             test    dx,dx
+ 11f4  74 4b                             je      L190
+
+    USHORT trc = rc;
+ 11f6  89 d6                             mov     si,dx
+
+    if (trc > 14) trc = 15;
+ 11f8  83 fa 0e                          cmp     dx,000eH
+ 11fb  76 03                             jbe     L189
+ 11fd  be 0f 00                          mov     si,000fH
+
+    DosPutMessage(STDOUT,_fstrlen(errorPrepMsg),errorPrepMsg);
+ 1200  6a 01             L189            push    0001H
+ 1202  8c d8                             mov     ax,ds
+ 1204  bf 00 00                          mov     di,offset _errorPrepMsg
+ 1207  8e c0                             mov     es,ax
+ 1209  b9 ff ff                          mov     cx,0ffffH
+ 120c  31 c0                             xor     ax,ax
+ 120e  f2 ae                             repne   scasb    
+ 1210  f7 d1                             not     cx
+ 1212  49                                dec     cx
+ 1213  51                                push    cx
+ 1214  1e                                push    ds
+ 1215  68 00 00                          push    offset _errorPrepMsg
+ 1218  9a 00 00 00 00                    call    far DOS16PUTMESSAGE
+ 121d  89 f3                             mov     bx,si
+
+    DosPutMessage(STDOUT,_fstrlen(errorMsg[trc]),errorMsg[trc]);
+ }
+
+ return rc;
+
+ 121f  6a 01                             push    0001H
+ 1221  01 f3                             add     bx,si
+ 1223  8c d8                             mov     ax,ds
+ 1225  8b bf 00 00                       mov     di,[bx+_errorMsg]
+ 1229  8e c0                             mov     es,ax
+ 122b  b9 ff ff                          mov     cx,0ffffH
+ 122e  31 c0                             xor     ax,ax
+ 1230  f2 ae                             repne   scasb    
+ 1232  f7 d1                             not     cx
+ 1234  49                                dec     cx
+ 1235  51                                push    cx
+ 1236  1e                                push    ds
+ 1237  8b 97 00 00                       mov     dx,[bx+_errorMsg]
+ 123b  52                                push    dx
+ 123c  9a 00 00 00 00                    call    far DOS16PUTMESSAGE
+
+}
+
+//*******************************************************************************
+//*strtol, strtoul(nptr,endptr,ibase) - Convert ascii string to long un/signed int
+//
+//*       Convert an ascii string to a long 32-bit value.  The base
+//*       used for the caculations is supplied by the caller.  The base
+//*       must be in the range 0, 2-36.  If a base of 0 is supplied, the
+//*       ascii string must be examined to determine the base of the
+//*       number:
+//*               (a) First char = '0', second char = 'x' or 'X', use base 16
+//*               (b) First char = '0', use base 8
+//*               (c) First char in range '1' - '9', use base 10
+//*
+//*       If the 'endptr' value is non-NULL, then strtol/strtoul places
+//*       a pointer to the terminating character in this value
+//*
+//*Entry:
+//*       nptr == NEAR/FAR pointer to the start of string.
+//*       endptr == NEAR/FAR pointer to the end of the string.
+//*       ibase == integer base to use for the calculations.
+//*
+//*       string format: [whitespace] [sign] [0] [x] [digits/letters]
+//*
+//*Exit:
+//*       Good return:
+//*               result
+//*
+//*       Overflow return:
+//*               strtol -- LONG_MAX or LONG_MIN
+//*               strtoul -- ULONG_MAX
+//*               strtol/strtoul -- errno == ERANGE
+//*
+//*       No digits or bad base return:
+//*               0
+//*               endptr = nptr*
+//*******************************************************************************
+
+/* flag values */
+#define FL_UNSIGNED   1       /* strtoul called */
+#define FL_NEG        2       /* negative sign found */
+#define FL_OVERFLOW   4       /* overflow occured */
+#define FL_READDIGIT  8       /* we've read at least one correct digit */
+
+#define ULONG_MAX 0xFFFFFFFF
+#define LONG_MAX  0x7FFFFFFF
+#define LONG_MIN  0x80000000
+
+ 1241  8b 46 fa          L190            mov     ax,[bp-6H]
+ 1244  89 ec                             mov     sp,bp
+ 1246  5d                                pop     bp
+ 1247  5f                                pop     di
+ 1248  5e                                pop     si
+ 1249  59                                pop     cx
+ 124a  5b                                pop     bx
+ 124b  c3                                ret     
+
+static unsigned long __cdecl strtoxl (const char __far *nptr,const char __far * __far *endptr,int ibase,int flags) {
+
+ const char __far *p;
+ char c;
+ unsigned long number;
+ unsigned digval;
+ unsigned long maxval;
+
+ p = nptr;                       /* p is our scanning pointer */
+ number = 0;                     /* start with zero */
+
+ 124c  56                _strtoxl        push    si
+ 124d  57                                push    di
+ 124e  55                                push    bp
+ 124f  89 e5                             mov     bp,sp
+ 1251  83 ec 0c                          sub     sp,000cH
+
+ c = *p++;                       /* read char */
+ 1254  c4 5e 08                          les     bx,dword ptr [bp+8H]
+ 1257  31 d2                             xor     dx,dx
+ 1259  31 ff                             xor     di,di
+ 125b  89 56 fa                          mov     [bp-6H],dx
+ 125e  8c 46 f6                          mov     [bp-0aH],es
+ 1261  8d 77 01                          lea     si,[bx+1H]
+ 1264  26 8a 07                          mov     al,es:[bx]
+ 1267  8e 46 f6                          mov     es,[bp-0aH]
+ 126a  88 46 fe          L191            mov     [bp-2H],al
+
+ while ((unsigned char)c == ' ')
+         c = *p++;               /* skip whitespace */
+
+ 126d  8a 46 fe                          mov     al,[bp-2H]
+ 1270  30 e4                             xor     ah,ah
+ 1272  3d 20 00                          cmp     ax,0020H
+ 1275  75 06                             jne     L192
+ 1277  26 8a 04                          mov     al,es:[si]
+ 127a  46                                inc     si
+ 127b  eb ed                             jmp     L191
+
+ if (c == '-') {
+ 127d  98                L192            cbw     
+ 127e  8d 54 01                          lea     dx,[si+1H]
+ 1281  3d 2d 00                          cmp     ax,002dH
+ 1284  75 0e                             jne     L193
+
+         flags |= FL_NEG;        /* remember minus sign */
+ 1286  8a 66 12                          mov     ah,[bp+12H]
+ 1289  80 cc 02                          or      ah,02H
+
+         c = *p++;
+ }
+ 128c  8e 46 f6                          mov     es,[bp-0aH]
+ 128f  88 66 12                          mov     [bp+12H],ah
+
+ else if (c == '+')
+ 1292  eb 08                             jmp     L194
+ 1294  3d 2b 00          L193            cmp     ax,002bH
+ 1297  75 0b                             jne     L195
+
+         c = *p++;               /* skip sign */
+
+ 1299  8e 46 f6                          mov     es,[bp-0aH]
+ 129c  26 8a 04          L194            mov     al,es:[si]
+ 129f  88 46 fe                          mov     [bp-2H],al
+ 12a2  89 d6                             mov     si,dx
+
+ if (ibase < 0 || ibase == 1 || ibase > 36) {
+         /* bad base! */
+ 12a4  8b 5e 10          L195            mov     bx,[bp+10H]
+ 12a7  85 db                             test    bx,bx
+ 12a9  7c 0a                             jl      L196
+ 12ab  83 fb 01                          cmp     bx,0001H
+ 12ae  74 05                             je      L196
+ 12b0  83 fb 24                          cmp     bx,0024H
+ 12b3  7e 27                             jle     L199
+
+         if (endptr)
+                 /* store beginning of string in endptr */
+ 12b5  8b 5e 0e          L196            mov     bx,[bp+0eH]
+ 12b8  8b 4e 0c                          mov     cx,[bp+0cH]
+ 12bb  85 db                             test    bx,bx
+ 12bd  75 04                             jne     L197
+ 12bf  85 c9                             test    cx,cx
+ 12c1  74 12                             je      L198
+ 12c3  8b 76 08          L197            mov     si,[bp+8H]
+
+                 *endptr = nptr;
+ 12c6  8e c3                             mov     es,bx
+ 12c8  8b 5e 0c                          mov     bx,[bp+0cH]
+ 12cb  8b 46 0a                          mov     ax,[bp+0aH]
+ 12ce  26 89 37                          mov     es:[bx],si
+ 12d1  26 89 47 02                       mov     es:[bx+2H],ax
+
+         return 0L;              /* return 0 */
+ }
+ 12d5  31 c0             L198            xor     ax,ax
+ 12d7  31 ff                             xor     di,di
+ 12d9  e9 db 01                          jmp     L227
+
+ else if (ibase == 0) {
+         /* determine base free-lance, based on first two chars of
+            string */
+ 12dc  85 db             L199            test    bx,bx
+ 12de  75 2d                             jne     L203
+
+         if (c != '0')
+ 12e0  8a 46 fe                          mov     al,[bp-2H]
+ 12e3  98                                cbw     
+ 12e4  3d 30 00                          cmp     ax,0030H
+ 12e7  74 07                             je      L200
+
+                 ibase = 10;
+ 12e9  c7 46 10 0a 00                    mov     word ptr [bp+10H],000aH
+
+         else if (*p == 'x' || *p == 'X')
+ 12ee  eb 1d                             jmp     L203
+ 12f0  8e 46 f6          L200            mov     es,[bp-0aH]
+ 12f3  26 8a 04                          mov     al,es:[si]
+ 12f6  98                                cbw     
+ 12f7  3d 78 00                          cmp     ax,0078H
+ 12fa  74 05                             je      L201
+ 12fc  3d 58 00                          cmp     ax,0058H
+ 12ff  75 07                             jne     L202
+
+                 ibase = 16;
+ 1301  c7 46 10 10 00    L201            mov     word ptr [bp+10H],0010H
+
+         else
+ 1306  eb 05                             jmp     L203
+
+                 ibase = 8;
+ }
+
+ 1308  c7 46 10 08 00    L202            mov     word ptr [bp+10H],0008H
+
+ if (ibase == 16) {
+         /* we might have 0x in front of number; remove if there */
+ 130d  83 7e 10 10       L203            cmp     word ptr [bp+10H],0010H
+ 1311  75 25                             jne     L205
+
+         if (c == '0' && (*p == 'x' || *p == 'X')) {
+                 ++p;
+ 1313  8a 46 fe                          mov     al,[bp-2H]
+ 1316  98                                cbw     
+ 1317  3d 30 00                          cmp     ax,0030H
+ 131a  75 1c                             jne     L205
+ 131c  8e 46 f6                          mov     es,[bp-0aH]
+ 131f  26 8a 04                          mov     al,es:[si]
+ 1322  98                                cbw     
+ 1323  3d 78 00                          cmp     ax,0078H
+ 1326  74 05                             je      L204
+ 1328  3d 58 00                          cmp     ax,0058H
+ 132b  75 0b                             jne     L205
+
+ 132d  8e 46 f6          L204            mov     es,[bp-0aH]
+
+                 c = *p++;       /* advance past prefix */
+         }
+ }
+
+ /* if our number exceeds this, we will overflow on multiply */
+ 1330  46                                inc     si
+ 1331  26 8a 04                          mov     al,es:[si]
+ 1334  46                                inc     si
+ 1335  88 46 fe                          mov     [bp-2H],al
+
+ maxval = ULONG_MAX / ibase;
+
+
+ 1338  8b 46 10          L205            mov     ax,[bp+10H]
+ 133b  99                                cwd     
+ 133c  89 c3                             mov     bx,ax
+ 133e  b8 ff ff                          mov     ax,0ffffH
+ 1341  89 d1                             mov     cx,dx
+ 1343  89 c2                             mov     dx,ax
+ 1345  e8 00 00                          call    __U4D
+ 1348  8e 46 f6                          mov     es,[bp-0aH]
+ 134b  89 46 f4                          mov     [bp-0cH],ax
+ 134e  89 56 f8                          mov     [bp-8H],dx
+
+ for (;;) {      /* exit in middle of loop */
+         /* convert c to value */
+         //if ( isdigit((int)(unsigned char)c) )
+         //        digval = c - '0';
+         //else if ( isalpha((int)(unsigned char)c) )
+         //        digval = toupper(c) - 'A' + 10;
+         //else
+         //        break;
+
+         if (c >= '0' && c <= '9') {
+ 1351  8a 46 fe          L206            mov     al,[bp-2H]
+ 1354  98                                cbw     
+ 1355  3d 30 00                          cmp     ax,0030H
+ 1358  7c 0a                             jl      L207
+ 135a  3d 39 00                          cmp     ax,0039H
+ 135d  7f 05                             jg      L207
+
+            digval = c - '0';
+         }
+ 135f  2d 30 00                          sub     ax,0030H
+
+         else if (c >= 'a' && c <= 'z') {
+ 1362  eb 28                             jmp     L209
+ 1364  8a 46 fe          L207            mov     al,[bp-2H]
+ 1367  98                                cbw     
+ 1368  3d 61 00                          cmp     ax,0061H
+ 136b  7c 0a                             jl      L208
+ 136d  3d 7a 00                          cmp     ax,007aH
+ 1370  7f 05                             jg      L208
+
+            digval = c - 'a' + 10;
+         }
+ 1372  2d 57 00                          sub     ax,0057H
+
+         else if (c >= 'A' && c <= 'Z') {
+            digval = c - 'A' + 10;
+         }
+         else {
+            break;
+ 1375  eb 15                             jmp     L209
+ 1377  8a 46 fe          L208            mov     al,[bp-2H]
+ 137a  98                                cbw     
+ 137b  3d 41 00                          cmp     ax,0041H
+ 137e  0f 8c 88 00                       jl      L214
+ 1382  3d 5a 00                          cmp     ax,005aH
+ 1385  0f 8f 81 00                       jg      L214
+
+         }
+
+ 1389  2d 37 00                          sub     ax,0037H
+ 138c  89 46 fc          L209            mov     [bp-4H],ax
+
+         if (digval >= (unsigned)ibase) break;          /* exit loop if bad digit found */
+
+         /* record the fact we have read one digit */
+ 138f  8b 46 fc                          mov     ax,[bp-4H]
+ 1392  3b 46 10                          cmp     ax,[bp+10H]
+ 1395  0f 83 71 00                       jae     L214
+
+         flags |= FL_READDIGIT;
+
+         /* we now need to compute number = number * base + digval,
+            but we need to know if overflow occured.  This requires
+            a tricky pre-check. */
+
+ 1399  8a 56 12                          mov     dl,[bp+12H]
+
+         if (number < maxval || (number == maxval &&
+         (unsigned long)digval <= ULONG_MAX % ibase)) {
+                 /* we won't overflow, go ahead and multiply */
+ 139c  8b 5e f8                          mov     bx,[bp-8H]
+ 139f  8b 46 fa                          mov     ax,[bp-6H]
+ 13a2  80 ca 08                          or      dl,08H
+ 13a5  8b 4e f4                          mov     cx,[bp-0cH]
+ 13a8  88 56 12                          mov     [bp+12H],dl
+ 13ab  39 df                             cmp     di,bx
+ 13ad  72 2f                             jb      L211
+ 13af  75 04                             jne     L210
+ 13b1  39 c8                             cmp     ax,cx
+ 13b3  72 29                             jb      L211
+ 13b5  8b 46 fa          L210            mov     ax,[bp-6H]
+ 13b8  8b 56 f4                          mov     dx,[bp-0cH]
+ 13bb  39 df                             cmp     di,bx
+ 13bd  75 3d                             jne     L212
+ 13bf  39 d0                             cmp     ax,dx
+ 13c1  75 39                             jne     L212
+ 13c3  8b 46 10                          mov     ax,[bp+10H]
+ 13c6  99                                cwd     
+ 13c7  89 c3                             mov     bx,ax
+ 13c9  b8 ff ff                          mov     ax,0ffffH
+ 13cc  89 d1                             mov     cx,dx
+ 13ce  89 c2                             mov     dx,ax
+ 13d0  e8 00 00                          call    __U4D
+ 13d3  85 c9                             test    cx,cx
+ 13d5  77 07                             ja      L211
+ 13d7  75 23                             jne     L212
+ 13d9  3b 5e fc                          cmp     bx,[bp-4H]
+ 13dc  72 1e                             jb      L212
+
+                 number = number * ibase + digval;
+         }
+ 13de  8b 46 10          L211            mov     ax,[bp+10H]
+ 13e1  99                                cwd     
+ 13e2  89 c3                             mov     bx,ax
+ 13e4  89 d1                             mov     cx,dx
+ 13e6  8b 46 fa                          mov     ax,[bp-6H]
+ 13e9  89 fa                             mov     dx,di
+ 13eb  e8 00 00                          call    __U4M
+ 13ee  8b 5e fc                          mov     bx,[bp-4H]
+ 13f1  31 ff                             xor     di,di
+ 13f3  01 c3                             add     bx,ax
+ 13f5  89 5e fa                          mov     [bp-6H],bx
+ 13f8  11 d7                             adc     di,dx
+
+         else {
+                 /* we would have overflowed -- set the overflow flag */
+ 13fa  eb 04                             jmp     L213
+
+                 flags |= FL_OVERFLOW;
+ 13fc  80 4e 12 04       L212            or      byte ptr [bp+12H],04H
+
+         }
+
+         c = *p++;               /* read next digit */
+ 1400  26 8a 04          L213            mov     al,es:[si]
+ 1403  46                                inc     si
+ 1404  88 46 fe                          mov     [bp-2H],al
+
+ }
+
+ --p;                            /* point to place that stopped scan */
+
+ 1407  e9 47 ff                          jmp     L206
+
+ if (!(flags & FL_READDIGIT)) {
+         /* no number there; return 0 and point to beginning of string */
+ 140a  8a 5e 12          L214            mov     bl,[bp+12H]
+ 140d  4e                                dec     si
+ 140e  f6 c3 08                          test    bl,08H
+ 1411  75 1d                             jne     L217
+
+         if (endptr)
+                 /* store beginning of string in endptr later on */
+ 1413  8b 7e 0e                          mov     di,[bp+0eH]
+ 1416  8b 46 0c                          mov     ax,[bp+0cH]
+ 1419  85 ff                             test    di,di
+ 141b  75 04                             jne     L215
+ 141d  85 c0                             test    ax,ax
+ 141f  74 09                             je      L216
+ 1421  8b 46 0a          L215            mov     ax,[bp+0aH]
+
+                 p = nptr;
+ 1424  8b 76 08                          mov     si,[bp+8H]
+ 1427  89 46 f6                          mov     [bp-0aH],ax
+
+         number = 0L;            /* return 0 */
+ }
+ 142a  31 d2             L216            xor     dx,dx
+ 142c  31 ff                             xor     di,di
+
+ else if ( (flags & FL_OVERFLOW) ||
+           ( !(flags & FL_UNSIGNED) &&
+             ( ( (flags & FL_NEG) && (number > -LONG_MIN) ) ||
+               ( !(flags & FL_NEG) && (number > LONG_MAX) ) ) ) )
+ {
+         /* overflow or signed overflow occurred */
+         //chh removederrno = ERANGE;
+ 142e  eb 51                             jmp     L222
+ 1430  f6 c3 04          L217            test    bl,04H
+ 1433  75 25                             jne     L219
+ 1435  f6 c3 01                          test    bl,01H
+ 1438  75 4a                             jne     L223
+ 143a  f6 c3 02                          test    bl,02H
+ 143d  74 0f                             je      L218
+ 143f  8b 46 fa                          mov     ax,[bp-6H]
+ 1442  81 ff 00 80                       cmp     di,8000H
+ 1446  77 12                             ja      L219
+ 1448  75 04                             jne     L218
+ 144a  85 c0                             test    ax,ax
+ 144c  77 0c                             ja      L219
+ 144e  f6 46 12 02       L218            test    byte ptr [bp+12H],02H
+ 1452  75 30                             jne     L223
+ 1454  81 ff ff 7f                       cmp     di,7fffH
+ 1458  76 2a                             jbe     L223
+
+         if ( flags & FL_UNSIGNED )
+ 145a  8a 66 12          L219            mov     ah,[bp+12H]
+ 145d  f6 c4 01                          test    ah,01H
+ 1460  74 0a                             je      L220
+
+                 number = ULONG_MAX;
+ 1462  b9 ff ff                          mov     cx,0ffffH
+ 1465  89 4e fa                          mov     [bp-6H],cx
+ 1468  89 cf                             mov     di,cx
+
+         else if ( flags & FL_NEG )
+ 146a  eb 18                             jmp     L223
+ 146c  f6 c4 02          L220            test    ah,02H
+ 146f  74 0a                             je      L221
+
+                 number = (unsigned long)(-LONG_MIN);
+ 1471  31 db                             xor     bx,bx
+ 1473  bf 00 80                          mov     di,8000H
+ 1476  89 5e fa                          mov     [bp-6H],bx
+
+         else
+ 1479  eb 09                             jmp     L223
+
+                 number = LONG_MAX;
+ }
+
+ 147b  ba ff ff          L221            mov     dx,0ffffH
+ 147e  bf ff 7f                          mov     di,7fffH
+ 1481  89 56 fa          L222            mov     [bp-6H],dx
+
+ if (endptr != NULL) *endptr = p;
+ 1484  8b 5e 0e          L223            mov     bx,[bp+0eH]
+ 1487  8b 4e 0c                          mov     cx,[bp+0cH]
+ 148a  85 db                             test    bx,bx
+ 148c  75 04                             jne     L224
+ 148e  85 c9                             test    cx,cx
+ 1490  74 0f                             je      L225
+ 1492  8e c3             L224            mov     es,bx
+ 1494  8b 5e 0c                          mov     bx,[bp+0cH]
+ 1497  8b 46 f6                          mov     ax,[bp-0aH]
+ 149a  26 89 37                          mov     es:[bx],si
+ 149d  26 89 47 02                       mov     es:[bx+2H],ax
+
+ if (flags & FL_NEG) number = (unsigned long)(-(long)number);
+
+ 14a1  f6 46 12 02       L225            test    byte ptr [bp+12H],02H
+ 14a5  74 0d                             je      L226
+ 14a7  8b 76 fa                          mov     si,[bp-6H]
+ 14aa  f7 df                             neg     di
+ 14ac  f7 de                             neg     si
+ 14ae  89 76 fa                          mov     [bp-6H],si
+ 14b1  83 df 00                          sbb     di,0000H
+
+ return number;     
+ 14b4  8b 46 fa          L226            mov     ax,[bp-6H]
+
+}
+
+ 14b7  89 fa             L227            mov     dx,di
+ 14b9  89 ec                             mov     sp,bp
+ 14bb  5d                                pop     bp
+ 14bc  5f                                pop     di
+ 14bd  5e                                pop     si
+ 14be  c3                                ret     
+ 14bf  fc                                cld     
+
+long __cdecl strtol (const char __far *nptr,char __far * __far *endptr,int ibase) {
+ 14c0  56                _strtol         push    si
+ 14c1  57                                push    di
+ 14c2  55                                push    bp
+ 14c3  89 e5                             mov     bp,sp
+
+ return (long) strtoxl(nptr, endptr, ibase, 0);
+ 14c5  6a 00                             push    0000H
+ 14c7  8b 56 10                          mov     dx,[bp+10H]
+ 14ca  52                                push    dx
+ 14cb  8b 5e 0e                          mov     bx,[bp+0eH]
+ 14ce  53                                push    bx
+ 14cf  8b 4e 0c                          mov     cx,[bp+0cH]
+ 14d2  51                                push    cx
+ 14d3  8b 76 0a                          mov     si,[bp+0aH]
+ 14d6  56                                push    si
+ 14d7  8b 7e 08                          mov     di,[bp+8H]
+ 14da  57                                push    di
+ 14db  e8 00 00                          call    _strtoxl
+ 14de  83 c4 0c                          add     sp,000cH
+
+}
+
+ 14e1  5d                                pop     bp
+ 14e2  5f                                pop     di
+ 14e3  5e                                pop     si
+ 14e4  c3                                ret     
+ 14e5  89 c0                             mov     ax,ax
+ 14e7  fc                                cld     
+
+unsigned long __cdecl strtoul (const char __far *nptr,char __far * __far *endptr,int ibase) {
+ 14e8  56                _strtoul        push    si
+ 14e9  57                                push    di
+ 14ea  55                                push    bp
+ 14eb  89 e5                             mov     bp,sp
+
+ return strtoxl(nptr, endptr, ibase, FL_UNSIGNED);
+ 14ed  6a 01                             push    0001H
+ 14ef  8b 56 10                          mov     dx,[bp+10H]
+ 14f2  52                                push    dx
+ 14f3  8b 5e 0e                          mov     bx,[bp+0eH]
+ 14f6  53                                push    bx
+ 14f7  8b 4e 0c                          mov     cx,[bp+0cH]
+ 14fa  51                                push    cx
+ 14fb  8b 76 0a                          mov     si,[bp+0aH]
+ 14fe  56                                push    si
+ 14ff  8b 7e 08                          mov     di,[bp+8H]
+ 1502  57                                push    di
+ 1503  e8 00 00                          call    _strtoxl
+ 1506  83 c4 0c                          add     sp,000cH
+
+}
+
+
+//*******************************************************************************
+//*char *_itoa, *_ltoa, *_ultoa(val, buf, radix) - convert int to ASCII string
+//*Entry:
+//*       val - number to be converted (int, long or unsigned long)
+//*       int radix - base to convert into
+//*       char *buf - ptr to buffer to place result
+//*Exit:
+//*       fills in space pointed to by buf with string result
+//*       returns a pointer to this buffer
+//*******************************************************************************
+
+/* helper routine that does the main job. */
+
+ 1509  5d                                pop     bp
+ 150a  5f                                pop     di
+ 150b  5e                                pop     si
+ 150c  c3                                ret     
+ 150d  89 c0                             mov     ax,ax
+ 150f  fc                                cld     
+
+static void __cdecl xtoa (unsigned long val,char __far *buf,unsigned radix,int is_neg) {
+
+ char __far *p;                /* pointer to traverse string */
+ char __far *firstdig;         /* pointer to first digit */
+ char temp;              /* temp char */
+ unsigned digval;        /* value of digit */
+
+ p = buf;
+
+ 1510  56                _xtoa           push    si
+ 1511  57                                push    di
+ 1512  55                                push    bp
+ 1513  89 e5                             mov     bp,sp
+ 1515  83 ec 0a                          sub     sp,000aH
+ 1518  8b 7e 0a                          mov     di,[bp+0aH]
+ 151b  c4 5e 0c                          les     bx,dword ptr [bp+0cH]
+
+ if (is_neg) {
+     /* negative, so output '-' and negate */
+     *p++ = '-';
+ 151e  8b 56 12                          mov     dx,[bp+12H]
+ 1521  89 de                             mov     si,bx
+ 1523  8c 46 fe                          mov     [bp-2H],es
+ 1526  85 d2                             test    dx,dx
+ 1528  74 14                             je      L228
+ 152a  8b 4e 08                          mov     cx,[bp+8H]
+
+ 152d  f7 df                             neg     di
+ 152f  8d 77 01                          lea     si,[bx+1H]
+
+     val = (unsigned long)(-(long)val);
+ 1532  26 c6 07 2d                       mov     byte ptr es:[bx],2dH
+ 1536  f7 d9                             neg     cx
+ 1538  89 4e 08                          mov     [bp+8H],cx
+ 153b  83 df 00                          sbb     di,0000H
+
+ }
+
+ 153e  8b 46 fe          L228            mov     ax,[bp-2H]
+
+ firstdig = p;           /* save pointer to first digit */
+
+ 1541  89 76 f8                          mov     [bp-8H],si
+ 1544  89 46 fc                          mov     [bp-4H],ax
+
+ do {
+     digval = (unsigned) (val % radix);
+ 1547  8b 46 08          L229            mov     ax,[bp+8H]
+ 154a  8b 5e 10                          mov     bx,[bp+10H]
+ 154d  89 fa                             mov     dx,di
+ 154f  31 c9                             xor     cx,cx
+ 1551  e8 00 00                          call    __U4D
+
+     val /= radix;       /* get next digit */
+
+     /* convert to ascii and store */
+ 1554  8b 46 08                          mov     ax,[bp+8H]
+ 1557  89 5e f6                          mov     [bp-0aH],bx
+ 155a  89 5e fa                          mov     [bp-6H],bx
+ 155d  89 fa                             mov     dx,di
+ 155f  31 c9                             xor     cx,cx
+ 1561  8b 5e 10                          mov     bx,[bp+10H]
+ 1564  e8 00 00                          call    __U4D
+ 1567  89 46 08                          mov     [bp+8H],ax
+
+     if (digval > 9)
+ 156a  8b 46 f6                          mov     ax,[bp-0aH]
+ 156d  89 d7                             mov     di,dx
+ 156f  3d 09 00                          cmp     ax,0009H
+ 1572  76 0b                             jbe     L230
+
+         *p++ = (char) (digval - 10 + 'a');  /* a letter */
+ 1574  8a 46 fa                          mov     al,[bp-6H]
+ 1577  8e 46 fe                          mov     es,[bp-2H]
+ 157a  46                                inc     si
+ 157b  04 57                             add     al,57H
+
+     else
+ 157d  eb 09                             jmp     L231
+
+         *p++ = (char) (digval + '0');       /* a digit */
+ 157f  8a 46 fa          L230            mov     al,[bp-6H]
+ 1582  8e 46 fe                          mov     es,[bp-2H]
+ 1585  46                                inc     si
+ 1586  04 30                             add     al,30H
+ 1588  26 88 44 ff       L231            mov     es:[si-1H],al
+ 158c  8b 56 08                          mov     dx,[bp+8H]
+
+ } while (val > 0);
+
+ /* We now have the digit of the number in the buffer, but in reverse
+    order.  Thus we reverse them now. */
+
+ 158f  85 ff                             test    di,di
+ 1591  77 b4                             ja      L229
+ 1593  75 04                             jne     L232
+ 1595  85 d2                             test    dx,dx
+ 1597  77 ae                             ja      L229
+
+ *p-- = '\0';            /* terminate string; p points to last digit */
+
+ 1599  8e 46 fe          L232            mov     es,[bp-2H]
+ 159c  26 c6 04 00                       mov     byte ptr es:[si],00H
+ 15a0  4e                                dec     si
+
+ do {
+     temp = *p;
+ 15a1  8e 46 fe          L233            mov     es,[bp-2H]
+ 15a4  8b 5e f8                          mov     bx,[bp-8H]
+ 15a7  26 8a 04                          mov     al,es:[si]
+
+     *p = *firstdig;
+     *firstdig = temp;   /* swap *p and *firstdig */
+ 15aa  8e 46 fc                          mov     es,[bp-4H]
+
+     --p;
+ 15ad  83 c6 ff                          add     si,0ffffH
+ 15b0  26 8a 27                          mov     ah,es:[bx]
+ 15b3  8e 46 fe                          mov     es,[bp-2H]
+
+     ++firstdig;         /* advance to next two digits */
+ 15b6  43                                inc     bx
+ 15b7  26 88 64 01                       mov     es:[si+1H],ah
+ 15bb  8e 46 fc                          mov     es,[bp-4H]
+ 15be  89 5e f8                          mov     [bp-8H],bx
+ 15c1  26 88 47 ff                       mov     es:[bx-1H],al
+
+ } while (firstdig < p); /* repeat until halfway */
+ 15c5  39 de                             cmp     si,bx
+ 15c7  77 d8                             ja      L233
+
+}
+
+/* Actual functions just call conversion helper with neg flag set correctly,
+   and return pointer to buffer. */
+
+ 15c9  89 ec                             mov     sp,bp
+ 15cb  5d                                pop     bp
+ 15cc  5f                                pop     di
+ 15cd  5e                                pop     si
+ 15ce  c3                                ret     
+ 15cf  fc                                cld     
+
+char __far * __cdecl _itoa (int val,char __far *buf,int radix) {
+ 15d0  56                __itoa          push    si
+ 15d1  57                                push    di
+ 15d2  55                                push    bp
+ 15d3  89 e5                             mov     bp,sp
+ 15d5  8b 46 08                          mov     ax,[bp+8H]
+ 15d8  8b 7e 0a                          mov     di,[bp+0aH]
+ 15db  8b 76 0c                          mov     si,[bp+0cH]
+ 15de  8b 56 0e                          mov     dx,[bp+0eH]
+
+ if (radix == 10 && val < 0)
+ 15e1  83 fa 0a                          cmp     dx,000aH
+ 15e4  75 0d                             jne     L234
+ 15e6  85 c0                             test    ax,ax
+ 15e8  7d 09                             jge     L234
+
+    xtoa((unsigned long)val, buf, radix, 1);
+ 15ea  6a 01                             push    0001H
+ 15ec  52                                push    dx
+ 15ed  56                                push    si
+ 15ee  57                                push    di
+ 15ef  99                                cwd     
+ 15f0  52                                push    dx
+
+ else
+ 15f1  eb 07                             jmp     L235
+
+    xtoa((unsigned long)(unsigned int)val, buf, radix, 0);
+ return buf;
+ 15f3  6a 00             L234            push    0000H
+ 15f5  52                                push    dx
+ 15f6  56                                push    si
+ 15f7  57                                push    di
+ 15f8  6a 00                             push    0000H
+ 15fa  50                L235            push    ax
+ 15fb  e8 00 00                          call    _xtoa
+ 15fe  83 c4 0c                          add     sp,000cH
+
+}
+
+ 1601  89 f8                             mov     ax,di
+ 1603  89 f2                             mov     dx,si
+ 1605  5d                                pop     bp
+ 1606  5f                                pop     di
+ 1607  5e                                pop     si
+ 1608  c3                                ret     
+ 1609  89 c0                             mov     ax,ax
+ 160b  fc                                cld     
+
+char __far * __cdecl _ltoa (long val,char __far *buf,int radix) {
+ 160c  56                __ltoa          push    si
+ 160d  57                                push    di
+ 160e  55                                push    bp
+ 160f  89 e5                             mov     bp,sp
+ 1611  8b 4e 08                          mov     cx,[bp+8H]
+ 1614  8b 56 0a                          mov     dx,[bp+0aH]
+ 1617  8b 7e 0c                          mov     di,[bp+0cH]
+ 161a  8b 76 0e                          mov     si,[bp+0eH]
+ 161d  8b 5e 10                          mov     bx,[bp+10H]
+
+ xtoa((unsigned long)val, buf, radix, (radix == 10 && val < 0));
+ return buf;
+ 1620  83 fb 0a                          cmp     bx,000aH
+ 1623  75 09                             jne     L236
+ 1625  85 d2                             test    dx,dx
+ 1627  7d 05                             jge     L236
+ 1629  b8 01 00                          mov     ax,0001H
+ 162c  eb 02                             jmp     L237
+ 162e  31 c0             L236            xor     ax,ax
+ 1630  50                L237            push    ax
+ 1631  53                                push    bx
+ 1632  56                                push    si
+ 1633  57                                push    di
+ 1634  52                                push    dx
+ 1635  51                                push    cx
+ 1636  e8 00 00                          call    _xtoa
+ 1639  83 c4 0c                          add     sp,000cH
+
+}
+
+ 163c  89 f8                             mov     ax,di
+ 163e  89 f2                             mov     dx,si
+ 1640  5d                                pop     bp
+ 1641  5f                                pop     di
+ 1642  5e                                pop     si
+ 1643  c3                                ret     
+
+char __far * __cdecl _ultoa (unsigned long val,char __far *buf,int radix) {
+ 1644  56                __ultoa         push    si
+ 1645  57                                push    di
+ 1646  55                                push    bp
+ 1647  89 e5                             mov     bp,sp
+ 1649  8b 7e 0c                          mov     di,[bp+0cH]
+ 164c  8b 76 0e                          mov     si,[bp+0eH]
+
+ xtoa(val, buf, radix, 0);
+ return buf;
+ 164f  6a 00                             push    0000H
+ 1651  8b 56 10                          mov     dx,[bp+10H]
+ 1654  52                                push    dx
+ 1655  56                                push    si
+ 1656  57                                push    di
+ 1657  8b 5e 0a                          mov     bx,[bp+0aH]
+ 165a  53                                push    bx
+ 165b  8b 4e 08                          mov     cx,[bp+8H]
+ 165e  51                                push    cx
+ 165f  e8 00 00                          call    _xtoa
+ 1662  83 c4 0c                          add     sp,000cH
+
+}
+
+
+ 1665  89 f8                             mov     ax,di
+ 1667  89 f2                             mov     dx,si
+ 1669  5d                                pop     bp
+ 166a  5f                                pop     di
+ 166b  5e                                pop     si
+ 166c  c3                                ret     
+
+No disassembly errors
+
+List of external symbols
+
+Symbol
+----------------
+_Device_Help     0000001d 00000019
+HeapInit_        00000035
+ParseCL_         00000042
+_gDMAplay        000011d7 00000cd6 000004ac 00000099 00000076 0000005f 0000004e
+_gDMArec         000011e5 00000f09 00000646 000000c1 000000aa 0000009d 00000052
+_gDMAplayMode    00000e99 000005d3 00000069
+_gIRQ            0000119f 0000093f 000002ff 000000be 00000073
+waveplayInit_    00000079
+_gCLflags        0000114b 0000085e 0000083a 0000082b 0000081f 00000803 000007f7 000007d6 000007cf 000007c3
+                 000007b6 00000797 0000078b 0000014b 0000011d 000000fd 000000f2 000000ec 000000cf 00000084
+_ddprintf        0000013c 000000d9 00000090
+_gDMArecMode     000010cc 00000767 000000b4
+waverecInit_     000000c4
+chipsetInit_     000000e1
+chipsetSetDTM_   000000f9
+_endCode         00000119
+_endData         00000123
+_initExitMsg     00000166 00000155
+DOS16PUTMESSAGE  0000123d 00001219 00001199 00001137 0000111d 000010b8 0000109e 00001039 0000101f 00000fba
+                 00000fa0 00000f04 00000eea 00000e85 00000e6b 00000e06 00000dec 00000d87 00000d6d 00000cd0
+                 00000cb6 00000bdc 00000bc2 00000b5d 00000b43 00000aa6 00000a8c 000009f0 000009d6 00000939
+                 0000091c 000008d8 000008bb 00000858 000001c5 00000169
+_xtoa            00001660 00001637 000015fc 00001156 000010d7 00001053 00000fd9 00000f56 00000ea4 00000e20
+                 00000da6 00000d20 00000c3a 00000b7c 00000af9 00000a42 00000989 00000182
+_strtoxl         00001504 000014dc 0000074c 000006b4 00000676 0000061c 000005b8 00000522 000004e3 00000482
+                 0000041d 0000038d 00000337 000002dd
+_gBasePort       000011ad 000009f5 00000357
+_gCtrlPort       000011bb 00000aac 000003ad
+_gDevice         000011c9 00000c3e 00000bef 00000be9 00000be2 00000438
+_gDMAplaySize    00000d9b 000004f2
+_gDMAplayIPB     00000e1c 00000588
+_gDMArecSize     00000fce 00000685
+_gDMArecIPB      00001048 0000071c
+_signOnMsg       00000855 00000844
+_irqMsg          00000936 00000925
+_basePortMsg     000009ed 000009d3
+_ctrlPortMsg     00000aa3 00000a89
+_modeMsg         00000b5a 00000b40
+_gMode           00000b71
+_deviceMsg       00000bd9 00000bbf
+_deviceStr       00000c4b
+_playDMAMsg      00000ccd 00000cb3
+_playSizeMsg     00000d84 00000d6a
+_playIPBMsg      00000e03 00000de9
+_playModeMsg     00000e82 00000e68
+_recDMAMsg       00000f01 00000ee7
+_recSizeMsg      00000fb7 00000f9d
+_recIPBMsg       00001036 0000101c
+_recModeMsg      000010b5 0000109b
+_clFlagsMsg      00001134 0000111a
+_errorPrepMsg    00001216 00001205
+_errorMsg        00001239 00001227
+__U4D            00001565 00001346
+__U4D            00001552 000013d1
+__U4M            000013ec
+------------------------------------------------------------
+List of public symbols
+
+SYMBOL          GROUP           SEGMENT          ADDRESS
+---------------------------------------------------------
+__itoa                          _INITTEXT        000015d0
+__ltoa                          _INITTEXT        0000160c
+__ultoa                         _INITTEXT        00001644
+_basePortMsg    DGROUP          CONST2           0000003c
+_clFlagsMsg     DGROUP          CONST2           000000cc
+_ctrlPortMsg    DGROUP          CONST2           00000048
+_deviceMsg      DGROUP          CONST2           00000060
+_deviceStr      DGROUP          _DATA            00000020
+_errorMsg       DGROUP          _DATA            00000000
+_errorPrepMsg   DGROUP          CONST2           000000d8
+_initExitMsg    DGROUP          CONST2           000000f7
+_irqMsg         DGROUP          CONST2           00000030
+_modeMsg        DGROUP          CONST2           00000054
+_playDMAMsg     DGROUP          CONST2           0000006c
+_playIPBMsg     DGROUP          CONST2           00000084
+_playModeMsg    DGROUP          CONST2           00000090
+_playSizeMsg    DGROUP          CONST2           00000078
+_recDMAMsg      DGROUP          CONST2           0000009c
+_recIPBMsg      DGROUP          CONST2           000000b4
+_recModeMsg     DGROUP          CONST2           000000c0
+_recSizeMsg     DGROUP          CONST2           000000a8
+_signOnMsg      DGROUP          CONST2           00000000
+_strtol                         _INITTEXT        000014c0
+_strtoul                        _INITTEXT        000014e8
+_strtoxl                        _INITTEXT        0000124c
+_xtoa                           _INITTEXT        00001510
+ParseCL_                        _INITTEXT        000001e8
+stratMode2Init_                 _INITTEXT        00000000
+
+------------------------------------------------------------
+

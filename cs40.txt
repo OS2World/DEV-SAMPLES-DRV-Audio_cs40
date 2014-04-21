@@ -1,0 +1,87 @@
+29-Sep-99
+
+device=cs40.sys <switches>
+
+ -i:n    n=irq, 3,5,7,9,10,11,(12)
+
+ -bp:x   x=base port: 534, ... (x=hex)
+
+ -cp:x   x=control port: 390, ... (hex)
+
+ -xm:n   n=2 (optional)
+
+ -dev:n  n=device, 0=CS423x, 3=OPL3SAx
+
+ -dp:n   n=dma play channel (0,1,3,...)
+ -dps:x  x=dma play buffer size (def=8000 hex) (lower-three must be 000, so 1000,2000,...F000)
+ -dpi:n  n=dma play buffer interrupts per buffer (def=2) (can be 2,4,8,16,32)
+ -dpm:n  n=dma play mode (def=1, typeF dma) (can be 1 or 0)
+
+ -dr:n   n=dma rec  channel (0,1,3,...)
+ -drs:x  x=dma rec  buffer size (def=8000 hex) (lower-three must be 000, so 1000,2000,...F000)
+ -dri:n  n=dma rec  buffer interrupts per buffer (def=2) (can be 2,4,8,16,32)
+ -drm:n  n=dma rec  mode (def=1, typeF dma) (can be 1 or 0)
+
+ -v      verbose flag  (1)
+ -z1     set DTM flag  (2)
+ -Q      QUIET (0x80)
+ -t      do not install flag (goes through init stage but forces install to fail at last chance) (0x8000)
+
+device=cs40.sys -v -dev:3 -i:5 -bp:534 -cp:390 -dp:1 -dps:8000 -dpi:2 -dpm:1 -dr:0 -drs:8000 -dri:2 -drm:1
+device=cs40.sys -v -dev:3 -i:5 -bp:534 -cp:390 -dp:1                         -dr:0 -Q
+
+
+Detail:
+
+-dps:x  (x=1000,2000,...,[8000],9000,A000,...,E000,F000)
+
+        Specifies the size of the physical DMA buffer used by the soundcard.
+        Should be a multiple of 4K, so low-three digits are 0.  Max is 60KB
+        (FOOO hex).
+
+-dpi:n  (n=[2],4,8,16,32)
+
+        Specifies the number of chunks that the -dps: buffer is divided into,
+        where at the end of each chunk and interrupt is fired.  Small -dps
+        sizes with high -dpi counts should be avoid.
+
+        The default is 8000 hex (32768) bytes, and 2 interrupts per buffer,'
+        so an interrupt fires after 16K bytes of data is played (4096 samples
+        in 16-bit stereo), which is right in the middle of the buffer, and
+        again at the end of the buffer, at which point it starts again.
+
+        It's an inter-twined trade-off:  larger buffer size means longer latency
+        (the time 'til the sound is heard); smaller dpi means more interrupts
+        so more bookkeeping overhead, but also less time spent in the interrupt
+        since there's less data to copy; few dpi means that if for whatever
+        reason a buffer wasn't able to be filled before it's need, the hardware
+        goes into shock (ie, data underrun on play, overrun on record).
+
+        Also, some hardware may not like particular combinations.  These buffers
+        adjustments are different than tWave buffer sizes and counts.  tWave
+        buffers have to do with MMOS2 buffering (MMOS2 feeds cs40) while cs40
+        buffers have to do with the soundcard (cs40 feeds the hardware).
+
+        AVOID things like -dps:1000 -dpi:32 (an interrupt is generated every
+        32 samples).
+
+        -dps:8000 is 8000 hex, or 32768 bytes.  -dps:F000 is 61440 bytes, the
+        max (15360 16-bit/stereo samples, so if -dpi:2 then there are 7680
+        samples per interrupt, at 16-bit/stereo).  Samples per interrupt is
+        not the same as samples per second (ie, not the same as the sample rate).
+
+
+-drm:n  (n=0,[1])
+
+        Specifies whether to use type F dma mode (less overhead) or not.  Use
+        1 to use type F, or 0 to not.
+
+
+-z1     Supposedly needed when using type F dma mode (doesn't seem to matter
+        on my hardware).  It's not even a documented bit on the OPL3SA3 hardware,
+        but is on Crystal stuff.
+
+
+-t      Does all initialization normally done, displaying the verbose output
+        if -v is used, but fails to install.  For testing, that's all.  One
+        use is to pause the screen.

@@ -1,0 +1,1082 @@
+
+Module: D:\dev\csrc\os2dd\scd\wavaudio.c
+Group: 'DGROUP' CONST,CONST2,_DATA,_BSS,_INITDATA
+
+Segment: _TEXT  PARA   0000045c bytes  
+
+//
+// wavaudio.c
+// 27-Jan-99
+//
+// VOID   waDevCaps(MCI_AUDIO_CAPS __far *devCapsPtr, WAVEAUDIO *waPtr);
+// VOID   waConfigDev(WAVECONFIG *waveConfigPtr, WAVEAUDIO *waPtr);
+// USHORT waPause(VOID);
+// USHORT waResume(VOID);
+// USHORT waSetup(USHORT dmaChannel, WAVEAUDIO *waPtr);
+//
+// _usfind_matching_sample_rate() and
+// _vset_clock_info() only called here, once, so done at caller rather than separate routines
+
+#include "cs40.h"
+
+// local defines for PCM, muLAW, and aLAW tables used by virtual void DevCaps(PAUDIO_CAPS pCaps)
+
+#define NUMFREQS   4
+#define BPSTYPES   2
+#define MONOSTEREO 2
+
+// local sample rate to clock-select bits
+
+typedef struct _SRT {
+ USHORT sampleRate;     // 00 (was ULONG)
+ UCHAR  clockSelect;    // 02
+ UCHAR  rsv3;           // 03 reserved (can be used as multiplier flag for freq if need freq > 65535)
+} SRT;
+
+// This table holds all the sample rates the CS4232 can operate at and the data required
+// in bits 0-3 of the FS and Playback Data Format Reg, (indexed register 8) to set them up
+
+static SRT srt[] = {
+  5512,0x01,0,  6615,0x0f,0,  8000,0x00,0,  9600,0x0e,0, 11025,0x03,0,
+ 16000,0x02,0, 18900,0x05,0, 22050,0x07,0, 27428,0x04,0, 32000,0x06,0,
+ 33075,0x0D,0, 37800,0x09,0, 44100,0x0B,0, 48000,0x0C,0};
+
+#define SRT_COUNT (sizeof(srt)/sizeof(SRT))
+
+// the following 3-D array defines the subtypes for DATATYPE_WAVEFORM
+// The array is 4x2x2 and is indexed using frequency index, bits per
+// sample being 8 or 16 represented by 0 or 1 resp. and mono or stereo
+// mode represented by 0 or 1 respectively. For eg. to find out the
+// subtype for 22050Hz sampling frequency, using 16 bits per sample
+// and stereo mode, we use waveSubtypes[FREQ22KHZ][BPS16][1].
+
+static USHORT waveSubtypes[NUMFREQS][BPSTYPES][MONOSTEREO] = { // was ULONG
+ WAVE_FORMAT_1M08,    // 11.025kHz, 8-bit  Mono
+ WAVE_FORMAT_1S08,    // 11.025kHz, 8-bit  Stereo
+ WAVE_FORMAT_1M16,    // 11.025kHz, 16-bit Mono
+ WAVE_FORMAT_1S16,    // 11.025kHz, 16-bit Stereo
+ WAVE_FORMAT_2M08,    // 22.05kHz , 8-bit  Mono
+ WAVE_FORMAT_2S08,    // 22.05kHz , 8-bit  Stereo
+ WAVE_FORMAT_2M16,    // 22.05kHz , 16-bit Mono
+ WAVE_FORMAT_2S16,    // 22.05kHz , 16-bit Stereo
+ WAVE_FORMAT_4M08,    // 44.1kHz  , 8-bit  Mono
+ WAVE_FORMAT_4S08,    // 44.1kHz  , 8-bit  Stereo
+ WAVE_FORMAT_4M16,    // 44.1kHz  , 16-bit Mono
+ WAVE_FORMAT_4S16,    // 44.1kHz  , 16-bit Stereo
+ WAVE_FORMAT_8M08,    //  8.0kHz  , 8-bit  Mono
+ WAVE_FORMAT_8S08,    //  8.0kHz  , 8-bit  Stereo
+ WAVE_FORMAT_8M16,    //  8.0kHz  , 16-bit Mono
+ WAVE_FORMAT_8S16     //  8.0kHz  , 16-bit Stereo
+};
+
+// the following 2-D array defines the subtypes for DATATYPE_ALAW  it is indexed by the
+// sampling rate ordinal (from _usfind_matching_sample_rate) and the number of channels
+
+static USHORT aLaw[NUMFREQS][MONOSTEREO] = { // was ULONG
+ ALAW_8B11KM,      // 8bit 11kHz mono
+ ALAW_8B11KS,      // 8bit 11kHz stereo
+ ALAW_8B22KM,      // 8bit 22kHz mono
+ ALAW_8B22KS,      // 8bit 22kHz stereo
+ ALAW_8B44KM,      // 8bit 44kHz mono
+ ALAW_8B44KS,      // 8bit 44kHz stereo
+ ALAW_8B8KM ,      // 8bit 8kHz mono
+ ALAW_8B8KS        // 8bit 8kHz stereo
+};
+
+// the following 2-D array defines the subtypes for DATATYPE_MULAW it is indexed by the
+// sampling rate ordinal (from _usfind_matching_sample_rate) and the number of channels
+
+static USHORT muLaw[NUMFREQS][MONOSTEREO] = { // was ULONG
+ MULAW_8B11KM,     // 8bit 11kHz mono
+ MULAW_8B11KS,     // 8bit 11kHz stereo
+ MULAW_8B22KM,     // 8bit 22kHz mono
+ MULAW_8B22KS,     // 8bit 22kHz stereo
+ MULAW_8B44KM,     // 8bit 44kHz mono
+ MULAW_8B44KS,     // 8bit 44kHz stereo
+ MULAW_8B8KM ,     // 8bit 8kHz mono
+ MULAW_8B8KS       // 8bit 8kHz stereo
+};
+
+// sampleRates[] used by _usfind_matching_sample_rate() to determine sampling rate ordinal
+
+USHORT sampleRates[] = {11025, 22050, 44100, 8000};  // all that's supported!? (yes, weird order)
+
+#define SR_COUNT (sizeof(sampleRates)/sizeof(USHORT))
+
+// following takes positive arguments and returns the absolute difference between the two args
+
+#define DELTA(x,y) ((x > y) ? x - y : y - x)
+
+
+// --------------------
+// in: devCapsPtr -> audio caps structure passed from IoctlAudioCapability() call (was PAUDIO_CAPS, in audio.h)
+//out: n/a
+//nts:
+
+VOID waDevCaps(MCI_AUDIO_CAPS __far *devCapsPtr) {
+
+ USHORT sampleRate;
+ 0000  53                waDevCaps_      push    bx
+ 0001  51                                push    cx
+ 0002  56                                push    si
+ 0003  57                                push    di
+ 0004  55                                push    bp
+ 0005  89 e5                             mov     bp,sp
+ 0007  83 ec 08                          sub     sp,0008H
+ 000a  89 c7                             mov     di,ax
+ 000c  89 56 fe                          mov     [bp-2H],dx
+
+ USHORT sampleRateIndex = 0;
+ USHORT tbps, tch, isFD;
+
+ 000f  31 d2                             xor     dx,dx
+
+ if (devCapsPtr->ulOperation == OPERATION_RECORD) {
+ 0011  8e 46 fe                          mov     es,[bp-2H]
+ 0014  89 56 fa                          mov     [bp-6H],dx
+ 0017  26 8b 5d 16                       mov     bx,es:[di+16H]
+ 001b  26 8b 4d 14                       mov     cx,es:[di+14H]
+ 001f  85 db                             test    bx,bx
+ 0021  75 0a                             jne     L1
+ 0023  83 f9 02                          cmp     cx,0002H
+ 0026  75 05                             jne     L1
+
+    isFD = war.flags & FLAGS_WAVEAUDIO_FULLDUPLEX;
+ }
+ 0028  a1 00 00                          mov     ax,_war
+
+ else if (devCapsPtr->ulOperation == OPERATION_PLAY) {
+    isFD = wap.flags & FLAGS_WAVEAUDIO_FULLDUPLEX;
+ }
+ else {
+ 002b  eb 1d                             jmp     L4
+ 002d  26 8b 45 14       L1              mov     ax,es:[di+14H]
+ 0031  85 db                             test    bx,bx
+ 0033  75 05                             jne     L2
+ 0035  3d 01 00                          cmp     ax,0001H
+ 0038  74 0d                             je      L3
+
+    devCapsPtr->ulSupport = UNSUPPORTED_OPERATION;      // (since can't record+play on SAME stream)
+ 003a  26 c7 45 18 10 00 L2              mov     word ptr es:[di+18H],0010H
+ 0040  26 89 55 1a                       mov     es:[di+1aH],dx
+
+    return;
+ 0044  e9 7e 02                          jmp     L30
+
+ }
+
+ 0047  a1 00 00          L3              mov     ax,_wap
+ 004a  30 e4             L4              xor     ah,ah
+ 004c  24 01                             and     al,01H
+ 004e  89 46 f8                          mov     [bp-8H],ax
+
+ if (devCapsPtr->ulChannels > 2) {
+ 0051  8e 46 fe                          mov     es,[bp-2H]
+ 0054  26 8b 55 0a                       mov     dx,es:[di+0aH]
+ 0058  26 8b 5d 08                       mov     bx,es:[di+8H]
+ 005c  85 d2                             test    dx,dx
+ 005e  75 05                             jne     L5
+ 0060  83 fb 02                          cmp     bx,0002H
+ 0063  76 14                             jbe     L6
+
+    devCapsPtr->ulSupport = UNSUPPORTED_CHANNELS;
+    return;
+ }
+
+ 0065  26 c7 45 18 02 00 L5              mov     word ptr es:[di+18H],0002H
+ 006b  26 c7 45 1a 00 00                 mov     word ptr es:[di+1aH],0000H
+ 0071  89 ec                             mov     sp,bp
+ 0073  5d                                pop     bp
+ 0074  5f                                pop     di
+ 0075  5e                                pop     si
+ 0076  59                                pop     cx
+ 0077  5b                                pop     bx
+ 0078  c3                                ret     
+
+ if (devCapsPtr->ulBitsPerSample != 8 && devCapsPtr->ulBitsPerSample != 16) {
+ 0079  26 8b 4d 0e       L6              mov     cx,es:[di+0eH]
+ 007d  26 8b 75 0c                       mov     si,es:[di+0cH]
+ 0081  85 c9                             test    cx,cx
+ 0083  75 05                             jne     L7
+ 0085  83 fe 08                          cmp     si,0008H
+ 0088  74 21                             je      L9
+ 008a  26 8b 55 0c       L7              mov     dx,es:[di+0cH]
+ 008e  85 c9                             test    cx,cx
+ 0090  75 05                             jne     L8
+ 0092  83 fa 10                          cmp     dx,0010H
+ 0095  74 14                             je      L9
+
+    devCapsPtr->ulSupport = UNSUPPORTED_BPS;
+    return;
+ }
+
+ 0097  26 c7 45 18 04 00 L8              mov     word ptr es:[di+18H],0004H
+ 009d  26 c7 45 1a 00 00                 mov     word ptr es:[di+1aH],0000H
+ 00a3  89 ec                             mov     sp,bp
+ 00a5  5d                                pop     bp
+ 00a6  5f                                pop     di
+ 00a7  5e                                pop     si
+ 00a8  59                                pop     cx
+ 00a9  5b                                pop     bx
+ 00aa  c3                                ret     
+
+ sampleRate = (USHORT)devCapsPtr->ulSamplingRate;
+ if (1) {
+ 00ab  8e 46 fe          L9              mov     es,[bp-2H]
+
+    USHORT i, diff, minDiff = 65535;
+ 00ae  bb ff ff                          mov     bx,0ffffH
+
+    for (i=0; i < (sizeof(sampleRates)/sizeof(sampleRates[0])); i++) {
+ 00b1  31 c0                             xor     ax,ax
+ 00b3  89 5e fc                          mov     [bp-4H],bx
+ 00b6  26 8b 75 04                       mov     si,es:[di+4H]
+ 00ba  31 db                             xor     bx,bx
+
+       diff = DELTA(sampleRate, sampleRates[i]);
+ 00bc  8b 97 00 00       L10             mov     dx,[bx+_sampleRates]
+ 00c0  39 d6                             cmp     si,dx
+ 00c2  76 08                             jbe     L11
+ 00c4  89 f2                             mov     dx,si
+ 00c6  2b 97 00 00                       sub     dx,[bx+_sampleRates]
+ 00ca  eb 02                             jmp     L12
+ 00cc  29 f2             L11             sub     dx,si
+
+       if (diff < minDiff) {
+ 00ce  3b 56 fc          L12             cmp     dx,[bp-4H]
+ 00d1  73 06                             jae     L13
+
+          minDiff = diff;
+ 00d3  89 56 fc                          mov     [bp-4H],dx
+
+          sampleRateIndex = i;
+ 00d6  89 46 fa                          mov     [bp-6H],ax
+
+       }
+ 00d9  40                L13             inc     ax
+
+    }
+ 00da  83 c3 02                          add     bx,0002H
+ 00dd  3d 04 00                          cmp     ax,0004H
+ 00e0  72 da                             jb      L10
+
+    sampleRate = sampleRates[sampleRateIndex];
+ 00e2  8b 5e fa                          mov     bx,[bp-6H]
+ 00e5  01 db                             add     bx,bx
+ 00e7  8b 87 00 00                       mov     ax,[bx+_sampleRates]
+
+    if (sampleRate != (USHORT)devCapsPtr->ulSamplingRate) {
+ 00eb  8e 46 fe                          mov     es,[bp-2H]
+ 00ee  26 3b 45 04                       cmp     ax,es:[di+4H]
+ 00f2  74 28                             je      L14
+
+       devCapsPtr->ulSamplingRate = sampleRate;                      // yup, update original
+ 00f4  26 89 45 04                       mov     es:[di+4H],ax
+
+       devCapsPtr->ulFlags = devCapsPtr->ulFlags | BESTFIT_PROVIDED; // ugh!
+
+// !!!
+ 00f8  26 8a 65 33                       mov     ah,es:[di+33H]
+ 00fc  26 c7 45 06 00 00                 mov     word ptr es:[di+6H],0000H
+ 0102  80 cc 40                          or      ah,40H
+
+if (gCLflags & FLAGS_CL_DDPRINT) ddprintf("waDevCaps: using BESTFIT sampleRate\n");
+
+    }
+ }
+
+ // get ulDataSubType and update any format-specific flags
+ // note: all data types have more than one value
+
+ 0105  8a 16 01 00                       mov     dl,_gCLflags+1H
+ 0109  26 88 65 33                       mov     es:[di+33H],ah
+ 010d  f6 c2 40                          test    dl,40H
+ 0110  74 0a                             je      L14
+ 0112  1e                                push    ds
+ 0113  68 00 00                          push    offset L49
+ 0116  e8 00 00                          call    _ddprintf
+ 0119  83 c4 04                          add     sp,0004H
+
+ tbps = (devCapsPtr->ulBitsPerSample-8)/8;      // 0 or 1 (for 8 or 16)
+ tch  = devCapsPtr->ulChannels - 1;             // 0 or 1 (for mono or stereo)
+
+ 011c  8e 46 fe          L14             mov     es,[bp-2H]
+ 011f  26 8b 45 0c                       mov     ax,es:[di+0cH]
+ 0123  05 f8 ff                          add     ax,0fff8H
+ 0126  26 8b 55 0e                       mov     dx,es:[di+0eH]
+ 012a  83 d2 ff                          adc     dx,0ffffH
+ 012d  b1 03                             mov     cl,03H
+ 012f  d3 e8                             shr     ax,cl
+ 0131  d3 ca                             ror     dx,cl
+ 0133  31 d0                             xor     ax,dx
+ 0135  81 e2 ff 1f                       and     dx,1fffH
+ 0139  31 d0                             xor     ax,dx
+
+ switch (devCapsPtr->ulDataType) {
+ case DATATYPE_WAVEFORM:
+ case PCM:
+ 013b  26 8b 5d 10                       mov     bx,es:[di+10H]
+ 013f  26 8b 4d 08                       mov     cx,es:[di+8H]
+ 0143  26 8b 75 12                       mov     si,es:[di+12H]
+ 0147  49                                dec     cx
+ 0148  85 f6                             test    si,si
+ 014a  75 05                             jne     L15
+ 014c  83 fb 05                          cmp     bx,0005H
+ 014f  72 3e                             jb      L20
+ 0151  85 f6             L15             test    si,si
+ 0153  75 07                             jne     L16
+ 0155  83 fb 06                          cmp     bx,0006H
+ 0158  0f 86 7c 00                       jbe     L24
+ 015c  85 f6             L16             test    si,si
+ 015e  75 06                             jne     L17
+ 0160  81 fb 01 01                       cmp     bx,0101H
+ 0164  72 1b                             jb      L19
+ 0166  85 f6             L17             test    si,si
+ 0168  75 08                             jne     L18
+ 016a  81 fb 01 01                       cmp     bx,0101H
+ 016e  0f 86 83 00                       jbe     L25
+ 0172  85 f6             L18             test    si,si
+ 0174  0f 85 9a 00                       jne     L26
+ 0178  81 fb 02 01                       cmp     bx,0102H
+ 017c  74 5a                             je      L24
+ 017e  e9 91 00                          jmp     L26
+ 0181  85 f6             L19             test    si,si
+ 0183  0f 85 8b 00                       jne     L26
+ 0187  83 fb 07                          cmp     bx,0007H
+ 018a  74 69                             je      L25
+ 018c  e9 83 00                          jmp     L26
+ 018f  85 f6             L20             test    si,si
+ 0191  75 07                             jne     L21
+ 0193  83 fb 01                          cmp     bx,0001H
+ 0196  0f 82 78 00                       jb      L26
+ 019a  85 f6             L21             test    si,si
+ 019c  75 05                             jne     L22
+ 019e  83 fb 02                          cmp     bx,0002H
+ 01a1  76 0b                             jbe     L23
+ 01a3  85 f6             L22             test    si,si
+ 01a5  75 6b                             jne     L26
+ 01a7  83 fb 03                          cmp     bx,0003H
+ 01aa  74 49                             je      L25
+ 01ac  eb 64                             jmp     L26
+
+    devCapsPtr->ulDataSubType = (ULONG)waveSubtypes[sampleRateIndex][tbps][tch];
+    //if (tbps) devCapsPtr->ulFlags = devCapsPtr->ulFlags | TWOS_COMPLEMENT | SIGNED; //16-bit is alway 2's-comp
+// !!! see if this matters
+ 01ae  8b 5e fa          L23             mov     bx,[bp-6H]
+ 01b1  89 c2                             mov     dx,ax
+ 01b3  c1 e3 03                          shl     bx,03H
+ 01b6  c1 e2 02                          shl     dx,02H
+ 01b9  01 c9                             add     cx,cx
+ 01bb  01 d3                             add     bx,dx
+ 01bd  01 cb                             add     bx,cx
+ 01bf  8b 97 00 00                       mov     dx,[bx+_waveSubtypes]
+ 01c3  26 c7 45 1e 00 00                 mov     word ptr es:[di+1eH],0000H
+ 01c9  26 89 55 1c                       mov     es:[di+1cH],dx
+
+    if (tbps) devCapsPtr->ulFlags = devCapsPtr->ulFlags | TWOS_COMPLEMENT;
+    break;
+
+ case DATATYPE_ALAW:
+ case DATATYPE_RIFF_ALAW:
+ case A_LAW:
+ 01cd  85 c0                             test    ax,ax
+ 01cf  74 58                             je      L27
+ 01d1  26 80 4d 30 08                    or      byte ptr es:[di+30H],08H
+ 01d6  eb 51                             jmp     L27
+
+    devCapsPtr->ulDataSubType = (ULONG)aLaw[sampleRateIndex][tch];
+ 01d8  8b 5e fa          L24             mov     bx,[bp-6H]
+ 01db  01 c9                             add     cx,cx
+ 01dd  c1 e3 02                          shl     bx,02H
+ 01e0  01 cb                             add     bx,cx
+ 01e2  8b 87 00 00                       mov     ax,[bx+_aLaw]
+ 01e6  8e 46 fe                          mov     es,[bp-2H]
+ 01e9  26 c7 45 1e 00 00                 mov     word ptr es:[di+1eH],0000H
+ 01ef  26 89 45 1c                       mov     es:[di+1cH],ax
+
+    break;
+
+ case DATATYPE_MULAW:
+ case DATATYPE_RIFF_MULAW:
+ case MU_LAW:
+ 01f3  eb 34                             jmp     L27
+
+    devCapsPtr->ulDataSubType = (ULONG)muLaw[sampleRateIndex][tch];
+ 01f5  8b 5e fa          L25             mov     bx,[bp-6H]
+ 01f8  01 c9                             add     cx,cx
+ 01fa  c1 e3 02                          shl     bx,02H
+ 01fd  01 cb                             add     bx,cx
+ 01ff  8b 87 00 00                       mov     ax,[bx+_muLaw]
+ 0203  8e 46 fe                          mov     es,[bp-2H]
+ 0206  26 c7 45 1e 00 00                 mov     word ptr es:[di+1eH],0000H
+ 020c  26 89 45 1c                       mov     es:[di+1cH],ax
+
+    break;
+
+ default:
+ 0210  eb 17                             jmp     L27
+
+    devCapsPtr->ulSupport = UNSUPPORTED_DATATYPE;
+    return;
+ }
+
+ // original had this overwrite the ulFlags above! (TWOS_COMP and BESTFIT_!)
+ // also, original (tropez) sets TWOS_COMP for 8-bit! data, in WAVESTREAM constructor
+ // also, original sets BIG_ENDIAN (4232 says 16-bit is little endian)
+ // ... not sure if this is saying what should be used, or what -can- be used (as in BIG_ENDIAN supported)
+
+// !!!
+ 0212  8e 46 fe          L26             mov     es,[bp-2H]
+ 0215  26 c7 45 18 08 00                 mov     word ptr es:[di+18H],0008H
+ 021b  26 c7 45 1a 00 00                 mov     word ptr es:[di+1aH],0000H
+ 0221  89 ec                             mov     sp,bp
+ 0223  5d                                pop     bp
+ 0224  5f                                pop     di
+ 0225  5e                                pop     si
+ 0226  59                                pop     cx
+ 0227  5b                                pop     bx
+ 0228  c3                                ret     
+
+ devCapsPtr->ulFlags = devCapsPtr->ulFlags |
+                              BIG_ENDIAN |      // !!! that's what tropez has
+                              FIXED        |  // fixed length data
+                              LEFT_ALIGNED |  // left align bits on byte (always is if 8/16 bps)
+                              INPUT        |  // input select is supported
+                              OUTPUT       |  // output select is supported
+                              MONITOR      |  // monitor is supported
+                              VOLUME;         // volume control is supported
+
+ // full-duplex info:
+ // The number of resource units is described in the MMPM2.INI -- this can be thought of as
+ // the number of active streams the driver can manage at one time.   Use 2 (one play, one rec).
+ //
+ // Tell MMPM how many of these units THIS stream will consume.  If full-duplex allowed, this
+ // stream consumes 1 stream unit.  If not allowed, indicate that this stream consumes 2 units
+ // (or all the available units).
+ //
+ // Along with the resource units, 2 resources classes are defined:  one for playback and one
+ // for capture.  Tell MMPM (in the MMPM2.INI) that driver can deal with 1 playback and 1 capture
+ // stream, OR 1 capture and 1 playback stream, at the same time. This is indicated in the
+ // valid resource combos in MMPM2.INI
+ //
+ // So, check if this is a playback or capture and set the correct resource class
+ // (playback = 1, capture = 2)
+ //
+ // no longer have WAVEAUDIO.usDmaChan/usSecDmaChan, but instead just WAVEAUDIO.flags bit0=1 is F-D
+
+ 0229  8e 46 fe          L27             mov     es,[bp-2H]
+ 022c  26 8b 75 32                       mov     si,es:[di+32H]
+ 0230  26 8a 5d 30                       mov     bl,es:[di+30H]
+ 0234  81 ce e0 01                       or      si,01e0H
+ 0238  80 cb 23                          or      bl,23H
+ 023b  26 88 5d 30                       mov     es:[di+30H],bl
+
+ if (isFD) {
+    devCapsPtr->ulResourceUnits = 1;
+ }
+ else {
+    devCapsPtr->ulResourceUnits = 2;   // full-duplex not allowed so allocate both resource units
+ }
+
+ 023f  8b 56 f8                          mov     dx,[bp-8H]
+ 0242  26 89 75 32                       mov     es:[di+32H],si
+ 0246  85 d2                             test    dx,dx
+ 0248  0f 94 c0                          sete    al
+ 024b  26 8b 4d 14                       mov     cx,es:[di+14H]
+ 024f  30 e4                             xor     ah,ah
+ 0251  31 d2                             xor     dx,dx
+ 0253  05 01 00                          add     ax,0001H
+ 0256  26 89 45 20                       mov     es:[di+20H],ax
+ 025a  11 d2                             adc     dx,dx
+
+ if (devCapsPtr->ulOperation == OPERATION_RECORD) {
+ 025c  26 8b 5d 16                       mov     bx,es:[di+16H]
+ 0260  26 89 55 22                       mov     es:[di+22H],dx
+ 0264  85 db                             test    bx,bx
+ 0266  75 0d                             jne     L28
+ 0268  83 f9 02                          cmp     cx,0002H
+ 026b  75 08                             jne     L28
+
+    devCapsPtr->ulResourceClass = 2;
+ }
+ 026d  26 c7 45 24 02 00                 mov     word ptr es:[di+24H],0002H
+
+ else {
+ 0273  eb 06                             jmp     L29
+
+    devCapsPtr->ulResourceClass = 1;
+ }
+
+ 0275  26 c7 45 24 01 00 L28             mov     word ptr es:[di+24H],0001H
+ 027b  26 c7 45 26 00 00 L29             mov     word ptr es:[di+26H],0000H
+
+ devCapsPtr->fCanRecord = 1;
+ 0281  8e 46 fe                          mov     es,[bp-2H]
+ 0284  26 c7 45 2c 01 00                 mov     word ptr es:[di+2cH],0001H
+ 028a  26 c7 45 2e 00 00                 mov     word ptr es:[di+2eH],0000H
+
+ devCapsPtr->ulBlockAlign = 1;
+ 0290  26 c7 45 28 01 00                 mov     word ptr es:[di+28H],0001H
+ 0296  26 c7 45 2a 00 00                 mov     word ptr es:[di+2aH],0000H
+
+ devCapsPtr->ulSupport = SUPPORT_SUCCESS;
+
+// !!!
+ 029c  26 c7 45 18 00 00                 mov     word ptr es:[di+18H],0000H
+
+if (gCLflags & FLAGS_CL_DDPRINT) ddprintf("@waDevCaps: devCapsPtr->ulFlags=%lx\n", devCapsPtr->ulFlags);
+
+ return;
+ 02a2  8a 3e 01 00                       mov     bh,_gCLflags+1H
+ 02a6  26 c7 45 1a 00 00                 mov     word ptr es:[di+1aH],0000H
+ 02ac  f6 c7 40                          test    bh,40H
+ 02af  74 14                             je      L30
+ 02b1  26 8b 75 32                       mov     si,es:[di+32H]
+ 02b5  56                                push    si
+ 02b6  26 8b 45 30                       mov     ax,es:[di+30H]
+ 02ba  50                                push    ax
+ 02bb  1e                                push    ds
+ 02bc  68 26 00                          push    offset L50
+ 02bf  e8 00 00                          call    _ddprintf
+ 02c2  83 c4 08                          add     sp,0008H
+
+}
+
+
+// ---------------------------------
+// in: wsPtr -> wavestream structure
+//out:
+//nts: also reinits dma hardware (esp. for logical dma buffer size, interrupts/buffer)
+
+ 02c5  89 ec             L30             mov     sp,bp
+ 02c7  5d                                pop     bp
+ 02c8  5f                                pop     di
+ 02c9  5e                                pop     si
+ 02ca  59                                pop     cx
+ 02cb  5b                                pop     bx
+ 02cc  c3                                ret     
+ 02cd  89 c0                             mov     ax,ax
+ 02cf  fc                                cld     
+
+VOID waConfigDev(WAVESTREAM *wsPtr) {
+
+ ULONG i, count, consumeRate;
+ USHORT tbps, tch, tBytesPS, tIs16, tIsST;
+ USHORT bufferInts;
+ USHORT dmaType;
+
+ WAVECONFIG *waveConfigPtr = &wsPtr->waveConfig;
+ 02d0  53                waConfigDev_    push    bx
+ 02d1  51                                push    cx
+ 02d2  52                                push    dx
+ 02d3  56                                push    si
+ 02d4  57                                push    di
+ 02d5  55                                push    bp
+ 02d6  89 e5                             mov     bp,sp
+ 02d8  83 ec 06                          sub     sp,0006H
+ 02db  89 c3                             mov     bx,ax
+
+ WAVEAUDIO *waPtr = wsPtr->waPtr;
+
+// !!! new dma stuff
+
+ 02dd  8b 77 02                          mov     si,[bx+2H]
+
+ waPtr->ab.bufferSize = wsPtr->audioBufferSize; // dma buffer size for this stream (def=0, 16KB)
+ 02e0  8b 47 14                          mov     ax,[bx+14H]
+ 02e3  c7 44 1e 00 00                    mov     word ptr [si+1eH],0000H
+ 02e8  89 44 1c                          mov     [si+1cH],ax
+ 02eb  8d 7f 04                          lea     di,[bx+4H]
+
+ if (waPtr->ab.bufferSize < 1024) waPtr->ab.bufferSize = 0x4000;
+
+ 02ee  8b 54 1e                          mov     dx,[si+1eH]
+ 02f1  8b 4c 1c                          mov     cx,[si+1cH]
+ 02f4  85 d2                             test    dx,dx
+ 02f6  75 10                             jne     L31
+ 02f8  81 f9 00 04                       cmp     cx,0400H
+ 02fc  73 0a                             jae     L31
+ 02fe  c7 44 1c 00 40                    mov     word ptr [si+1cH],4000H
+ 0303  c7 44 1e 00 00                    mov     word ptr [si+1eH],0000H
+
+ bufferInts = wsPtr->audioBufferInts;           // interrupts per dma buffer (def=0, two per buffer)
+ 0308  8b 47 16          L31             mov     ax,[bx+16H]
+ 030b  89 46 fc                          mov     [bp-4H],ax
+
+ if (bufferInts < 2) bufferInts = 2;            // at least two (must be a power of 2)
+
+// !!! (29-Sep-99)
+//bufferInts = 8;
+
+ 030e  3d 02 00                          cmp     ax,0002H
+ 0311  73 05                             jae     L32
+ 0313  c7 46 fc 02 00                    mov     word ptr [bp-4H],0002H
+
+ tbps = waveConfigPtr->bitsPerSample;
+ tBytesPS = tbps/8;
+ 0318  8a 45 04          L32             mov     al,[di+4H]
+ 031b  30 e4                             xor     ah,ah
+
+ tIs16 = tBytesPS >> 1;
+
+ 031d  c1 e8 04                          shr     ax,04H
+ 0320  89 46 fe                          mov     [bp-2H],ax
+
+ tch  = waveConfigPtr->channels;
+ tIsST = tch >> 1;
+
+ // set clock select bits, using first SRT with sample rate >= requested rate
+ // eg, if req=44000 then uses 44100 (if req=2000 then uses 5512)
+ // this was done in a call to _vset_clock_info(ULONG freq)
+
+ 0323  8a 45 05                          mov     al,[di+5H]
+ 0326  30 e4                             xor     ah,ah
+
+ for (i=0; i < SRT_COUNT; i++) {
+ 0328  31 d2                             xor     dx,dx
+ 032a  d1 e8                             shr     ax,1
+ 032c  31 db                             xor     bx,bx
+ 032e  89 46 fa                          mov     [bp-6H],ax
+ 0331  31 c0                             xor     ax,ax
+
+    if (srt[i].sampleRate >= waveConfigPtr->sampleRate) {
+ 0333  8b 8f 00 00       L33             mov     cx,[bx+_srt]
+ 0337  3b 0d                             cmp     cx,[di]
+ 0339  72 09                             jb      L34
+
+       waPtr->clockSelectData = srt[i].clockSelect;
+ 033b  8a 87 02 00                       mov     al,[bx+_srt+2H]
+ 033f  88 44 08                          mov     [si+8H],al
+
+       break; // out of for
+    }
+ 0342  eb 1b                             jmp     L35
+
+    waPtr->clockSelectData = srt[SRT_COUNT-1].clockSelect;  // requested is > last srt, so use last
+ 0344  8a 0e 36 00       L34             mov     cl,_srt+36H
+
+ }
+
+ // set up WAVEAUDIO.formatData, set silence data, set mono/stereo
+
+ 0348  83 c3 04                          add     bx,0004H
+ 034b  83 c2 01                          add     dx,0001H
+ 034e  15 00 00                          adc     ax,0000H
+ 0351  88 4c 08                          mov     [si+8H],cl
+ 0354  85 c0                             test    ax,ax
+ 0356  72 db                             jb      L33
+ 0358  75 05                             jne     L35
+ 035a  83 fa 0e                          cmp     dx,000eH
+ 035d  72 d4                             jb      L33
+
+ switch (waveConfigPtr->dataType) {
+ case DATATYPE_WAVEFORM:
+ case PCM:
+ 035f  8b 45 06          L35             mov     ax,[di+6H]
+ 0362  3d 05 00                          cmp     ax,0005H
+ 0365  72 1a                             jb      L37
+ 0367  3d 06 00                          cmp     ax,0006H
+ 036a  76 42                             jbe     L40
+ 036c  3d 01 01                          cmp     ax,0101H
+ 036f  72 09                             jb      L36
+ 0371  76 46                             jbe     L41
+ 0373  3d 02 01                          cmp     ax,0102H
+ 0376  74 36                             je      L40
+ 0378  eb 48                             jmp     L42
+ 037a  3d 07 00          L36             cmp     ax,0007H
+ 037d  74 3a                             je      L41
+ 037f  eb 41                             jmp     L42
+ 0381  3d 01 00          L37             cmp     ax,0001H
+ 0384  72 3c                             jb      L42
+ 0386  3d 02 00                          cmp     ax,0002H
+ 0389  76 07                             jbe     L38
+ 038b  3d 03 00                          cmp     ax,0003H
+ 038e  74 29                             je      L41
+ 0390  eb 30                             jmp     L42
+
+    if (tIs16) {
+ 0392  83 7e fe 00       L38             cmp     word ptr [bp-2H],0000H
+ 0396  74 0b                             je      L39
+
+       waPtr->formatData = FORMAT_BIT0;
+ 0398  c6 44 09 40                       mov     byte ptr [si+9H],40H
+
+       waveConfigPtr->silence = 0x0000;
+    }
+ 039c  c7 45 02 00 00                    mov     word ptr [di+2H],0000H
+
+    else {
+ 03a1  eb 1f                             jmp     L42
+
+       waPtr->formatData = 0;
+ 03a3  c6 44 09 00       L39             mov     byte ptr [si+9H],00H
+
+       waveConfigPtr->silence = 0x8080;
+ 03a7  c7 45 02 80 80                    mov     word ptr [di+2H],8080H
+
+    }
+    break;
+
+ case DATATYPE_ALAW:
+ case DATATYPE_RIFF_ALAW:
+ case A_LAW:
+ 03ac  eb 14                             jmp     L42
+
+    waPtr->formatData = FORMAT_BIT0 | CL_BIT;
+ 03ae  c6 44 09 60       L40             mov     byte ptr [si+9H],60H
+
+    waveConfigPtr->silence = 0x5555;
+ 03b2  c7 45 02 55 55                    mov     word ptr [di+2H],5555H
+
+    break;
+
+ case DATATYPE_MULAW:
+ case DATATYPE_RIFF_MULAW:
+ case MU_LAW:
+ 03b7  eb 09                             jmp     L42
+
+    waPtr->formatData = CL_BIT;
+ 03b9  c6 44 09 20       L41             mov     byte ptr [si+9H],20H
+
+    waveConfigPtr->silence = 0x7F7F;
+    break;
+ }
+
+ 03bd  c7 45 02 7f 7f                    mov     word ptr [di+2H],7f7fH
+
+ if (tIsST) waPtr->formatData = waPtr->formatData | STEREO_BIT;  // set stereo bit
+
+ 03c2  83 7e fa 00       L42             cmp     word ptr [bp-6H],0000H
+ 03c6  74 04                             je      L43
+ 03c8  80 4c 09 10                       or      byte ptr [si+9H],10H
+ 03cc  8b 5e fc          L43             mov     bx,[bp-4H]
+
+ count = waPtr->ab.bufferSize/bufferInts;// bytes per interrupt
+ waveConfigPtr->bytesPerIRQ = count;    // grab it while it's still bytes
+ 03cf  8b 44 1c                          mov     ax,[si+1cH]
+ 03d2  8b 54 1e                          mov     dx,[si+1eH]
+ 03d5  31 c9                             xor     cx,cx
+ 03d7  e8 00 00                          call    __U4D
+ 03da  89 d3                             mov     bx,dx
+ 03dc  89 55 0e                          mov     [di+0eH],dx
+
+ 03df  8b 56 fe                          mov     dx,[bp-2H]
+
+ if (tIs16) count = count >> 1;         // if 16-bit then half as many as that in samples
+ 03e2  89 45 0c                          mov     [di+0cH],ax
+ 03e5  85 d2                             test    dx,dx
+ 03e7  74 04                             je      L44
+ 03e9  d1 eb                             shr     bx,1
+ 03eb  d1 d8                             rcr     ax,1
+
+ if (tIsST) count = count >> 1;         // if stereo then half as many as that in samples again
+ 03ed  83 7e fa 00       L44             cmp     word ptr [bp-6H],0000H
+ 03f1  74 04                             je      L45
+ 03f3  d1 eb                             shr     bx,1
+ 03f5  d1 d8                             rcr     ax,1
+
+ waPtr->countData = count-1;            // samples per interrupt
+
+// !!!
+ 03f7  89 c2             L45             mov     dx,ax
+ 03f9  4a                                dec     dx
+ 03fa  89 54 0a                          mov     [si+0aH],dx
+
+if (gCLflags & FLAGS_CL_DDPRINT) ddprintf("@waConfigDev:count=%lxh, bytes/IRQ=%lxh\n",count,waveConfigPtr->bytesPerIRQ);
+
+ // calc PCM consume rate
+ // The consume rate is the number of bytes consumed by this data format per second, based on:
+ //    rate = sampleRate * bps/8 * channels
+ // this is returned to the WAVESTREAM and used to calculate stream time
+
+ consumeRate = waveConfigPtr->sampleRate;
+ 03fd  f6 06 01 00 40                    test    byte ptr _gCLflags+1H,40H
+ 0402  74 14                             je      L46
+ 0404  8b 55 0e                          mov     dx,[di+0eH]
+ 0407  52                                push    dx
+ 0408  8b 4d 0c                          mov     cx,[di+0cH]
+ 040b  51                                push    cx
+ 040c  53                                push    bx
+ 040d  50                                push    ax
+ 040e  1e                                push    ds
+ 040f  68 4c 00                          push    offset L51
+ 0412  e8 00 00                          call    _ddprintf
+ 0415  83 c4 0c                          add     sp,000cH
+
+ 0418  8b 4e fe          L46             mov     cx,[bp-2H]
+
+ if (tIs16) consumeRate = consumeRate + consumeRate;
+ 041b  8b 1d                             mov     bx,[di]
+ 041d  31 c0                             xor     ax,ax
+ 041f  89 da                             mov     dx,bx
+ 0421  85 c9                             test    cx,cx
+ 0423  74 04                             je      L47
+ 0425  01 da                             add     dx,bx
+ 0427  11 c0                             adc     ax,ax
+
+ if (tIsST) consumeRate = consumeRate + consumeRate;
+ 0429  83 7e fa 00       L47             cmp     word ptr [bp-6H],0000H
+ 042d  74 04                             je      L48
+ 042f  01 d2                             add     dx,dx
+ 0431  11 c0                             adc     ax,ax
+
+ waveConfigPtr->consumeRate = consumeRate;
+
+ // reinit dma
+ // (dmaType has extra meaning: typeFdma is at bit8, so add it in (set in original dmaInit())
+
+ 0433  89 55 08          L48             mov     [di+8H],dx
+ 0436  89 45 0a                          mov     [di+0aH],ax
+
+ dmaType = waPtr->ab.dmaCh.type | ((waPtr->ab.dmaCh.chInfo.typeFdma & 1) << 8);
+ 0439  8a 64 49                          mov     ah,[si+49H]
+ 043c  80 e4 01                          and     ah,01H
+ 043f  8b 54 30                          mov     dx,[si+30H]
+ 0442  30 c0                             xor     al,al
+
+ dmaInit(waPtr->ab.dmaCh.ch, dmaType, &waPtr->ab);
+
+ return;
+ 0444  8d 5c 0c                          lea     bx,[si+0cH]
+ 0447  09 c2                             or      dx,ax
+ 0449  8b 44 2e                          mov     ax,[si+2eH]
+ 044c  e8 00 00                          call    dmaInit_
+
+}
+
+
+// ---------------
+// in: n/a (maybe)
+//out: 1 always
+//nts: not used (use Stop stream instead)
+
+ 044f  89 ec                             mov     sp,bp
+ 0451  5d                                pop     bp
+ 0452  5f                                pop     di
+ 0453  5e                                pop     si
+ 0454  5a                                pop     dx
+ 0455  59                                pop     cx
+ 0456  5b                                pop     bx
+ 0457  c3                                ret     
+
+USHORT waPause(VOID) {
+
+ return 1;
+}
+
+
+// ---------------
+// in: n/a (maybe)
+//out: 1 always
+//nts: not used (use Start stream instead)
+
+USHORT waResume(VOID) {
+
+ return 1;
+}
+
+
+#pragma code_seg ("_INITTEXT");
+#pragma data_seg ("_INITDATA","ENDDS");
+
+
+// -----------------------------
+// in: dma channel = dma channel
+//     waPtr -> WAVEAUDIO structure for this object
+//out: 0 if okay, else error
+//nts: called by wpInit() and wrInit(), each of which have their own, single WAVEAUDIO structure
+//     and then only once, at driver init
+//     sets up:
+//      1. audioBuffer allocation and init
+//      2. dma init
+//     on entry, waPtr->flags:
+//      FLAGS_WAVEAUDIO_FULLDUPLEX  1   // can do full-duplex (has separate DMA for play/rec)
+//      FLAGS_WAVEAUDIO_DMA16       2   // dma channel is 16-bit (and waPtr->dmaPtr->ch itself)
+//      FLAGS_WAVEAUDIO_FTYPEDMA    4   // hardware support demand-mode dma
+//     passing dmaChannel to simplify
+//     was _vSetup()
+
+ 0458                    waPause_:
+ 0458  b8 01 00          waResume_       mov     ax,0001H
+ 045b  c3                                ret     
+
+No disassembly errors
+
+List of external symbols
+
+Symbol
+----------------
+_war             00000029
+_wap             00000048
+_sampleRates     000000e9 000000c8 000000be
+_gCLflags        000003ff 000002a4 00000107
+_ddprintf        00000413 000002c0 00000117
+_waveSubtypes    000001c1
+_aLaw            000001e4
+_muLaw           00000201
+_srt             00000346 0000033d 00000335
+__U4D            000003d8
+dmaInit_         0000044d
+------------------------------------------------------------
+
+Segment: CONST  WORD   00000075 bytes  
+ 0000  77 61 44 65 76 43 61 70 L49             - waDevCap
+ 0008  73 3a 20 75 73 69 6e 67                 - s: using
+ 0010  20 42 45 53 54 46 49 54                 -  BESTFIT
+ 0018  20 73 61 6d 70 6c 65 52                 -  sampleR
+ 0020  61 74 65 0a 00 00                       - ate...
+ 0026  40 77 61 44 65 76 43 61 L50             - @waDevCa
+ 002e  70 73 3a 20 64 65 76 43                 - ps: devC
+ 0036  61 70 73 50 74 72 2d 3e                 - apsPtr->
+ 003e  75 6c 46 6c 61 67 73 3d                 - ulFlags=
+ 0046  25 6c 78 0a 00 00                       - %lx...
+ 004c  40 77 61 43 6f 6e 66 69 L51             - @waConfi
+ 0054  67 44 65 76 3a 63 6f 75                 - gDev:cou
+ 005c  6e 74 3d 25 6c 78 68 2c                 - nt=%lxh,
+ 0064  20 62 79 74 65 73 2f 49                 -  bytes/I
+ 006c  52 51 3d 25 6c 78 68 0a                 - RQ=%lxh.
+ 0074  00                                      - .
+
+No disassembly errors
+
+------------------------------------------------------------
+
+Segment: _DATA  WORD   00000080 bytes  
+ 0000  88 15 01 00 d7 19 0f 00 _srt            - ........
+ 0008  40 1f 00 00 80 25 0e 00                 - @....%..
+ 0010  11 2b 03 00 80 3e 02 00                 - .+...>..
+ 0018  d4 49 05 00 22 56 07 00                 - .I.."V..
+ 0020  24 6b 04 00 00 7d 06 00                 - $k...}..
+ 0028  33 81 0d 00 a8 93 09 00                 - 3.......
+ 0030  44 ac 0b 00 80 bb 0c 00                 - D.......
+ 0038  01 00 02 00 03 00 04 00 _waveSubtypes   - ........
+ 0040  05 00 06 00 07 00 08 00                 - ........
+ 0048  09 00 0a 00 0b 00 0c 00                 - ........
+ 0050  0d 00 0e 00 0f 00 10 00                 - ........
+ 0058  06 00 02 00 07 00 03 00 _aLaw           - ........
+ 0060  08 00 04 00 05 00 01 00                 - ........
+ 0068  06 00 02 00 07 00 03 00 _muLaw          - ........
+ 0070  08 00 04 00 05 00 01 00                 - ........
+ 0078  11 2b 22 56 44 ac 40 1f _sampleRates    - .+"VD.@.
+
+No disassembly errors
+
+------------------------------------------------------------
+
+Segment: _INITTEXT  PARA   0000005f bytes  
+
+USHORT waSetup(USHORT dmaChannel, WAVEAUDIO *waPtr) {
+
+ USHORT rc = 0;
+ 0000  53                waSetup_        push    bx
+ 0001  51                                push    cx
+ 0002  56                                push    si
+ 0003  57                                push    di
+ 0004  55                                push    bp
+ 0005  89 e5                             mov     bp,sp
+ 0007  83 ec 02                          sub     sp,0002H
+ 000a  89 c7                             mov     di,ax
+ 000c  89 d6                             mov     si,dx
+
+ USHORT typeDMA = DMA_TYPE_ISA; // will be OR'ed with DMA_TYPE_PLAY(dma-read)/CAPTURE(dma-write)
+ ULONG  sizeDMA = DMA_BUFFER_SIZE;  // physical size, will be xxKB always (after testing)
+ ULONG  sizePage = 0; // 0 because...dunno, not used I suppose
+
+ 000e  ba 08 00                          mov     dx,0008H
+
+ rc = abInit(sizeDMA, sizePage, dmaChannel, &waPtr->ab);
+ 0011  8d 44 0c                          lea     ax,[si+0cH]
+ 0014  31 db                             xor     bx,bx
+ 0016  31 c9                             xor     cx,cx
+ 0018  89 56 fe                          mov     [bp-2H],dx
+ 001b  50                                push    ax
+ 001c  b8 00 f0                          mov     ax,0f000H
+ 001f  57                                push    di
+ 0020  31 d2                             xor     dx,dx
+ 0022  e8 00 00                          call    abInit_
+ 0025  89 c2                             mov     dx,ax
+
+ if (rc) goto ExitNow;
+
+ 0027  85 c0                             test    ax,ax
+ 0029  75 2a                             jne     L54
+
+ if (waPtr->devType == AUDIOHW_WAVE_PLAY) {
+    typeDMA = typeDMA | DMA_TYPE_PLAY;
+ }
+ else {
+ 002b  83 7c 02 11                       cmp     word ptr [si+2H],0011H
+ 002f  74 05                             je      L52
+
+    typeDMA = typeDMA | DMA_TYPE_CAPTURE;
+ }
+
+ 0031  c7 46 fe 09 00                    mov     word ptr [bp-2H],0009H
+
+ if (waPtr->flags & FLAGS_WAVEAUDIO_FTYPEDMA) {
+ 0036  f6 04 04          L52             test    byte ptr [si],04H
+ 0039  74 04                             je      L53
+
+    typeDMA = typeDMA | DMA_TYPE_FTYPE;
+ 003b  80 4e ff 01                       or      byte ptr [bp-1H],01H
+
+ }
+
+ 003f  8b 56 fe          L53             mov     dx,[bp-2H]
+
+ rc = dmaInit(dmaChannel, typeDMA, &waPtr->ab);
+ 0042  8d 5c 0c                          lea     bx,[si+0cH]
+ 0045  89 f8                             mov     ax,di
+ 0047  e8 00 00                          call    dmaInit_
+ 004a  89 c2                             mov     dx,ax
+
+ if (rc) goto ExitNow;
+
+ 004c  85 c0                             test    ax,ax
+ 004e  75 05                             jne     L54
+
+ waPtr->irqHandlerPtr = (NPFN)irqHandler;  // assign near function pointer to IRQ handler (always CS:offset)
+
+ExitNow:
+ return rc;
+ 0050  c7 44 06 00 00                    mov     word ptr [si+6H],offset irqHandler_
+
+}
+
+
+ 0055  89 d0             L54             mov     ax,dx
+ 0057  89 ec                             mov     sp,bp
+ 0059  5d                                pop     bp
+ 005a  5f                                pop     di
+ 005b  5e                                pop     si
+ 005c  59                                pop     cx
+ 005d  5b                                pop     bx
+ 005e  c3                                ret     
+
+No disassembly errors
+
+List of external symbols
+
+Symbol
+----------------
+abInit_          00000023
+dmaInit_         00000048
+irqHandler_      00000053
+------------------------------------------------------------
+List of public symbols
+
+SYMBOL          GROUP           SEGMENT          ADDRESS
+---------------------------------------------------------
+_aLaw           DGROUP          _DATA            00000058
+_muLaw          DGROUP          _DATA            00000068
+_sampleRates    DGROUP          _DATA            00000078
+_srt            DGROUP          _DATA            00000000
+_waveSubtypes   DGROUP          _DATA            00000038
+waConfigDev_                    _TEXT            000002d0
+waDevCaps_                      _TEXT            00000000
+waPause_                        _TEXT            00000458
+waResume_                       _TEXT            00000458
+waSetup_                        _INITTEXT        00000000
+
+------------------------------------------------------------
+

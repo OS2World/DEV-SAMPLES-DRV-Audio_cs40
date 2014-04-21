@@ -1,0 +1,1596 @@
+
+Module: D:\dev\csrc\os2dd\scd\wavestrm.c
+Group: 'DGROUP' CONST,CONST2,_DATA,_BSS
+
+Segment: _TEXT  PARA   00000684 bytes  
+
+//
+// wavestrm.c
+// 27-Jan-99
+//
+// 19-Feb-99 removed bogus reference/use of controlPtr->
+//
+// VOID    wavestreamProcess(WAVESTREAM *wsPtr);
+// ULONG   wavestreamGetCurrentTime(WAVESTREAM *wsPtr);
+// VOID    wavestreamSetCurrentTime(ULONG time, WAVESTREAM *wsPtr);
+// USHORT  wavestreamStart(WAVESTREAM *wsPtr);
+// USHORT  wavestreamStop(WAVESTREAM *wsPtr);
+// USHORT  wavestreamPause(WAVESTREAM *wsPtr);
+// USHORT  wavestreamResume(WAVESTREAM *wsPtr);
+// STREAM *wavestreamInit(USHORT streamType, MCI_AUDIO_INIT __far *mciInitPtr, WAVESTREAM *wsPtr);
+// USHORT  wavestreamDeinit(WAVESTREAM *wsPtr);
+
+#include "cs40.h"
+
+static USHORT RealignBuffer(ULONG endPos, STREAM_BUFFER *sbPtr);
+static VOID RealignPausedBuffers(WAVESTREAM *wsPtr);
+static VOID ResetAudioBuffer(WAVESTREAM *wsPtr);
+static VOID FillAudioBuffer(WAVESTREAM *wsPtr);
+static ULONG WriteAudioBuffer(WAVESTREAM *wsPtr);
+static ULONG ReadAudioBuffer(WAVESTREAM *wsPtr);
+
+// ---------------------------------
+// in: wsPtr -> WAVESTREAM structure
+//out: n/a
+//nts: process irq
+//     called at interrupt time from the hardware objects' handler (waveplay handler, etc.)
+//     if buffers on proc queue get/put them ...
+//     (was Process)
+//     original notes follow (there was no _vUpdateProcessed() routine):
+//     --first call _vUpdateProcessed() to update the dma amd audio buffer related
+//     --stuff. Next if we have buffers on the primary queue try to read/write them
+//     --to the audiobuffer. Look at the buffers on the done queue and see if they
+//     --can be returned and finally process any events pending.
+
+VOID wavestreamProcess(WAVESTREAM *wsPtr) {
+
+ STREAM_BUFFER *sbPtr;
+ STREAM *streamPtr = wsPtr->streamPtr;
+ USHORT streamMode = wsPtr->streamPtr->streamType & STREAM_RW_MODE;
+
+ 0000                    wavestreamProcess_:
+ 0000  53                                push    bx
+ 0001  51                                push    cx
+ 0002  52                                push    dx
+ 0003  56                                push    si
+ 0004  57                                push    di
+ 0005  89 c6                             mov     si,ax
+ 0007  b8 01 00                          mov     ax,0001H
+
+ wsPtr->bytesProcessed = abUpdate(1, &wsPtr->waPtr->ab);  // get 'final' stream byte consumed/produced count
+
+ 000a  8b 54 02                          mov     dx,[si+2H]
+ 000d  8b 1c                             mov     bx,[si]
+ 000f  83 c2 0c                          add     dx,000cH
+ 0012  8b 7f 1c                          mov     di,[bx+1cH]
+ 0015  e8 00 00                          call    abUpdate_
+ 0018  89 44 18                          mov     [si+18H],ax
+ 001b  83 e7 01                          and     di,0001H
+ 001e  89 54 1a                          mov     [si+1aH],dx
+
+ if (streamMode == STREAM_WRITE) {           // playback
+
+// even undoing this only brought it down to 58%!
+// so pretty-much rem'ed out all of the irq (just resets int and bye!)...it runs at 58%
+// don't know what the hell's going on
+
+ 0021  83 ff 01                          cmp     di,0001H
+ 0024  75 47                             jne     L3
+
+    if (sbNotEmpty(&streamPtr->sbaProc)) {   // if buffer in proc queue...
+ 0026  8d 47 10                          lea     ax,[bx+10H]
+ 0029  e8 00 00                          call    sbNotEmpty_
+ 002c  85 c0                             test    ax,ax
+ 002e  74 05                             je      L1
+
+       FillAudioBuffer(wsPtr);               // keep audio buffer full
+    }
+
+    // if there are buffers that have been completely written to the audio buffer
+    // check the first one on the done queue to see if the hardware has consumed it
+    // and if so return it
+
+// rem'ing out the return-buffer stuff below only went from 66% down to 60% or so...hm
+// now checking the FillAudioBuffer section above (rem'ing it out--will get back tomorrow
+// in any case) ... if that's not it, have to check ssm_idc stuff next
+
+
+// should see about doing this out of interrupt context, via arm context hook (18-Feb-99)
+// since it calls back to SHDD and ints are enabled there
+
+ 0030  89 f0                             mov     ax,si
+ 0032  e8 00 00                          call    FillAudioBuffer_
+
+    if (sbNotEmpty(&streamPtr->sbaDone)) {   
+ 0035  8d 57 14          L1              lea     dx,[bx+14H]
+ 0038  89 d0                             mov     ax,dx
+ 003a  e8 00 00                          call    sbNotEmpty_
+ 003d  85 c0                             test    ax,ax
+ 003f  74 44                             je      L5
+
+       sbPtr = sbHead(&streamPtr->sbaDone);
+ 0041  89 d0                             mov     ax,dx
+ 0043  e8 00 00                          call    sbHead_
+ 0046  89 c7                             mov     di,ax
+
+       if ((wsPtr->bytesProcessed + wsPtr->waveConfig.bytesPerIRQ) >= sbPtr->bufferDonePos) {
+ 0048  8b 54 18                          mov     dx,[si+18H]
+ 004b  8b 4c 10                          mov     cx,[si+10H]
+ 004e  8b 44 1a                          mov     ax,[si+1aH]
+ 0051  01 ca                             add     dx,cx
+ 0053  8b 4c 12                          mov     cx,[si+12H]
+ 0056  8b 75 12                          mov     si,[di+12H]
+ 0059  11 c8                             adc     ax,cx
+ 005b  39 f0                             cmp     ax,si
+ 005d  77 07                             ja      L2
+ 005f  75 24                             jne     L5
+ 0061  3b 55 10                          cmp     dx,[di+10H]
+ 0064  72 1f                             jb      L5
+
+          streamReturnBuffer(streamPtr);
+ 0066  89 d8             L2              mov     ax,bx
+ 0068  e8 00 00                          call    streamReturnBuffer_
+
+       }
+    }
+
+ }
+ else { // STREAM_READ capture
+ 006b  eb 18                             jmp     L5
+
+    ReadAudioBuffer(wsPtr);
+ 006d  89 f0             L3              mov     ax,si
+ 006f  e8 00 00                          call    ReadAudioBuffer_
+ 0072  8d 57 14                          lea     dx,[bx+14H]
+
+    while(sbNotEmpty(&streamPtr->sbaDone)) {
+ 0075  89 d0             L4              mov     ax,dx
+ 0077  e8 00 00                          call    sbNotEmpty_
+ 007a  85 c0                             test    ax,ax
+ 007c  74 07                             je      L5
+
+       streamReturnBuffer(streamPtr);
+ 007e  89 d8                             mov     ax,bx
+ 0080  e8 00 00                          call    streamReturnBuffer_
+
+    }
+ }
+
+// streamProcessEvents(streamPtr); // stub routine for now
+
+ return;
+ 0083  eb f0                             jmp     L4
+
+}
+
+
+// ---------------------------------
+// in: wsPtr -> WAVESTREAM structure
+//out: current time
+//nts: this calcs stream time in milliseconds based on...(?)
+//     -- time = bytes consumed / consume rate
+//
+//     IMPORTANT: often the use of this data is to not be returned directly, but
+//     a pointer to a variable that has its value (eg, wsPtr->currTime, or wsPtr->timeBase
+//     for control stop/pause) is returned instead (all DDCMD calls, but not SHD returns)
+//     -- if instead return the value directly all sorts of crap (silently) happens (19-Feb-99)
+
+ 0085  5f                L5              pop     di
+ 0086  5e                                pop     si
+ 0087  5a                                pop     dx
+ 0088  59                                pop     cx
+ 0089  5b                                pop     bx
+ 008a  c3                                ret     
+ 008b  fc                                cld     
+
+ULONG wavestreamGetCurrentTime(WAVESTREAM *wsPtr) {
+
+ ULONG msecs = 0, processed;
+ USHORT flag = 0;
+ 008c                    wavestreamGetCurrentTime_:
+ 008c  53                                push    bx
+ 008d  51                                push    cx
+ 008e  56                                push    si
+ 008f  57                                push    di
+ 0090  55                                push    bp
+ 0091  89 e5                             mov     bp,sp
+ 0093  83 ec 0c                          sub     sp,000cH
+ 0096  89 c6                             mov     si,ax
+
+ STREAM *streamPtr = wsPtr->streamPtr;
+
+ 0098  8b 3c                             mov     di,[si]
+ 009a  31 db                             xor     bx,bx
+
+ if (streamPtr->streamState == STREAM_STREAMING) flag = 1; // check w/hardware only if running
+ 009c  8a 55 1e                          mov     dl,[di+1eH]
+ 009f  31 c9                             xor     cx,cx
+ 00a1  30 f6                             xor     dh,dh
+ 00a3  31 c0                             xor     ax,ax
+ 00a5  83 fa 01                          cmp     dx,0001H
+ 00a8  75 02                             jne     L6
+ 00aa  89 d0                             mov     ax,dx
+
+ processed = abUpdate(flag, &wsPtr->waPtr->ab);
+
+ 00ac  8b 54 02          L6              mov     dx,[si+2H]
+ 00af  83 c2 0c                          add     dx,000cH
+ 00b2  e8 00 00                          call    abUpdate_
+ 00b5  89 46 fc                          mov     [bp-4H],ax
+ 00b8  89 56 fe                          mov     [bp-2H],dx
+
+ if (processed) {
+ 00bb  89 d0                             mov     ax,dx
+ 00bd  8b 56 fc                          mov     dx,[bp-4H]
+ 00c0  09 d0                             or      ax,dx
+ 00c2  74 5e                             je      L7
+ 00c4  8b 44 0e                          mov     ax,[si+0eH]
+
+    ULONG c_rate = wsPtr->waveConfig.consumeRate;
+ 00c7  8b 7c 0c                          mov     di,[si+0cH]
+ 00ca  89 46 f6                          mov     [bp-0aH],ax
+ 00cd  89 fb                             mov     bx,di
+ 00cf  8b 4e f6                          mov     cx,[bp-0aH]
+
+    ULONG secs = processed / c_rate;
+ 00d2  89 d0                             mov     ax,dx
+ 00d4  8b 56 fe                          mov     dx,[bp-2H]
+ 00d7  e8 00 00                          call    __U4D
+ 00da  8b 4e f6                          mov     cx,[bp-0aH]
+ 00dd  89 46 f4                          mov     [bp-0cH],ax
+
+    ULONG ov =   processed - (secs * c_rate);
+ 00e0  89 fb                             mov     bx,di
+ 00e2  89 56 f8                          mov     [bp-8H],dx
+ 00e5  e8 00 00                          call    __U4M
+ 00e8  8b 5e fc                          mov     bx,[bp-4H]
+ 00eb  29 c3                             sub     bx,ax
+ 00ed  89 d8                             mov     ax,bx
+ 00ef  8b 5e fe                          mov     bx,[bp-2H]
+ 00f2  19 d3                             sbb     bx,dx
+ 00f4  89 da                             mov     dx,bx
+ 00f6  31 c9                             xor     cx,cx
+
+    msecs = ((ov * 1000) / c_rate) + (secs * 1000);
+ }
+
+ 00f8  bb e8 03                          mov     bx,03e8H
+ 00fb  e8 00 00                          call    __U4M
+ 00fe  8b 4e f6                          mov     cx,[bp-0aH]
+ 0101  89 fb                             mov     bx,di
+ 0103  e8 00 00                          call    __U4D
+ 0106  bb e8 03                          mov     bx,03e8H
+ 0109  89 c7                             mov     di,ax
+ 010b  89 56 fa                          mov     [bp-6H],dx
+ 010e  31 c9                             xor     cx,cx
+ 0110  8b 46 f4                          mov     ax,[bp-0cH]
+ 0113  8b 56 f8                          mov     dx,[bp-8H]
+ 0116  e8 00 00                          call    __U4M
+ 0119  89 fb                             mov     bx,di
+ 011b  01 c3                             add     bx,ax
+ 011d  8b 4e fa                          mov     cx,[bp-6H]
+ 0120  11 d1                             adc     cx,dx
+
+ return msecs + wsPtr->timeBase;  // if nothing yet processed, effectively returns just time base
+ 0122  8b 44 1c          L7              mov     ax,[si+1cH]
+ 0125  01 d8                             add     ax,bx
+ 0127  8b 54 1e                          mov     dx,[si+1eH]
+ 012a  11 ca                             adc     dx,cx
+
+}
+
+
+// -----------------------------------
+// in: time = ms time to set time base
+//     wsPtr -> WAVESTREAM structure
+//out: n/a
+//nts: mmpm/2 sends stream starting time (may not be 0) so use this as the time base
+
+ 012c  89 ec                             mov     sp,bp
+ 012e  5d                                pop     bp
+ 012f  5f                                pop     di
+ 0130  5e                                pop     si
+ 0131  59                                pop     cx
+ 0132  5b                                pop     bx
+ 0133  c3                                ret     
+
+VOID wavestreamSetCurrentTime(ULONG time, WAVESTREAM *wsPtr) {
+
+ wsPtr->timeBase = time;
+
+ return;
+ 0134                    wavestreamSetCurrentTime_:
+ 0134  89 47 1c                          mov     [bx+1cH],ax
+ 0137  89 57 1e                          mov     [bx+1eH],dx
+
+}
+
+
+// -----------------------------------
+// in: wsPtr -> WAVESTREAM structure
+//out: 0
+//nts:
+
+ 013a  c3                                ret     
+ 013b  fc                                cld     
+
+USHORT wavestreamStart(WAVESTREAM *wsPtr) {
+
+ USHORT rc = 0;
+
+ // waveConfig.bitsPerSample, channels, sampleRate, and dataType, must be setup
+ // (which is done in wavestreamInit()) before calling waConfigDev()
+
+ 013c                    wavestreamResume_:
+ 013c                    wavestreamStart_:
+ 013c  53                                push    bx
+ 013d  56                                push    si
+ 013e  89 c3                             mov     bx,ax
+
+ waConfigDev(wsPtr);
+ 0140  e8 00 00                          call    waConfigDev_
+
+ ResetAudioBuffer(wsPtr);
+
+ 0143  89 d8                             mov     ax,bx
+ 0145  e8 00 00                          call    ResetAudioBuffer_
+
+ if (wsPtr->waPtr->devType == AUDIOHW_WAVE_PLAY) {
+ 0148  8b 77 02                          mov     si,[bx+2H]
+ 014b  83 7c 02 11                       cmp     word ptr [si+2H],0011H
+ 014f  75 07                             jne     L8
+
+    rc = waveplayStart(wsPtr);
+ }
+ 0151  89 d8                             mov     ax,bx
+ 0153  e8 00 00                          call    waveplayStart_
+
+ else {
+ 0156  eb 05                             jmp     L9
+
+    rc = waverecStart(wsPtr);
+ }
+
+ 0158  89 d8             L8              mov     ax,bx
+ 015a  e8 00 00                          call    waverecStart_
+
+ if (rc) {
+ 015d  85 c0             L9              test    ax,ax
+ 015f  74 06                             je      L10
+
+    rc = ERROR_START_STREAM;
+ }
+ 0161  b8 ea 15                          mov     ax,15eaH
+
+ else {
+ 0164  5e                                pop     si
+ 0165  5b                                pop     bx
+ 0166  c3                                ret     
+
+    wsPtr->streamPtr->streamState = STREAM_STREAMING;
+ }
+
+ return rc;
+ 0167  8b 1f             L10             mov     bx,[bx]
+ 0169  c6 47 1e 01                       mov     byte ptr [bx+1eH],01H
+
+}
+
+
+// -----------------------------------
+// in: wsPtr -> WAVESTREAM structure
+//out: 0
+//nts:
+
+ 016d  5e                                pop     si
+ 016e  5b                                pop     bx
+ 016f  c3                                ret     
+
+USHORT wavestreamStop(WAVESTREAM *wsPtr) {
+
+ USHORT rc = 0;
+
+ 0170  53                wavestreamStop_ push    bx
+ 0171  51                                push    cx
+ 0172  52                                push    dx
+ 0173  56                                push    si
+ 0174  89 c3                             mov     bx,ax
+
+ if (wsPtr->waPtr->devType == AUDIOHW_WAVE_PLAY) {
+ 0176  8b 77 02                          mov     si,[bx+2H]
+ 0179  83 7c 02 11                       cmp     word ptr [si+2H],0011H
+ 017d  75 05                             jne     L11
+
+    rc = waveplayStop(wsPtr);
+ }
+ 017f  e8 00 00                          call    waveplayStop_
+
+ else {
+ 0182  eb 03                             jmp     L12
+
+    rc = waverecStop(wsPtr);
+ }
+
+ 0184  e8 00 00          L11             call    waverecStop_
+ 0187  89 c1             L12             mov     cx,ax
+
+ streamReturnBuffers(wsPtr->streamPtr);
+ 0189  8b 07                             mov     ax,[bx]
+ 018b  e8 00 00                          call    streamReturnBuffers_
+
+ wsPtr->streamPtr->streamState = STREAM_STOPPED;
+
+ 018e  8b 37                             mov     si,[bx]
+
+ wsPtr->timeBase = wavestreamGetCurrentTime(wsPtr); // local
+
+ 0190  89 d8                             mov     ax,bx
+ 0192  c6 44 1e 00                       mov     byte ptr [si+1eH],00H
+ 0196  e8 00 00                          call    wavestreamGetCurrentTime_
+ 0199  89 47 1c                          mov     [bx+1cH],ax
+ 019c  89 57 1e                          mov     [bx+1eH],dx
+
+ abReset(wsPtr->streamPtr->streamType & STREAM_RW_MODE, &wsPtr->waPtr->ab);
+
+ return rc;
+ 019f  8b 57 02                          mov     dx,[bx+2H]
+ 01a2  8b 1f                             mov     bx,[bx]
+ 01a4  8b 47 1c                          mov     ax,[bx+1cH]
+ 01a7  30 e4                             xor     ah,ah
+ 01a9  83 c2 0c                          add     dx,000cH
+ 01ac  24 01                             and     al,01H
+ 01ae  e8 00 00                          call    abReset_
+
+}
+
+
+// -----------------------------------
+// in: wsPtr -> WAVESTREAM structure
+//out: 0
+//nts:
+
+ 01b1  89 c8                             mov     ax,cx
+ 01b3  5e                                pop     si
+ 01b4  5a                                pop     dx
+ 01b5  59                                pop     cx
+ 01b6  5b                                pop     bx
+ 01b7  c3                                ret     
+
+USHORT wavestreamPause(WAVESTREAM *wsPtr) {
+
+ USHORT rc = 0;
+
+ 01b8                    wavestreamPause_:
+ 01b8  53                                push    bx
+ 01b9  51                                push    cx
+ 01ba  52                                push    dx
+ 01bb  56                                push    si
+ 01bc  89 c3                             mov     bx,ax
+
+ if (wsPtr->waPtr->devType == AUDIOHW_WAVE_PLAY) {
+ 01be  8b 77 02                          mov     si,[bx+2H]
+ 01c1  83 7c 02 11                       cmp     word ptr [si+2H],0011H
+ 01c5  75 05                             jne     L13
+
+    rc = waveplayStop(wsPtr);
+ }
+ 01c7  e8 00 00                          call    waveplayStop_
+
+ else {
+ 01ca  eb 03                             jmp     L14
+
+    rc = waverecStop(wsPtr);
+ }
+
+ 01cc  e8 00 00          L13             call    waverecStop_
+ 01cf  89 c1             L14             mov     cx,ax
+
+ wsPtr->streamPtr->streamState = STREAM_PAUSED;
+ 01d1  8b 37                             mov     si,[bx]
+
+ RealignPausedBuffers(wsPtr);
+
+ 01d3  89 d8                             mov     ax,bx
+ 01d5  c6 44 1e 02                       mov     byte ptr [si+1eH],02H
+ 01d9  e8 00 00                          call    RealignPausedBuffers_
+
+ wsPtr->timeBase = wavestreamGetCurrentTime(wsPtr); // local
+
+ 01dc  89 d8                             mov     ax,bx
+ 01de  e8 00 00                          call    wavestreamGetCurrentTime_
+ 01e1  89 47 1c                          mov     [bx+1cH],ax
+ 01e4  89 57 1e                          mov     [bx+1eH],dx
+
+ abReset(wsPtr->streamPtr->streamType & STREAM_RW_MODE, &wsPtr->waPtr->ab);
+
+// !!!
+// testing new dma stuff (can just change logical dma buffer size at will)
+//
+//if (wsPtr->audioBufferSize == 0) {
+//   wsPtr->audioBufferSize = 8192;
+//}
+
+ return rc;
+ 01e7  8b 57 02                          mov     dx,[bx+2H]
+ 01ea  8b 1f                             mov     bx,[bx]
+ 01ec  8b 47 1c                          mov     ax,[bx+1cH]
+ 01ef  30 e4                             xor     ah,ah
+ 01f1  83 c2 0c                          add     dx,000cH
+ 01f4  24 01                             and     al,01H
+ 01f6  e8 00 00                          call    abReset_
+
+}
+
+
+// -----------------------------------
+// in: wsPtr -> WAVESTREAM structure
+//out: 0
+//nts:
+
+USHORT wavestreamResume(WAVESTREAM *wsPtr) {
+
+ USHORT rc;
+
+ // since the resume code is exactly the same as the start, just call start
+
+ rc = wavestreamStart(wsPtr);  // this gets all of start inlined...
+
+ return rc;
+}
+
+
+// -----------------------------------
+// in: streamType = AUDIOHW_WAVE_PLAY or _CAPTURE
+//     wsPtr -> WAVESTREAM structure, already allocated
+//out: n/a
+//nts:
+//     this called by "void IoctlAudioInit(PREQPACKET prp, USHORT LDev)"
+//     and should (I think) return a (STREAM *), which means the last
+//     thing this should do is call streamInit(...)
+
+ 01f9  89 c8                             mov     ax,cx
+ 01fb  5e                                pop     si
+ 01fc  5a                                pop     dx
+ 01fd  59                                pop     cx
+ 01fe  5b                                pop     bx
+ 01ff  c3                                ret     
+
+STREAM *wavestreamInit(USHORT streamType, MCI_AUDIO_INIT __far *mciInitPtr, WAVESTREAM *wsPtr) {
+
+ USHORT rc = 0;
+ 0200  56                wavestreamInit_ push    si
+ 0201  57                                push    di
+ 0202  55                                push    bp
+ 0203  89 e5                             mov     bp,sp
+ 0205  83 ec 0a                          sub     sp,000aH
+ 0208  89 46 f8                          mov     [bp-8H],ax
+ 020b  89 5e fc                          mov     [bp-4H],bx
+ 020e  89 4e fe                          mov     [bp-2H],cx
+ 0211  89 d6                             mov     si,dx
+
+ STREAM *tstreamPtr = malloc(sizeof(STREAM));   // this gets free'd in wavestreamDeinit()
+
+ 0213  b8 26 00                          mov     ax,0026H
+ 0216  e8 00 00                          call    malloc_
+ 0219  89 46 fa                          mov     [bp-6H],ax
+ 021c  89 46 f6                          mov     [bp-0aH],ax
+
+ if (tstreamPtr) {
+
+ 021f  85 c0                             test    ax,ax
+ 0221  0f 84 15 01                       je      L23
+ 0225  b9 26 00                          mov     cx,0026H
+ 0228  8b 7e fa                          mov     di,[bp-6H]
+
+    MEMSET(tstreamPtr,0,sizeof(STREAM));
+
+ 022b  8c da                             mov     dx,ds
+ 022d  31 c0                             xor     ax,ax
+ 022f  8e c2                             mov     es,dx
+ 0231  fc                                cld     
+ 0232  85 c9                             test    cx,cx
+ 0234  74 43                             je      L19
+ 0236  83 f9 20                          cmp     cx,0020H
+ 0239  72 37                             jb      L18
+ 023b  f7 c1 01 00                       test    cx,0001H
+ 023f  74 02                             je      L15
+ 0241  88 c4                             mov     ah,al
+ 0243  89 c3             L15             mov     bx,ax
+ 0245  66 c1 e0 10                       shl     eax,10H
+ 0249  89 d8                             mov     ax,bx
+ 024b  f7 c7 03 00                       test    di,0003H
+ 024f  74 12                             je      L17
+ 0251  f7 c7 01 00                       test    di,0001H
+ 0255  74 08                             je      L16
+ 0257  aa                                stosb   
+ 0258  49                                dec     cx
+ 0259  f7 c7 02 00                       test    di,0002H
+ 025d  74 04                             je      L17
+ 025f  ab                L16             stosw   
+ 0260  83 e9 02                          sub     cx,0002H
+ 0263  88 cb             L17             mov     bl,cl
+ 0265  c1 e9 02                          shr     cx,02H
+ 0268  f3 66 ab                          repe    stosd    
+ 026b  80 e3 03                          and     bl,03H
+ 026e  74 09                             je      L19
+ 0270  88 d9                             mov     cl,bl
+ 0272  d1 e9             L18             shr     cx,1
+ 0274  f3 ab                             repe    stosw    
+ 0276  73 01                             jae     L19
+ 0278  aa                                stosb   
+
+    rc = streamInit(streamType, tstreamPtr);
+ 0279  8b 56 fa          L19             mov     dx,[bp-6H]
+ 027c  8b 46 f8                          mov     ax,[bp-8H]
+ 027f  e8 00 00                          call    streamInit_
+ 0282  89 c3                             mov     bx,ax
+
+    if (rc == 0) {
+
+ 0284  85 c0                             test    ax,ax
+ 0286  0f 85 a1 00                       jne     L22
+
+       tstreamPtr->wsParentPtr = wsPtr;
+
+       // update WAVESTREAM
+
+       wsPtr->streamPtr = tstreamPtr;
+
+       // WAVEAUDIO waPtr-> data already setup (incl. dma, audiobuffer)
+       // but still need to set WAVESTREAM.waPtr -> wap (or war) structure (6-Feb-99)
+
+ 028a  8b 7e fa                          mov     di,[bp-6H]
+ 028d  89 75 24                          mov     [di+24H],si
+
+       if (streamType == AUDIOHW_WAVE_PLAY) {
+ 0290  8b 4e f8                          mov     cx,[bp-8H]
+ 0293  89 3c                             mov     [si],di
+ 0295  83 f9 11                          cmp     cx,0011H
+ 0298  75 07                             jne     L20
+
+          wsPtr->waPtr = &wap;
+       }
+ 029a  c7 44 02 00 00                    mov     word ptr [si+2H],offset _wap
+
+       else {
+ 029f  eb 05                             jmp     L21
+
+          wsPtr->waPtr = &war;
+ 02a1  c7 44 02 00 00    L20             mov     word ptr [si+2H],offset _war
+
+       }
+
+       //WAVECONFIG. data already setup, some of it? like silence
+
+ 02a6  8b 46 f8          L21             mov     ax,[bp-8H]
+
+       abReset(streamType & STREAM_RW_MODE, &wsPtr->waPtr->ab);
+ 02a9  8b 54 02                          mov     dx,[si+2H]
+ 02ac  30 e4                             xor     ah,ah
+ 02ae  83 c2 0c                          add     dx,000cH
+ 02b1  24 01                             and     al,01H
+ 02b3  8b 7e fc                          mov     di,[bp-4H]
+ 02b6  e8 00 00                          call    abReset_
+
+       wsPtr->waveConfig.sampleRate = (USHORT)mciInitPtr->lSRate;
+ 02b9  8e 46 fe                          mov     es,[bp-2H]
+ 02bc  26 8b 05                          mov     ax,es:[di]
+ 02bf  89 44 04                          mov     [si+4H],ax
+
+       wsPtr->waveConfig.bitsPerSample = (UCHAR)mciInitPtr->lBitsPerSRate;
+ 02c2  26 8a 45 04                       mov     al,es:[di+4H]
+ 02c6  88 44 08                          mov     [si+8H],al
+
+       wsPtr->waveConfig.channels = (UCHAR)mciInitPtr->sChannels;
+ 02c9  26 8a 45 0e                       mov     al,es:[di+0eH]
+ 02cd  88 44 09                          mov     [si+9H],al
+
+       wsPtr->waveConfig.dataType = mciInitPtr->sMode;
+
+ 02d0  26 8b 45 0c                       mov     ax,es:[di+0cH]
+
+       wsPtr->audioBufferSize = 0;  // 0=use default logical DMA size
+ 02d4  c7 44 14 00 00                    mov     word ptr [si+14H],0000H
+
+       wsPtr->bytesProcessed = 0;
+ 02d9  c7 44 18 00 00                    mov     word ptr [si+18H],0000H
+ 02de  c7 44 1a 00 00                    mov     word ptr [si+1aH],0000H
+
+       wsPtr->timeBase = 0;
+
+ 02e3  c7 44 1c 00 00                    mov     word ptr [si+1cH],0000H
+ 02e8  c7 44 1e 00 00                    mov     word ptr [si+1eH],0000H
+ 02ed  89 44 0a                          mov     [si+0aH],ax
+
+       mciInitPtr->sSlotNumber = -1;
+ 02f0  89 fe                             mov     si,di
+ 02f2  26 c7 84 22 01 ff 
+       ff                                mov     word ptr es:[si+122H],0ffffH
+
+       mciInitPtr->lResolution = 10;
+
+ 02f9  26 c7 44 10 0a 00                 mov     word ptr es:[si+10H],000aH
+
+       mciInitPtr->ulFlags = mciInitPtr->ulFlags | FIXED | LEFT_ALIGNED;
+
+       // original had this if flags == 8...snafu (pas16 has 8 also)
+
+ 02ff  26 8a a4 18 01                    mov     ah,es:[si+118H]
+ 0304  26 c7 44 12 00 00                 mov     word ptr es:[si+12H],0000H
+ 030a  80 cc 03                          or      ah,03H
+ 030d  26 88 a4 18 01                    mov     es:[si+118H],ah
+
+       if (mciInitPtr->ulFlags == 16) {
+ 0312  26 8b bc 1a 01                    mov     di,es:[si+11aH]
+ 0317  26 8b 84 18 01                    mov     ax,es:[si+118H]
+ 031c  85 ff                             test    di,di
+ 031e  75 0b                             jne     L22
+ 0320  3d 10 00                          cmp     ax,0010H
+ 0323  75 06                             jne     L22
+
+          mciInitPtr->ulFlags = mciInitPtr->ulFlags | TWOS_COMPLEMENT;
+       }
+    }
+
+    // since rc only possible if streamInit() failed, don't need to use streamDeinit()
+    // but...streamInit() currently never fails...
+
+ 0325  26 80 8c 18 01 08                 or      byte ptr es:[si+118H],08H
+
+    if (rc) {
+ 032b  85 db             L22             test    bx,bx
+ 032d  74 0b                             je      L23
+
+       free(tstreamPtr);
+ 032f  8b 46 f6                          mov     ax,[bp-0aH]
+
+       tstreamPtr = 0;
+    }
+ }
+
+ return tstreamPtr;
+ 0332  31 d2                             xor     dx,dx
+ 0334  e8 00 00                          call    free_
+ 0337  89 56 f6                          mov     [bp-0aH],dx
+
+}
+
+// ------------------
+// in:
+//out:
+//nts: deinit used rather than just doing this in streamDeinit
+//     just to reverse wavestreamInit() concept
+
+ 033a  8b 46 f6          L23             mov     ax,[bp-0aH]
+ 033d  89 ec                             mov     sp,bp
+ 033f  5d                                pop     bp
+ 0340  5f                                pop     di
+ 0341  5e                                pop     si
+ 0342  c3                                ret     
+ 0343  fc                                cld     
+
+USHORT wavestreamDeinit(WAVESTREAM *wsPtr) {
+
+ USHORT rc = 0;
+
+ 0344                    wavestreamDeinit_:
+ 0344  53                                push    bx
+ 0345  89 c3                             mov     bx,ax
+
+ streamDeinit(wsPtr->streamPtr);
+ 0347  8b 07                             mov     ax,[bx]
+ 0349  e8 00 00                          call    streamDeinit_
+
+ free(wsPtr->streamPtr);
+ 034c  8b 07                             mov     ax,[bx]
+ 034e  e8 00 00                          call    free_
+
+ free(wsPtr);
+
+ return rc;
+ 0351  89 d8                             mov     ax,bx
+ 0353  e8 00 00                          call    free_
+
+}
+
+
+// --------------------------
+// in: endPos
+//     sbPtr -> stream buffer
+//out:
+//nts:
+//
+//  _vRealignBuffer
+//  called just after a wave stream pause on a playback.
+//  Gets the end position of the stream when paused and a pointer to a
+//  STREAMBUFFER. Basicly this function looks at the streambuffer and if
+// there is any unplayed data in it it adjusts the bufpos counter.
+// the donepos counter is ALWAYS set to zero. It will return 0 if all
+// the data has been played and 1 if there is still some data left.
+//
+// note that sbPtr->sizes are being aligned with 0xFFFFFFFC, which should do fine (don't use ALIGN_FILL_...)
+
+ 0356  31 c0                             xor     ax,ax
+ 0358  5b                                pop     bx
+ 0359  c3                                ret     
+ 035a  89 c0                             mov     ax,ax
+
+static USHORT RealignBuffer(ULONG endPos, STREAM_BUFFER *sbPtr) {
+
+ USHORT rc = 1;
+ ULONG sbStart, consumed;
+
+ 035c  51                RealignBuffer_  push    cx
+ 035d  56                                push    si
+ 035e  57                                push    di
+ 035f  89 c6                             mov     si,ax
+ 0361  89 d1                             mov     cx,dx
+
+ sbStart = sbPtr->bufferDonePos - sbPtr->bufferCurrPos;
+
+ 0363  8b 57 10                          mov     dx,[bx+10H]
+ 0366  8b 47 12                          mov     ax,[bx+12H]
+ 0369  2b 57 0c                          sub     dx,[bx+0cH]
+ 036c  1b 47 0e                          sbb     ax,[bx+0eH]
+ 036f  bf 01 00                          mov     di,0001H
+
+ if (endPos <= sbStart) {       // none of the data in this stream buffer has been consumed yet
+ 0372  39 c1                             cmp     cx,ax
+ 0374  72 06                             jb      L24
+ 0376  75 1a                             jne     L25
+ 0378  39 d6                             cmp     si,dx
+ 037a  77 16                             ja      L25
+
+    sbPtr->bufferDonePos = 0;   
+ 037c  c7 47 10 00 00    L24             mov     word ptr [bx+10H],0000H
+ 0381  c7 47 12 00 00                    mov     word ptr [bx+12H],0000H
+
+    sbPtr->bufferCurrPos = 0;   
+    // rc = 1; already is
+ }
+ 0386  c7 47 0c 00 00                    mov     word ptr [bx+0cH],0000H
+ 038b  c7 47 0e 00 00                    mov     word ptr [bx+0eH],0000H
+
+ else {                         // some or all of the data has been consumed
+ 0390  eb 50                             jmp     L28
+
+    consumed = endPos - sbStart;
+ 0392  29 d6             L25             sub     si,dx
+ 0394  19 c1                             sbb     cx,ax
+
+    if (consumed <= sbPtr->bufferSize) {        // some has been...
+ 0396  8b 47 0a                          mov     ax,[bx+0aH]
+ 0399  8b 57 08                          mov     dx,[bx+8H]
+ 039c  39 c1                             cmp     cx,ax
+ 039e  72 06                             jb      L26
+ 03a0  75 28                             jne     L27
+ 03a2  39 d6                             cmp     si,dx
+ 03a4  77 24                             ja      L27
+
+       sbPtr->bufferDonePos = 0;
+
+// !!!
+// not sure if this should be ALIGN_FILL_PLAY instead of 0xFFFFFFFC
+// but either this or the one in RealignBuffers() caused problem at pause if used FFFFFFFC
+
+       //sbPtr->bufferCurrPos = (sbPtr->bufferSize-consumed) & 0xFFFFFFFC; //always keep dword-aligned
+ 03a6  c7 47 10 00 00    L26             mov     word ptr [bx+10H],0000H
+
+       sbPtr->bufferCurrPos = (sbPtr->bufferSize-consumed) & ALIGN_FILL_PLAY;
+       // rc = 1; already is
+    }
+    else {                      // all has been...
+ 03ab  8b 57 08                          mov     dx,[bx+8H]
+ 03ae  c7 47 12 00 00                    mov     word ptr [bx+12H],0000H
+ 03b3  29 f2                             sub     dx,si
+ 03b5  8b 47 0a                          mov     ax,[bx+0aH]
+ 03b8  19 c8                             sbb     ax,cx
+ 03ba  89 47 0e                          mov     [bx+0eH],ax
+ 03bd  81 e2 00 fc                       and     dx,0fc00H
+ 03c1  89 57 0c                          mov     [bx+0cH],dx
+ 03c4  89 f8                             mov     ax,di
+ 03c6  5f                                pop     di
+ 03c7  5e                                pop     si
+ 03c8  59                                pop     cx
+ 03c9  c3                                ret     
+
+       sbPtr->bufferDonePos = 0;
+ 03ca  c7 47 10 00 00    L27             mov     word ptr [bx+10H],0000H
+ 03cf  c7 47 12 00 00                    mov     word ptr [bx+12H],0000H
+
+       sbPtr->bufferCurrPos = sbPtr->bufferSize;
+ 03d4  8b 57 08                          mov     dx,[bx+8H]
+ 03d7  8b 47 0a                          mov     ax,[bx+0aH]
+ 03da  89 57 0c                          mov     [bx+0cH],dx
+
+       rc = 0;
+    }
+ }
+
+ return rc;
+ 03dd  31 ff                             xor     di,di
+ 03df  89 47 0e                          mov     [bx+0eH],ax
+
+}
+
+
+// ----------------------------------
+// in: wsPtr -> wave stream structure
+//out:
+//nts:
+//
+// _vRealignPausedBuffers(void)
+// When a stream is paused, have to "realign" the data in the audio buffer with reality, since:
+// - on playback, not all the data in the audio buffer has been consumed
+// - on capture, not all the good data in the audio buffer has been copied out
+//
+// After getting DDCMDCONTROL PAUSE cmd, this routine is called to line the MMPM buffers back up:
+// - for a capture stream: copy any data still in the audio buffer to an MMPM buffer
+// - for a playback stream:
+// -- check the STREAMBUFFER at proc queue to see if any unconsumed data is in the audio buffer
+//    if yes, back up bufferCurrPos (was ulBuffpos) in the STREAMBUFFER
+// -- check any STREAMBUFFERs on done queue, starting with the last one (the tail).
+//    if necessary, back up bufferCurrPos (was ulBuffpos) and put the STREAMBUFFER on the Head queue
+
+ 03e2  89 f8             L28             mov     ax,di
+ 03e4  5f                                pop     di
+ 03e5  5e                                pop     si
+ 03e6  59                                pop     cx
+ 03e7  c3                                ret     
+
+static VOID RealignPausedBuffers(WAVESTREAM *wsPtr) {
+
+ 03e8                    RealignPausedBuffers_:
+ 03e8  53                                push    bx
+ 03e9  51                                push    cx
+ 03ea  52                                push    dx
+ 03eb  56                                push    si
+ 03ec  57                                push    di
+ 03ed  55                                push    bp
+ 03ee  89 e5                             mov     bp,sp
+ 03f0  83 ec 02                          sub     sp,0002H
+ 03f3  89 c3                             mov     bx,ax
+
+ STREAM *streamPtr = wsPtr->streamPtr;
+
+ 03f5  8b 37                             mov     si,[bx]
+
+ if ((streamPtr->streamType & STREAM_RW_MODE) == STREAM_READ) {
+ 03f7  f6 44 1c 01                       test    byte ptr [si+1cH],01H
+ 03fb  75 08                             jne     L29
+
+    ReadAudioBuffer(wsPtr);  // capture/recording
+ }
+ 03fd  89 d8                             mov     ax,bx
+ 03ff  e8 00 00                          call    ReadAudioBuffer_
+
+ else {
+
+    static STREAM_BUFFER_ANCHOR sbaTemp; // have to use static else gets "pointer truncated" warning
+                                         // which is probably a compiler bug (!) anyway, check later
+    STREAM_BUFFER *tsbPtr;
+    ULONG endPos;
+    USHORT rc;
+
+ 0402  e9 94 00                          jmp     L35
+
+    sbaTemp.headPtr = 0;
+ 0405  31 d2             L29             xor     dx,dx
+ 0407  89 16 00 00                       mov     L46,dx
+
+    sbaTemp.tailPtr = 0;
+
+// !!!
+// not sure if this should be ALIGN_FILL_PLAY instead of 0xFFFFFFFC
+// but either this or the one in RealignBuffer() caused problem at pause if used FFFFFFFC
+
+    //endPos = (abUpdate(1, &wsPtr->waPtr->ab)) & 0xFFFFFFFC; // get 'final' stream byte consumed/produced count
+ 040b  89 16 02 00                       mov     L47,dx
+
+    endPos = (abUpdate(1, &wsPtr->waPtr->ab)) & ALIGN_FILL_PLAY; // get 'final' stream byte consumed count
+
+ 040f  8b 57 02                          mov     dx,[bx+2H]
+ 0412  b8 01 00                          mov     ax,0001H
+ 0415  83 c2 0c                          add     dx,000cH
+ 0418  e8 00 00                          call    abUpdate_
+
+    if (sbNotEmpty(&streamPtr->sbaProc)) {   // if buffer in proc queue...
+ 041b  8d 5c 10                          lea     bx,[si+10H]
+ 041e  89 c1                             mov     cx,ax
+ 0420  89 d8                             mov     ax,bx
+ 0422  89 56 fe                          mov     [bp-2H],dx
+ 0425  e8 00 00                          call    sbNotEmpty_
+ 0428  81 e1 00 fc                       and     cx,0fc00H
+ 042c  85 c0                             test    ax,ax
+ 042e  74 14                             je      L30
+
+       tsbPtr = sbHead(&streamPtr->sbaProc); // ...only care about first since rest are waiting...
+ 0430  89 d8                             mov     ax,bx
+ 0432  e8 00 00                          call    sbHead_
+ 0435  89 c3                             mov     bx,ax
+
+       if (tsbPtr->bufferDonePos) {          // if any data has been written from this SB, realign
+ 0437  8b 47 12                          mov     ax,[bx+12H]
+ 043a  0b 47 10                          or      ax,[bx+10H]
+ 043d  74 05                             je      L30
+
+          RealignBuffer(endPos, tsbPtr);
+       }
+    }
+
+    // if buffers on the done queue, pop off head and push them on sbaTemp head
+    // this is to re-order them, putting the more recently used ones at the front of the queue
+    //
+    // pass all those (on sbaTemp queue) to RealignBuffer():
+    // -- if rc = 0: no unprocessed data in the buffer (ready to be returned as-is)
+    //    so it gets put on the tail of the done queue
+    // -- if rc = 1: put it on head of in-process queue
+
+ 043f  89 c8                             mov     ax,cx
+ 0441  e8 00 00                          call    RealignBuffer_
+
+    while (sbNotEmpty(&streamPtr->sbaDone)) {
+ 0444  bf 00 00          L30             mov     di,offset L46
+ 0447  8d 5c 14                          lea     bx,[si+14H]
+ 044a  89 d8             L31             mov     ax,bx
+ 044c  e8 00 00                          call    sbNotEmpty_
+ 044f  85 c0                             test    ax,ax
+ 0451  74 0c                             je      L32
+
+       tsbPtr = sbPopHead(&streamPtr->sbaDone);
+ 0453  89 d8                             mov     ax,bx
+
+       sbPushOnHead(tsbPtr, &sbaTemp);
+ 0455  89 fa                             mov     dx,di
+ 0457  e8 00 00                          call    sbPopHead_
+ 045a  e8 00 00                          call    sbPushOnHead_
+
+    }
+
+ 045d  eb eb                             jmp     L31
+
+    while (sbNotEmpty(&sbaTemp)) {
+ 045f  8d 7c 14          L32             lea     di,[si+14H]
+ 0462  83 c6 10                          add     si,0010H
+ 0465  b8 00 00          L33             mov     ax,offset L46
+ 0468  e8 00 00                          call    sbNotEmpty_
+ 046b  85 c0                             test    ax,ax
+ 046d  74 2a                             je      L35
+
+       tsbPtr = sbHead(&sbaTemp);
+ 046f  b8 00 00                          mov     ax,offset L46
+ 0472  8b 56 fe                          mov     dx,[bp-2H]
+ 0475  e8 00 00                          call    sbHead_
+
+       rc = RealignBuffer(endPos, tsbPtr);
+ 0478  89 c3                             mov     bx,ax
+ 047a  89 c8                             mov     ax,cx
+ 047c  e8 00 00                          call    RealignBuffer_
+ 047f  89 c3                             mov     bx,ax
+
+       tsbPtr = sbPopHead(&sbaTemp);
+ 0481  b8 00 00                          mov     ax,offset L46
+ 0484  e8 00 00                          call    sbPopHead_
+
+       if (rc == 0) {   
+          sbPushOnTail(tsbPtr, &streamPtr->sbaDone); // buffer is done
+       }
+ 0487  85 db                             test    bx,bx
+ 0489  75 07                             jne     L34
+ 048b  89 fa                             mov     dx,di
+ 048d  e8 00 00                          call    sbPushOnTail_
+
+       else {           
+          sbPushOnHead(tsbPtr, &streamPtr->sbaProc); // buffer has more
+ 0490  eb d3                             jmp     L33
+ 0492  89 f2             L34             mov     dx,si
+ 0494  e8 00 00                          call    sbPushOnHead_
+
+       }
+    }
+ }
+
+ return;
+ 0497  eb cc                             jmp     L33
+
+}
+
+
+// ---------------------------------
+// in: wsPtr -> WAVESTREAM structure
+//out: n/a
+//nts: prepare to stream
+//     (was _vInitAudioBuf)
+
+ 0499  89 ec             L35             mov     sp,bp
+ 049b  5d                                pop     bp
+ 049c  5f                                pop     di
+ 049d  5e                                pop     si
+ 049e  5a                                pop     dx
+ 049f  59                                pop     cx
+ 04a0  5b                                pop     bx
+ 04a1  c3                                ret     
+ 04a2  89 c0                             mov     ax,ax
+
+static VOID ResetAudioBuffer(WAVESTREAM *wsPtr) {
+
+ AUDIOBUFFER *abPtr = &wsPtr->waPtr->ab;
+ 04a4                    ResetAudioBuffer_:
+ 04a4  53                                push    bx
+ 04a5  51                                push    cx
+ 04a6  52                                push    dx
+ 04a7  56                                push    si
+ 04a8  89 c3                             mov     bx,ax
+
+ 04aa  8b 37                             mov     si,[bx]
+
+ USHORT streamMode = wsPtr->streamPtr->streamType & STREAM_RW_MODE;
+
+ 04ac  8b 4f 02                          mov     cx,[bx+2H]
+ 04af  8b 74 1c                          mov     si,[si+1cH]
+ 04b2  83 c1 0c                          add     cx,000cH
+ 04b5  83 e6 01                          and     si,0001H
+
+ abReset(streamMode, abPtr);            // reset audiobuffer
+ 04b8  89 ca                             mov     dx,cx
+ 04ba  89 f0                             mov     ax,si
+ 04bc  e8 00 00                          call    abReset_
+
+ if (streamMode == STREAM_WRITE) {
+ 04bf  83 fe 01                          cmp     si,0001H
+ 04c2  75 07                             jne     L36
+
+    FillAudioBuffer(wsPtr);
+ }
+ 04c4  89 d8                             mov     ax,bx
+ 04c6  e8 00 00                          call    FillAudioBuffer_
+
+ else {
+ 04c9  eb 08                             jmp     L37
+ 04cb  89 ca             L36             mov     dx,cx
+
+    abFill(wsPtr->waveConfig.silence, abPtr);
+ }
+
+ return;
+ 04cd  8b 47 06                          mov     ax,[bx+6H]
+ 04d0  e8 00 00                          call    abFill_
+
+}
+
+
+// ---------------------------------
+// in: wsPtr -> WAVESTREAM structure
+//out: n/a
+//nts: fill audio buffer with as much data as possible (for playback)
+//     align on 256 bytes sizes though, using ALIGN_FILL_PLAY
+//     was _vFillAudioBuf
+
+ 04d3  5e                L37             pop     si
+ 04d4  5a                                pop     dx
+ 04d5  59                                pop     cx
+ 04d6  5b                                pop     bx
+ 04d7  c3                                ret     
+
+static VOID FillAudioBuffer(WAVESTREAM *wsPtr) {
+
+ ULONG space;
+ ULONG bytesWritten = 0;        // just for tracePerf
+ STREAM *streamPtr = wsPtr->streamPtr;
+ 04d8                    FillAudioBuffer_:
+ 04d8  53                                push    bx
+ 04d9  51                                push    cx
+ 04da  52                                push    dx
+ 04db  56                                push    si
+ 04dc  89 c3                             mov     bx,ax
+
+ AUDIOBUFFER *abPtr = &wsPtr->waPtr->ab;
+
+ // while have process buffers and there is space in the audio buffer, write data to the audio buffer
+
+#ifdef TRACE_FILLAUDIOBUFFER
+ tracePerf(TRACE_FILLAUDIOBUFFER_IN, _IF());
+#endif
+
+ 04de  8b 4f 02                          mov     cx,[bx+2H]
+ 04e1  83 c1 0c                          add     cx,000cH
+
+ space = abSpace(abPtr) & ALIGN_FILL_PLAY;
+
+ 04e4  89 c8                             mov     ax,cx
+ 04e6  8b 37                             mov     si,[bx]
+ 04e8  e8 00 00                          call    abSpace_
+ 04eb  25 00 fc                          and     ax,0fc00H
+ 04ee  09 d0                             or      ax,dx
+ 04f0  74 21                             je      L39
+
+ while(space && sbNotEmpty(&streamPtr->sbaProc)) {
+ 04f2  83 c6 10                          add     si,0010H
+ 04f5  89 f0             L38             mov     ax,si
+ 04f7  e8 00 00                          call    sbNotEmpty_
+ 04fa  85 c0                             test    ax,ax
+ 04fc  74 15                             je      L39
+
+    bytesWritten = bytesWritten + WriteAudioBuffer(wsPtr);  // bytesWritten just for tracePerf
+ 04fe  89 d8                             mov     ax,bx
+ 0500  e8 00 00                          call    WriteAudioBuffer_
+
+    space = abSpace(abPtr) & ALIGN_FILL_PLAY;
+ 0503  89 c8                             mov     ax,cx
+ 0505  e8 00 00                          call    abSpace_
+ 0508  25 00 fc                          and     ax,0fc00H
+
+ }
+
+#ifdef TRACE_FILLAUDIOBUFFER
+ tracePerf(TRACE_FILLAUDIOBUFFER_OUT, (bytesWritten << 16) | _IF());  //
+#endif
+
+ return;
+ 050b  85 d2                             test    dx,dx
+ 050d  75 e6                             jne     L38
+ 050f  85 c0                             test    ax,ax
+ 0511  75 e2                             jne     L38
+
+}
+
+
+// ---------------------------------
+// in: wsPtr -> WAVESTREAM structure
+//out: n/a
+//nts: write one buffer to the audio buffer
+//     caller must ensure that it's okay to write to the audio buffer
+//     -- this assumes there's room and that there's a buffer on proc queue
+//     (was _vAudioBufWrite)
+
+ 0513  5e                L39             pop     si
+ 0514  5a                                pop     dx
+ 0515  59                                pop     cx
+ 0516  5b                                pop     bx
+ 0517  c3                                ret     
+
+static ULONG WriteAudioBuffer(WAVESTREAM *wsPtr) {
+
+ UCHAR __far *dataBufferPtr;
+ ULONG bufferLeft, bytesWritten, startPos;
+
+ STREAM_BUFFER *sbPtr;
+ 0518                    WriteAudioBuffer_:
+ 0518  53                                push    bx
+ 0519  51                                push    cx
+ 051a  56                                push    si
+ 051b  57                                push    di
+ 051c  55                                push    bp
+ 051d  89 e5                             mov     bp,sp
+ 051f  83 ec 0a                          sub     sp,000aH
+ 0522  89 c3                             mov     bx,ax
+
+ STREAM *streamPtr  = wsPtr->streamPtr;
+ 0524  8b 37                             mov     si,[bx]
+
+ AUDIOBUFFER *abPtr = &wsPtr->waPtr->ab;
+
+ 0526  8b 47 02                          mov     ax,[bx+2H]
+ 0529  89 76 fe                          mov     [bp-2H],si
+ 052c  05 0c 00                          add     ax,000cH
+
+ sbPtr =    sbHead(&streamPtr->sbaProc);
+ 052f  8d 7c 10                          lea     di,[si+10H]
+ 0532  89 46 f6                          mov     [bp-0aH],ax
+ 0535  89 f8                             mov     ax,di
+ 0537  e8 00 00                          call    sbHead_
+ 053a  89 c6                             mov     si,ax
+
+ startPos = abBytes(abPtr);   // could just do "startPos = abPtr->bufferBytes;" (all routine does)
+
+ dataBufferPtr = sbPtr->bufferPtr + sbPtr->bufferCurrPos;
+ bufferLeft    = sbPtr->bufferSize - sbPtr->bufferCurrPos;
+
+ 053c  8b 46 f6                          mov     ax,[bp-0aH]
+ 053f  e8 00 00                          call    abBytes_
+
+ bytesWritten  = abWrite(dataBufferPtr, bufferLeft, abPtr);  // write to the audio buffer
+
+ 0542  ff 76 f6                          push    [bp-0aH]
+ 0545  89 46 fa                          mov     [bp-6H],ax
+ 0548  89 56 f8                          mov     [bp-8H],dx
+ 054b  8b 5c 0c                          mov     bx,[si+0cH]
+ 054e  8b 44 04                          mov     ax,[si+4H]
+ 0551  8b 4c 0a                          mov     cx,[si+0aH]
+ 0554  01 d8                             add     ax,bx
+ 0556  8b 5c 08                          mov     bx,[si+8H]
+ 0559  8b 54 06                          mov     dx,[si+6H]
+ 055c  2b 5c 0c                          sub     bx,[si+0cH]
+ 055f  1b 4c 0e                          sbb     cx,[si+0eH]
+ 0562  e8 00 00                          call    abWrite_
+
+ sbPtr->bufferDonePos = startPos + bytesWritten;  // store bytes written (updated in pause if needed)
+ 0565  8b 4e fa                          mov     cx,[bp-6H]
+ 0568  01 c1                             add     cx,ax
+ 056a  89 4c 10                          mov     [si+10H],cx
+ 056d  8b 4e f8                          mov     cx,[bp-8H]
+ 0570  11 d1                             adc     cx,dx
+ 0572  89 4c 12                          mov     [si+12H],cx
+
+ sbPtr->bufferCurrPos = sbPtr->bufferCurrPos + bytesWritten; // update position according to Garp
+
+ // check if this emptied the buffer (check on dword align in case last buffer, which may not be)
+ // if it's empty put it on the tail of the Done queue
+
+ 0575  8b 4c 0c                          mov     cx,[si+0cH]
+ 0578  89 c3                             mov     bx,ax
+ 057a  01 c1                             add     cx,ax
+ 057c  8b 44 0e                          mov     ax,[si+0eH]
+ 057f  89 4c 0c                          mov     [si+0cH],cx
+ 0582  11 d0                             adc     ax,dx
+ 0584  89 44 0e                          mov     [si+0eH],ax
+ 0587  89 56 fc                          mov     [bp-4H],dx
+
+ if (sbPtr->bufferCurrPos >= (sbPtr->bufferSize & 0xFFFFFFFC)) {
+    STREAM_BUFFER *tsbPtr = sbPopHead(&streamPtr->sbaProc);
+ 058a  8b 54 08                          mov     dx,[si+8H]
+ 058d  8b 44 0a                          mov     ax,[si+0aH]
+ 0590  8b 4c 0e                          mov     cx,[si+0eH]
+ 0593  80 e2 fc                          and     dl,0fcH
+ 0596  39 c8                             cmp     ax,cx
+ 0598  72 07                             jb      L40
+ 059a  75 13                             jne     L41
+ 059c  3b 54 0c                          cmp     dx,[si+0cH]
+ 059f  77 0e                             ja      L41
+
+ 05a1  8b 56 fe          L40             mov     dx,[bp-2H]
+
+    sbPushOnTail(tsbPtr, &streamPtr->sbaDone);
+ 05a4  89 f8                             mov     ax,di
+ 05a6  83 c2 14                          add     dx,0014H
+ 05a9  e8 00 00                          call    sbPopHead_
+ 05ac  e8 00 00                          call    sbPushOnTail_
+
+ }
+
+ return bytesWritten; // just so can use it for tracePerf
+ 05af  8b 56 fc          L41             mov     dx,[bp-4H]
+
+}
+
+
+// ---------------------------------
+// in: wsPtr -> WAVESTREAM structure
+//out: n/a
+//nts: read recorded data from the audio buffer
+//     called at interrupt time (via wavestreamProcess())
+//     (was _vReadAudioBuf)
+
+ 05b2  89 d8                             mov     ax,bx
+ 05b4  89 ec                             mov     sp,bp
+ 05b6  5d                                pop     bp
+ 05b7  5f                                pop     di
+ 05b8  5e                                pop     si
+ 05b9  59                                pop     cx
+ 05ba  5b                                pop     bx
+ 05bb  c3                                ret     
+
+static ULONG ReadAudioBuffer(WAVESTREAM *wsPtr) {
+
+ UCHAR __far *dataBufferPtr;
+ ULONG bufferLeft, space, bytesRead;
+ ULONG totBytes = 0;  // need separate var since bytesRead used in loop
+
+ STREAM_BUFFER *sbPtr;
+ 05bc                    ReadAudioBuffer_:
+ 05bc  53                                push    bx
+ 05bd  51                                push    cx
+ 05be  56                                push    si
+ 05bf  57                                push    di
+ 05c0  55                                push    bp
+ 05c1  89 e5                             mov     bp,sp
+ 05c3  83 ec 08                          sub     sp,0008H
+ 05c6  89 c3                             mov     bx,ax
+
+ STREAM *streamPtr  = wsPtr->streamPtr;
+ 05c8  8b 3f                             mov     di,[bx]
+ 05ca  31 d2                             xor     dx,dx
+
+ AUDIOBUFFER *abPtr = &wsPtr->waPtr->ab;
+
+ 05cc  8b 47 02                          mov     ax,[bx+2H]
+ 05cf  89 56 fc                          mov     [bp-4H],dx
+ 05d2  05 0c 00                          add     ax,000cH
+ 05d5  89 56 fe                          mov     [bp-2H],dx
+ 05d8  89 46 fa                          mov     [bp-6H],ax
+
+ space = abSpace(abPtr) & ALIGN_FILL_CAPTURE;   // was not here at all before
+ 05db  e8 00 00                          call    abSpace_
+ 05de  25 00 fc                          and     ax,0fc00H
+ 05e1  09 c2                             or      dx,ax
+ 05e3  0f 84 8f 00                       je      L45
+
+ while(space && sbNotEmpty(&streamPtr->sbaProc)) {
+
+ 05e7  8d 45 14                          lea     ax,[di+14H]
+ 05ea  89 46 f8                          mov     [bp-8H],ax
+ 05ed  83 c7 10                          add     di,0010H
+ 05f0  89 f8             L42             mov     ax,di
+ 05f2  e8 00 00                          call    sbNotEmpty_
+ 05f5  85 c0                             test    ax,ax
+ 05f7  0f 84 7b 00                       je      L45
+
+    sbPtr = sbHead(&streamPtr->sbaProc);
+
+    dataBufferPtr = sbPtr->bufferPtr + sbPtr->bufferCurrPos;
+    bufferLeft    = sbPtr->bufferSize - sbPtr->bufferCurrPos;
+
+ 05fb  89 f8                             mov     ax,di
+ 05fd  e8 00 00                          call    sbHead_
+ 0600  89 c6                             mov     si,ax
+
+    bytesRead = abRead(dataBufferPtr, bufferLeft, abPtr);  // read from the audio buffer
+ 0602  ff 76 fa                          push    [bp-6H]
+ 0605  8b 44 04                          mov     ax,[si+4H]
+ 0608  8b 5c 0c                          mov     bx,[si+0cH]
+ 060b  8b 54 06                          mov     dx,[si+6H]
+ 060e  01 d8                             add     ax,bx
+ 0610  8b 5c 08                          mov     bx,[si+8H]
+ 0613  8b 4c 0a                          mov     cx,[si+0aH]
+ 0616  2b 5c 0c                          sub     bx,[si+0cH]
+ 0619  1b 4c 0e                          sbb     cx,[si+0eH]
+ 061c  e8 00 00                          call    abRead_
+
+    totBytes = totBytes + bytesRead;  // for tracePerf
+
+ 061f  8b 4e fc                          mov     cx,[bp-4H]
+ 0622  8b 5e fe                          mov     bx,[bp-2H]
+ 0625  01 c1                             add     cx,ax
+ 0627  89 4e fc                          mov     [bp-4H],cx
+
+    sbPtr->bufferCurrPos = sbPtr->bufferCurrPos + bytesRead; // update position according to Garp
+
+    // check if this emptied the buffer (check on dword align in case last buffer, which may not be)
+    // if it's empty put it on the tail of the Done queue
+
+ 062a  8b 4c 0c                          mov     cx,[si+0cH]
+ 062d  11 d3                             adc     bx,dx
+ 062f  01 c1                             add     cx,ax
+ 0631  8b 44 0e                          mov     ax,[si+0eH]
+ 0634  89 4c 0c                          mov     [si+0cH],cx
+ 0637  11 d0                             adc     ax,dx
+ 0639  89 44 0e                          mov     [si+0eH],ax
+ 063c  89 5e fe                          mov     [bp-2H],bx
+ 063f  8b 4c 0c                          mov     cx,[si+0cH]
+
+    if (sbPtr->bufferCurrPos >= (sbPtr->bufferSize & 0xFFFFFFFC)) {
+ 0642  8b 54 08                          mov     dx,[si+8H]
+ 0645  8b 44 0a                          mov     ax,[si+0aH]
+ 0648  8b 5c 0e                          mov     bx,[si+0eH]
+ 064b  80 e2 fc                          and     dl,0fcH
+ 064e  39 d8                             cmp     ax,bx
+ 0650  72 06                             jb      L43
+ 0652  75 0f                             jne     L44
+ 0654  39 ca                             cmp     dx,cx
+ 0656  77 0b                             ja      L44
+
+       STREAM_BUFFER *tsbPtr = sbPopHead(&streamPtr->sbaProc);
+       sbPushOnTail(tsbPtr, &streamPtr->sbaDone);
+    }
+
+ 0658  89 f8             L43             mov     ax,di
+ 065a  8b 56 f8                          mov     dx,[bp-8H]
+ 065d  e8 00 00                          call    sbPopHead_
+ 0660  e8 00 00                          call    sbPushOnTail_
+
+    space = abSpace(abPtr) & ALIGN_FILL_CAPTURE;  // was & 0xFFFFFFFC;;
+ 0663  8b 46 fa          L44             mov     ax,[bp-6H]
+ 0666  e8 00 00                          call    abSpace_
+ 0669  25 00 fc                          and     ax,0fc00H
+
+ }
+
+ return totBytes;
+ 066c  85 d2                             test    dx,dx
+ 066e  75 80                             jne     L42
+ 0670  85 c0                             test    ax,ax
+ 0672  0f 85 7a ff                       jne     L42
+
+}
+
+
+
+ 0676  8b 46 fc          L45             mov     ax,[bp-4H]
+ 0679  8b 56 fe                          mov     dx,[bp-2H]
+ 067c  89 ec                             mov     sp,bp
+ 067e  5d                                pop     bp
+ 067f  5f                                pop     di
+ 0680  5e                                pop     si
+ 0681  59                                pop     cx
+ 0682  5b                                pop     bx
+ 0683  c3                                ret     
+
+No disassembly errors
+
+List of external symbols
+
+Symbol
+----------------
+abUpdate_        00000419 000000b3 00000016
+sbNotEmpty_      000005f3 000004f8 00000469 0000044d 00000426 00000078 0000003b 0000002a
+FillAudioBuffer_ 
+                 000004c7 00000033
+sbHead_          000005fe 00000538 00000476 00000433 00000044
+streamReturnBuffer_ 
+                 00000081 00000069
+ReadAudioBuffer_ 
+                 00000400 00000070
+__U4D            00000104 000000d8
+__U4M            00000117 000000fc 000000e6
+waConfigDev_     00000141
+ResetAudioBuffer_ 
+                 00000146
+waveplayStart_   00000154
+waverecStart_    0000015b
+waveplayStop_    000001c8 00000180
+waverecStop_     000001cd 00000185
+streamReturnBuffers_ 
+                 0000018c
+wavestreamGetCurrentTime_ 
+                 000001df 00000197
+abReset_         000004bd 000002b7 000001f7 000001af
+RealignPausedBuffers_ 
+                 000001da
+malloc_          00000217
+streamInit_      00000280
+_wap             0000029d
+_war             000002a4
+free_            00000354 0000034f 00000335
+streamDeinit_    0000034a
+RealignBuffer_   0000047d 00000442
+sbPopHead_       0000065e 000005aa 00000485 00000458
+sbPushOnHead_    00000495 0000045b
+sbPushOnTail_    00000661 000005ad 0000048e
+abFill_          000004d1
+abSpace_         00000667 000005dc 00000506 000004e9
+WriteAudioBuffer_ 
+                 00000501
+abBytes_         00000540
+abWrite_         00000563
+abRead_          0000061d
+------------------------------------------------------------
+
+Segment: _BSS  PARA   00000004 bytes  
+
+No disassembly errors
+
+------------------------------------------------------------
+List of public symbols
+
+SYMBOL          GROUP           SEGMENT          ADDRESS
+---------------------------------------------------------
+FillAudioBuffer_ 
+                                _TEXT            000004d8
+ReadAudioBuffer_ 
+                                _TEXT            000005bc
+RealignBuffer_                  _TEXT            0000035c
+RealignPausedBuffers_ 
+                                _TEXT            000003e8
+ResetAudioBuffer_ 
+                                _TEXT            000004a4
+wavestreamDeinit_ 
+                                _TEXT            00000344
+wavestreamGetCurrentTime_ 
+                                _TEXT            0000008c
+wavestreamInit_                 _TEXT            00000200
+wavestreamPause_ 
+                                _TEXT            000001b8
+wavestreamProcess_ 
+                                _TEXT            00000000
+wavestreamResume_ 
+                                _TEXT            0000013c
+wavestreamSetCurrentTime_ 
+                                _TEXT            00000134
+wavestreamStart_ 
+                                _TEXT            0000013c
+wavestreamStop_                 _TEXT            00000170
+WriteAudioBuffer_ 
+                                _TEXT            00000518
+
+------------------------------------------------------------
+

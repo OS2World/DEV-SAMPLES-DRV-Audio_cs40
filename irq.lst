@@ -1,0 +1,414 @@
+
+Module: D:\dev\csrc\os2dd\scd\irq.c
+Group: 'DGROUP' CONST,CONST2,_DATA,_BSS
+
+Segment: _TEXT  PARA   0000014b bytes  
+
+//
+// irq.c
+// 30-Jan-99
+//
+// VOID __far __loadds irqHandler(VOID);
+// USHORT irqEnable(USHORT irqNo);
+// USHORT irqDisable(USHORT irqNo);
+
+#include "cs40.h"
+
+static USHORT irqEnabled = 0;   // count enables, grab IRQ when 0->1, release IRQ when back to 0
+static USHORT irqLevel = 0;
+
+// -----------
+// in: n/a
+//out: clc=okay, stc=bad
+//nts: gets called by kernel to handle interrupt (interrupt context)
+//
+//     A new logical device might post an interrupt request while we are
+//     in service (such as a CAPTURE that is running along with a PLAY).
+//
+//     OS/2 2.1 and later save all regs (so documented, not 100% sure on extended regs (eax))
+//     interrupts are disabled on entry since not a shared IRQ
+//     probably should not be using cli/sti here, and
+
+VOID __far __loadds irqHandler(VOID) {
+
+ WAVESTREAM *wsPtr;
+ STREAM *streamPtr;
+ USHORT times;
+
+// !!! ---------
+//static USHORT cnt = 0;
+// ddprintf("at IRQ, cnt=%u\n",cnt);
+
+
+ 0000  1e                irqHandler_     push    ds
+ 0001  b8 00 00                          mov     ax,seg L21
+ 0004  8e d8                             mov     ds,ax
+ 0006  53                                push    bx
+ 0007  51                                push    cx
+ 0008  52                                push    dx
+
+ sti();         // sure, let higher-priority interrupts through
+
+//cnt++;
+//if (cnt > 99) {
+//   if ((cnt % 100) == 0) ddprintf("at IRQ, cnt=%u\n",cnt);
+//   if (cnt > 1023) cnt = 0;
+//   chipsetIntReset(AUDIOHW_WAVE_PLAY);
+//   cli();
+//   DevHelp_EOI(irqLevel);
+//   clc();
+//   return;
+//}
+
+#ifdef TRACE_IRQ
+ 0009  fb                                sti     
+
+ tracePerf(TRACE_IRQ_IN,_IF());
+#endif
+
+ 000a  9c                                pushf   
+ 000b  58                                pop     ax
+ 000c  25 00 02                          and     ax,0200H
+ 000f  99                                cwd     
+ 0010  89 c3                             mov     bx,ax
+ 0012  89 d1                             mov     cx,dx
+ 0014  b8 40 00                          mov     ax,0040H
+ 0017  e8 00 00                          call    tracePerf_
+ 001a  8b 1e 00 00                       mov     bx,_irqEnabled
+
+ for (times = 0; times < irqEnabled; times++) {
+
+ 001e  31 d2                             xor     dx,dx
+ 0020  85 db                             test    bx,bx
+ 0022  0f 86 88 00                       jbe     L8
+
+    if (chipsetIntPending(AUDIOHW_WAVE_PLAY)) {
+ 0026  b8 11 00          L1              mov     ax,0011H
+ 0029  e8 00 00                          call    chipsetIntPending_
+ 002c  85 c0                             test    ax,ax
+ 002e  74 18                             je      L3
+
+       streamPtr = streamFindActive(STREAM_WAVE_PLAY);
+ 0030  b8 11 00                          mov     ax,0011H
+ 0033  e8 00 00                          call    streamFindActive_
+ 0036  89 c3                             mov     bx,ax
+
+       if (streamPtr) {
+ 0038  85 c0                             test    ax,ax
+ 003a  74 06                             je      L2
+
+          wsPtr = streamPtr->wsParentPtr;
+
+#ifdef TRACE_PROCESS
+ tracePerf(TRACE_PROCESS_IN,_IF());
+#endif
+
+ 003c  8b 47 24                          mov     ax,[bx+24H]
+
+          wavestreamProcess(wsPtr);
+
+#ifdef TRACE_PROCESS
+ tracePerf(TRACE_PROCESS_OUT,_IF());
+#endif
+
+       }
+ 003f  e8 00 00                          call    wavestreamProcess_
+
+       chipsetIntReset(AUDIOHW_WAVE_PLAY);
+    }
+
+ 0042  b8 11 00          L2              mov     ax,0011H
+ 0045  e8 00 00                          call    chipsetIntReset_
+
+    if (chipsetIntPending(AUDIOHW_WAVE_CAPTURE)) {
+//ddprintf("at IRQ, capture, cnt=%u\n",cnt++);
+ 0048  b8 10 00          L3              mov     ax,0010H
+ 004b  e8 00 00                          call    chipsetIntPending_
+ 004e  85 c0                             test    ax,ax
+ 0050  74 18                             je      L5
+
+       streamPtr = streamFindActive(STREAM_WAVE_CAPTURE);
+ 0052  b8 10 00                          mov     ax,0010H
+ 0055  e8 00 00                          call    streamFindActive_
+ 0058  89 c3                             mov     bx,ax
+
+       if (streamPtr) {
+ 005a  85 c0                             test    ax,ax
+ 005c  74 06                             je      L4
+
+          wsPtr = streamPtr->wsParentPtr;
+ 005e  8b 47 24                          mov     ax,[bx+24H]
+
+          wavestreamProcess(wsPtr);
+       }
+ 0061  e8 00 00                          call    wavestreamProcess_
+
+       chipsetIntReset(AUDIOHW_WAVE_CAPTURE);
+    }
+
+ 0064  b8 10 00          L4              mov     ax,0010H
+ 0067  e8 00 00                          call    chipsetIntReset_
+
+    if (chipsetIntPending(AUDIOHW_TIMER)) {
+//ddprintf("at IRQ, timer, cnt=%u\n",cnt++);
+ 006a  b8 80 00          L5              mov     ax,0080H
+ 006d  e8 00 00                          call    chipsetIntPending_
+ 0070  85 c0                             test    ax,ax
+ 0072  74 06                             je      L6
+
+       chipsetIntReset(AUDIOHW_TIMER);
+    }
+
+
+    // check if anymore
+
+ 0074  b8 80 00                          mov     ax,0080H
+ 0077  e8 00 00                          call    chipsetIntReset_
+
+    if (chipsetIntPending(-1) == 0) {
+
+#ifdef TRACE_IRQ
+ 007a  b8 ff ff          L6              mov     ax,0ffffH
+ 007d  e8 00 00                          call    chipsetIntPending_
+ 0080  85 c0                             test    ax,ax
+ 0082  75 1f                             jne     L7
+
+ tracePerf(TRACE_IRQ_OUT,_IF());
+#endif
+
+ 0084  9c                                pushf   
+ 0085  58                                pop     ax
+ 0086  25 00 02                          and     ax,0200H
+ 0089  99                                cwd     
+ 008a  89 c3                             mov     bx,ax
+ 008c  89 d1                             mov     cx,dx
+ 008e  b8 40 80                          mov     ax,8040H
+ 0091  e8 00 00                          call    tracePerf_
+
+       cli();
+ 0094  fa                                cli     
+
+       DevHelp_EOI(irqLevel);
+ 0095  a1 00 00                          mov     ax,_irqLevel
+ 0098  b2 31                             mov     dl,31H
+ 009a  ff 1e 00 00                       call    dword ptr _Device_Help
+ 009e  29 c0                             sub     ax,ax
+
+       clc();
+ 00a0  f8                                clc     
+
+       return;
+    }
+
+ 00a1  eb 17                             jmp     L9
+
+ }
+//ddprintf("at IRQ, stc()\n");
+
+#ifdef TRACE_IRQ
+ 00a3  8b 0e 00 00       L7              mov     cx,_irqEnabled
+ 00a7  42                                inc     dx
+ 00a8  39 ca                             cmp     dx,cx
+ 00aa  0f 82 78 ff                       jb      L1
+
+ tracePerf(TRACE_IRQ_OUT,0x9999);
+#endif
+
+ 00ae  bb 99 99          L8              mov     bx,9999H
+ 00b1  b8 40 80                          mov     ax,8040H
+ 00b4  31 c9                             xor     cx,cx
+ 00b6  e8 00 00                          call    tracePerf_
+
+ stc();
+
+ return;        // back to kernel with bad news
+ 00b9  f9                                stc     
+
+}
+
+
+// ---------
+// in: irqNo
+//out: 0=okay 1=fail (or other rc error)
+//nts: if 0->1 grab IRQ
+//     ds must be set correctly since checked by kernel when unsetting
+//     if irq already set, inc count (error if irqNo differs from irqLevel)
+
+ 00ba  5a                L9              pop     dx
+ 00bb  59                                pop     cx
+ 00bc  5b                                pop     bx
+ 00bd  1f                                pop     ds
+ 00be  cb                                retf    
+ 00bf  fc                                cld     
+
+USHORT irqEnable(USHORT irqNo) {
+
+ 00c0  53                irqEnable_      push    bx
+ 00c1  51                                push    cx
+ 00c2  52                                push    dx
+ 00c3  8b 0e 00 00                       mov     cx,_irqEnabled
+
+ USHORT rc = 0;
+
+ 00c7  31 db                             xor     bx,bx
+
+ if (irqEnabled && (irqNo != irqLevel)) return 1;
+
+ 00c9  85 c9                             test    cx,cx
+ 00cb  74 0b                             je      L10
+ 00cd  3b 06 00 00                       cmp     ax,_irqLevel
+ 00d1  74 05                             je      L10
+ 00d3  b8 01 00                          mov     ax,0001H
+ 00d6  eb 21                             jmp     L14
+
+ if (irqEnabled == 0) {
+ 00d8  85 c9             L10             test    cx,cx
+ 00da  75 16                             jne     L12
+
+    irqLevel = irqNo;
+ 00dc  a3 00 00                          mov     _irqLevel,ax
+ 00df  89 c3                             mov     bx,ax
+
+    rc = DevHelp_SetIRQ((NPFN)irqHandler, irqLevel, 0); // rc =1 if already owned
+
+// !!!
+//ddprintf("@SetIRQ (#%u), rc=%u\n",irqNo,rc);
+
+ }
+ 00e1  30 f6                             xor     dh,dh
+ 00e3  b8 00 00                          mov     ax,offset irqHandler_
+ 00e6  b2 1b                             mov     dl,1bH
+ 00e8  ff 1e 00 00                       call    dword ptr _Device_Help
+ 00ec  72 02                             jb      L11
+ 00ee  29 c0                             sub     ax,ax
+ 00f0  89 c3             L11             mov     bx,ax
+
+ if (rc == 0) irqEnabled++;
+
+ 00f2  85 db             L12             test    bx,bx
+ 00f4  75 01                             jne     L13
+ 00f6  41                                inc     cx
+
+ return rc;
+ 00f7  89 d8             L13             mov     ax,bx
+
+}
+
+
+// ---------
+// in: irqNo
+//out: 0=okay, 1=errro
+//nts: if 1->0 release IRQ
+//     ds must be set to owner
+
+ 00f9  89 0e 00 00       L14             mov     _irqEnabled,cx
+ 00fd  5a                                pop     dx
+ 00fe  59                                pop     cx
+ 00ff  5b                                pop     bx
+ 0100  c3                                ret     
+ 0101  89 c0                             mov     ax,ax
+ 0103  fc                                cld     
+
+USHORT irqDisable(USHORT irqNo) {
+
+ 0104  53                irqDisable_     push    bx
+ 0105  51                                push    cx
+ 0106  52                                push    dx
+ 0107  8b 0e 00 00                       mov     cx,_irqEnabled
+
+ USHORT rc = 0;
+
+ 010b  31 db                             xor     bx,bx
+
+ if (irqEnabled == 0) return 1;
+ 010d  85 c9                             test    cx,cx
+ 010f  75 05                             jne     L15
+ 0111  b8 01 00                          mov     ax,0001H
+ 0114  eb 2d                             jmp     L20
+
+ if (irqNo != irqLevel) return 1;
+ 0116  8b 16 00 00       L15             mov     dx,_irqLevel
+ 011a  39 d0                             cmp     ax,dx
+ 011c  74 0b                             je      L16
+ 011e  b8 01 00                          mov     ax,0001H
+ 0121  89 0e 00 00                       mov     _irqEnabled,cx
+ 0125  5a                                pop     dx
+ 0126  59                                pop     cx
+ 0127  5b                                pop     bx
+ 0128  c3                                ret     
+
+ if (irqEnabled == 1) {
+ 0129  83 f9 01          L16             cmp     cx,0001H
+ 012c  75 0e                             jne     L18
+
+    rc = DevHelp_UnSetIRQ(irqNo);  // rc=1 if not owner of IRQ based on DS
+
+// !!!
+//ddprintf("@UnSetIRQ (#%u), rc=%u\n",irqNo,rc);
+
+ }
+ 012e  89 d3                             mov     bx,dx
+ 0130  b2 1c                             mov     dl,1cH
+ 0132  ff 1e 00 00                       call    dword ptr _Device_Help
+ 0136  72 02                             jb      L17
+ 0138  29 c0                             sub     ax,ax
+ 013a  89 c3             L17             mov     bx,ax
+
+ if (rc == 0) irqEnabled--;
+
+ 013c  85 db             L18             test    bx,bx
+ 013e  75 01                             jne     L19
+ 0140  49                                dec     cx
+
+ return 0;
+ 0141  31 c0             L19             xor     ax,ax
+
+}
+
+
+ 0143  89 0e 00 00       L20             mov     _irqEnabled,cx
+ 0147  5a                                pop     dx
+ 0148  59                                pop     cx
+ 0149  5b                                pop     bx
+ 014a  c3                                ret     
+
+No disassembly errors
+
+List of external symbols
+
+Symbol
+----------------
+tracePerf_       000000b7 00000092 00000018
+_irqEnabled      00000145 00000123 00000109 000000fb 000000c5 000000a5 0000001c
+chipsetIntPending_ 
+                 0000007e 0000006e 0000004c 0000002a
+streamFindActive_ 
+                 00000056 00000034
+wavestreamProcess_ 
+                 00000062 00000040
+chipsetIntReset_ 
+                 00000078 00000068 00000046
+_irqLevel        00000118 000000dd 000000cf 00000096
+_Device_Help     00000134 000000ea 0000009c
+irqHandler_      000000e4
+------------------------------------------------------------
+
+Segment: _DATA  WORD   00000004 bytes  
+ 0000  00 00                   _irqEnabled     - ..
+ 0002  00 00                   _irqLevel       - ..
+
+No disassembly errors
+
+------------------------------------------------------------
+List of public symbols
+
+SYMBOL          GROUP           SEGMENT          ADDRESS
+---------------------------------------------------------
+_irqEnabled     DGROUP          _DATA            00000000
+_irqLevel       DGROUP          _DATA            00000002
+irqDisable_                     _TEXT            00000104
+irqEnable_                      _TEXT            000000c0
+irqHandler_                     _TEXT            00000000
+
+------------------------------------------------------------
+

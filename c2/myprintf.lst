@@ -1,0 +1,1169 @@
+
+Module: D:\dev\csrc\os2dd\scd\myprintf.c
+Group: 'DGROUP' CONST,CONST2,_DATA,_BSS
+
+Segment: _DATA  WORD   00000011 bytes  
+ 0000  30 31 32 33 34 35 36 37 _ddhextab       - 01234567
+ 0008  38 39 41 42 43 44 45 46                 - 89ABCDEF
+ 0010  00                                      - .
+
+No disassembly errors
+
+------------------------------------------------------------
+
+Segment: _BSS  PARA   00000104 bytes  
+
+No disassembly errors
+
+------------------------------------------------------------
+
+Segment: _TEXT  PARA   00000566 bytes  
+
+//
+// myprintf()
+// 25-Jan-99
+//
+// see ras40's stuff for perhaps a more recent version
+//
+// Note: if "%s" then string pointer in the ,... section must be a FAR POINTER! in the , ...
+//       part of the string:  ddprintf(dest,"%s","a string"); will fail because compiler
+//       only passes near pointer for "a string" -- either pass a far pointer, or use
+//       ddprintf(dest,"%s",(char __far *)"a string"), or don't use strings in the arg list,
+//       but instead actual (far) pointers
+//
+// static VOID PrintCom(USHORT basePort, UCHAR byte);
+// static VOID ddputstring (char far *St);
+// static char far *ddprintf_DecWordToASCII(char far *StrPtr, WORD wDecVal, WORD Option);
+// static char far *ddprintf_DecLongToASCII(char far *StrPtr, DWORD lDecVal,WORD Option);
+// static char far *ddprintf_HexWordToASCII(char far *StrPtr, WORD wHexVal, WORD Option);
+// static char far *ddprintf_HexLongToASCII(char far *StrPtr, DWORD wHexVal, WORD Option);
+// VOID __cdecl ddprintf (char far *DbgStr , ...);
+//
+// writes to com port 2 a ddprintf() string (up to MAX_STR_SIZE bytes)
+// (or could write to screen at init (DosPutMessage) or basedev (devhelp save_message)
+//
+// 16-bit version, so %u limited to word-size data (use %lh for 32-bit data (%lx, too)
+// though %p always goes after seg:off so expects 32-bit data
+//
+// should only include in debug builds (probably, or at least move data and code to INIT segment)
+
+//#define DRV_16 (can only find it used in a PAS16 mixer thing)
+
+//#define FAST_OUT  // only output strings starting with ~ if defined
+
+#include "cs40.h"
+
+#pragma code_seg ("_TEXT");
+#pragma data_seg ("_DATA","DATA");
+
+#define MAX_STR_SIZE 260
+
+#define LEADING_ZEROES          0x8000
+#define SIGNIFICANT_FIELD       0x0007
+
+static char ddhextab[]="0123456789ABCDEF";
+static char dd_BuildString[MAX_STR_SIZE];
+
+// Following declarations are need for string display from basedev
+//#define MSG_REPLACEMENT_STRING 1178   /* replacement string */
+//UCHAR szStringOut [CCHMAXPATH];
+//static MSGTABLE StringOutMsg = {MSG_REPLACEMENT_STRING, 1, NULL};
+
+// dx+5 is LSR register
+// dx is baseport (also data register)
+
+VOID PrintCom(USHORT basePort, UCHAR byte);  // aux asm macro
+#pragma aux PrintCom =\
+        "add dx,5"    \
+"wait4:  in al,dx"    \
+        "test al,20h" \
+        "jz wait4"    \
+        "sub dx,5"    \
+        "mov al,ah"   \
+        "out dx,al"   \
+ parm caller nomemory [dx] [ah]  \
+ modify exact [ax dx];
+
+
+static VOID ddputstring (char far *St) {
+
+// putmessage
+   //int      iMsgLength;
+   //char far *TempSt;
+   //
+   //TempSt = St;
+   //iMsgLength = 0;
+   //while (*TempSt != '\0')
+   //   {
+   //   TempSt++;
+   //   iMsgLength++;
+   //   }               // Should strcat a \r\n to the string.
+   //DosPutMessage (1, iMsgLength, St);         // For ring-3 initialization
+
+// savemessage
+   //chhTrace_Save_Message (St);
+   //chhStringOutMsg.MsgStrings[0] = St;
+   //chhDevHelp_Save_Message ((NPBYTE)&StringOutMsg);
+
+   //dd_strcpy (szStringOut, (NPBYTE)St);      // For ring-0 initialization
+   //szStringOut [CCHMAXPATH-1] = '\0';
+
+
+// added this to write to com2 (25-Jan-99)
+// commessage
+ 0000  53                ddputstring_    push    bx
+ 0001  89 c3                             mov     bx,ax
+ 0003  8e c2                             mov     es,dx
+
+   char al = 0;
+ 0005  26 80 3f 00                       cmp     byte ptr es:[bx],00H
+ 0009  74 1d                             je      L3
+
+   while (*St) {
+ 000b  ba f8 02          L1              mov     dx,02f8H
+
+      al = *St++;
+      PrintCom(0x2F8,al);
+ 000e  26 8a 27                          mov     ah,es:[bx]
+ 0011  83 c2 05                          add     dx,0005H
+ 0014  ec                L2              in      al,dx
+ 0015  a8 20                             test    al,20H
+ 0017  74 fb                             je      L2
+ 0019  83 ea 05                          sub     dx,0005H
+ 001c  88 e0                             mov     al,ah
+ 001e  ee                                out     dx,al
+
+ 001f  26 8a 57 01                       mov     dl,es:[bx+1H]
+
+   }
+//   if (al) {
+//      PrintCom(0x2F8,13);
+//      PrintCom(0x2F8,10);
+//   }
+ 0023  43                                inc     bx
+ 0024  84 d2                             test    dl,dl
+ 0026  75 e3                             jne     L1
+
+}
+
+ 0028  5b                L3              pop     bx
+ 0029  c3                                ret     
+ 002a  89 c0                             mov     ax,ax
+
+static char far *ddprintf_DecWordToASCII(char far *StrPtr, WORD wDecVal, WORD Option) {
+
+  BOOL fNonZero=FALSE;
+  WORD Digit;
+ 002c                    ddprintf_DecWordToASCII_:
+ 002c  56                                push    si
+ 002d  55                                push    bp
+ 002e  89 e5                             mov     bp,sp
+ 0030  83 ec 02                          sub     sp,0002H
+ 0033  89 c6                             mov     si,ax
+ 0035  8e c2                             mov     es,dx
+ 0037  89 4e fe                          mov     [bp-2H],cx
+
+  WORD Power=10000;
+
+  while (Power)
+     {
+ 003a  b8 10 27                          mov     ax,2710H
+ 003d  31 c9                             xor     cx,cx
+
+     Digit=0;
+     while (wDecVal >=Power)                   //Digit=wDecVal/Power;
+        {
+        Digit++;
+ 003f  31 d2             L4              xor     dx,dx
+ 0041  39 c3                             cmp     bx,ax
+ 0043  72 07                             jb      L6
+
+ 0045  29 c3             L5              sub     bx,ax
+
+        wDecVal-=Power;
+ 0047  42                                inc     dx
+
+        }
+
+ 0048  39 c3                             cmp     bx,ax
+ 004a  73 f9                             jae     L5
+
+     if (Digit)
+ 004c  85 d2             L6              test    dx,dx
+ 004e  74 03                             je      L7
+
+        fNonZero=TRUE;
+
+ 0050  b9 01 00                          mov     cx,0001H
+
+     if (Digit ||
+         fNonZero ||
+         (Option & LEADING_ZEROES) ||
+         ((Power==1) && (fNonZero==FALSE)))
+         {
+         *StrPtr=(char)('0'+Digit);
+ 0053  75 13             L7              jne     L8
+ 0055  85 c9                             test    cx,cx
+ 0057  75 0f                             jne     L8
+ 0059  f6 46 ff 80                       test    byte ptr [bp-1H],80H
+ 005d  75 09                             jne     L8
+ 005f  3d 01 00                          cmp     ax,0001H
+ 0062  75 0c                             jne     L9
+ 0064  85 d2                             test    dx,dx
+ 0066  75 08                             jne     L9
+
+ 0068  46                L8              inc     si
+
+         StrPtr++;
+         }
+
+ 0069  80 c2 30                          add     dl,30H
+ 006c  26 88 54 ff                       mov     es:[si-1H],dl
+
+     if (Power==10000)
+ 0070  3d 10 27          L9              cmp     ax,2710H
+ 0073  75 05                             jne     L10
+
+        Power=1000;
+ 0075  b8 e8 03                          mov     ax,03e8H
+
+     else if (Power==1000)
+ 0078  eb 20                             jmp     L14
+ 007a  3d e8 03          L10             cmp     ax,03e8H
+ 007d  75 05                             jne     L11
+
+        Power=100;
+ 007f  b8 64 00                          mov     ax,0064H
+
+     else if (Power==100)
+ 0082  eb 16                             jmp     L14
+ 0084  3d 64 00          L11             cmp     ax,0064H
+ 0087  75 05                             jne     L12
+
+        Power=10;
+ 0089  b8 0a 00                          mov     ax,000aH
+
+     else if (Power==10)
+ 008c  eb 0c                             jmp     L14
+ 008e  3d 0a 00          L12             cmp     ax,000aH
+ 0091  75 05                             jne     L13
+
+        Power=1;
+ 0093  b8 01 00                          mov     ax,0001H
+
+     else
+ 0096  eb 02                             jmp     L14
+
+        Power=0;
+     } // end while
+
+  return (StrPtr);
+ 0098  31 c0             L13             xor     ax,ax
+ 009a  85 c0             L14             test    ax,ax
+ 009c  75 a1                             jne     L4
+
+}
+
+
+ 009e  89 f0                             mov     ax,si
+ 00a0  8c c2                             mov     dx,es
+ 00a2  89 ec                             mov     sp,bp
+ 00a4  5d                                pop     bp
+ 00a5  5e                                pop     si
+ 00a6  c3                                ret     
+ 00a7  fc                                cld     
+
+static char far *ddprintf_DecLongToASCII(char far *StrPtr, DWORD lDecVal,WORD Option) {
+
+ 00a8                    ddprintf_DecLongToASCII_:
+ 00a8  56                                push    si
+ 00a9  57                                push    di
+ 00aa  55                                push    bp
+ 00ab  89 e5                             mov     bp,sp
+ 00ad  83 ec 06                          sub     sp,0006H
+ 00b0  89 46 fc                          mov     [bp-4H],ax
+ 00b3  8e c2                             mov     es,dx
+ 00b5  89 de                             mov     si,bx
+
+   BOOL  fNonZero=FALSE;
+   DWORD Digit;
+ 00b7  31 d2                             xor     dx,dx
+ 00b9  b8 9a 3b                          mov     ax,3b9aH
+ 00bc  89 56 fe                          mov     [bp-2H],dx
+
+   DWORD Power=1000000000;                      // 1 billion
+
+   while (Power)
+      {
+ 00bf  ba 00 ca                          mov     dx,0ca00H
+
+      Digit=0;                                                                        // Digit=lDecVal/Power
+      while (lDecVal >=Power)                   // replaced with while loop
+         {
+ 00c2  31 db             L15             xor     bx,bx
+ 00c4  89 5e fa                          mov     [bp-6H],bx
+ 00c7  39 c1                             cmp     cx,ax
+ 00c9  77 06                             ja      L16
+ 00cb  75 1e                             jne     L17
+ 00cd  39 d6                             cmp     si,dx
+ 00cf  72 1a                             jb      L17
+
+         Digit++;
+ 00d1  8b 7e fa          L16             mov     di,[bp-6H]
+ 00d4  83 c7 01                          add     di,0001H
+ 00d7  83 d3 00                          adc     bx,0000H
+
+         lDecVal-=Power;
+ 00da  29 d6                             sub     si,dx
+ 00dc  19 c1                             sbb     cx,ax
+ 00de  89 7e fa                          mov     [bp-6H],di
+
+         }
+
+ 00e1  39 c1                             cmp     cx,ax
+ 00e3  77 ec                             ja      L16
+ 00e5  75 04                             jne     L17
+ 00e7  39 d6                             cmp     si,dx
+ 00e9  73 e6                             jae     L16
+ 00eb  8b 7e fa          L17             mov     di,[bp-6H]
+
+      if (Digit)
+ 00ee  85 db                             test    bx,bx
+ 00f0  75 04                             jne     L18
+ 00f2  85 ff                             test    di,di
+ 00f4  74 05                             je      L19
+
+         fNonZero=TRUE;
+
+ 00f6  c7 46 fe 01 00    L18             mov     word ptr [bp-2H],0001H
+
+      if (Digit ||
+          fNonZero ||
+          (Option & LEADING_ZEROES) ||
+          ((Power==1) && (fNonZero==FALSE)))
+         {
+ 00fb  85 db             L19             test    bx,bx
+ 00fd  75 20                             jne     L20
+ 00ff  83 7e fa 00                       cmp     word ptr [bp-6H],0000H
+ 0103  75 1a                             jne     L20
+ 0105  8b 7e fe                          mov     di,[bp-2H]
+ 0108  85 ff                             test    di,di
+ 010a  75 13                             jne     L20
+ 010c  f6 46 09 80                       test    byte ptr [bp+9H],80H
+ 0110  75 0d                             jne     L20
+ 0112  85 c0                             test    ax,ax
+ 0114  75 1a                             jne     L21
+ 0116  83 fa 01                          cmp     dx,0001H
+ 0119  75 15                             jne     L21
+ 011b  85 ff                             test    di,di
+ 011d  75 11                             jne     L21
+
+         *StrPtr=(char)('0'+Digit);
+ 011f  8b 7e fc          L20             mov     di,[bp-4H]
+ 0122  8a 5e fa                          mov     bl,[bp-6H]
+
+         StrPtr++;
+         }
+
+ 0125  47                                inc     di
+ 0126  80 c3 30                          add     bl,30H
+ 0129  89 7e fc                          mov     [bp-4H],di
+ 012c  26 88 5d ff                       mov     es:[di-1H],bl
+
+      if (Power==1000000000)                    // 1 billion
+ 0130  3d 9a 3b          L21             cmp     ax,3b9aH
+ 0133  75 0f                             jne     L22
+ 0135  81 fa 00 ca                       cmp     dx,0ca00H
+ 0139  75 09                             jne     L22
+
+         Power=100000000;
+ 013b  ba 00 e1                          mov     dx,0e100H
+ 013e  b8 f5 05                          mov     ax,05f5H
+
+      else if (Power==100000000)
+ 0141  e9 89 00                          jmp     L32
+ 0144  3d f5 05          L22             cmp     ax,05f5H
+ 0147  75 0f                             jne     L23
+ 0149  81 fa 00 e1                       cmp     dx,0e100H
+ 014d  75 09                             jne     L23
+
+         Power=10000000;
+ 014f  ba 80 96                          mov     dx,9680H
+ 0152  b8 98 00                          mov     ax,0098H
+
+      else if (Power==10000000)
+ 0155  e9 75 00                          jmp     L32
+ 0158  3d 98 00          L23             cmp     ax,0098H
+ 015b  75 0f                             jne     L24
+ 015d  81 fa 80 96                       cmp     dx,9680H
+ 0161  75 09                             jne     L24
+
+         Power=1000000;
+ 0163  ba 40 42                          mov     dx,4240H
+ 0166  b8 0f 00                          mov     ax,000fH
+
+      else if (Power==1000000)
+ 0169  e9 61 00                          jmp     L32
+ 016c  3d 0f 00          L24             cmp     ax,000fH
+ 016f  75 0e                             jne     L25
+ 0171  81 fa 40 42                       cmp     dx,4240H
+ 0175  75 08                             jne     L25
+
+         Power=100000;
+ 0177  ba a0 86                          mov     dx,86a0H
+ 017a  b8 01 00                          mov     ax,0001H
+
+      else if (Power==100000)
+ 017d  eb 4e                             jmp     L32
+ 017f  3d 01 00          L25             cmp     ax,0001H
+ 0182  75 0b                             jne     L26
+ 0184  81 fa a0 86                       cmp     dx,86a0H
+ 0188  75 05                             jne     L26
+
+         Power=10000;
+ 018a  ba 10 27                          mov     dx,2710H
+
+      else if (Power==10000)
+ 018d  eb 3c                             jmp     L31
+ 018f  85 c0             L26             test    ax,ax
+ 0191  75 0b                             jne     L27
+ 0193  81 fa 10 27                       cmp     dx,2710H
+ 0197  75 05                             jne     L27
+
+         Power=1000;
+ 0199  ba e8 03                          mov     dx,03e8H
+
+      else if (Power==1000)
+ 019c  eb 2d                             jmp     L31
+ 019e  85 c0             L27             test    ax,ax
+ 01a0  75 0b                             jne     L28
+ 01a2  81 fa e8 03                       cmp     dx,03e8H
+ 01a6  75 05                             jne     L28
+
+         Power=100;
+ 01a8  ba 64 00                          mov     dx,0064H
+
+      else if (Power==100)
+ 01ab  eb 1e                             jmp     L31
+ 01ad  85 c0             L28             test    ax,ax
+ 01af  75 0a                             jne     L29
+ 01b1  83 fa 64                          cmp     dx,0064H
+ 01b4  75 05                             jne     L29
+
+         Power=10;
+ 01b6  ba 0a 00                          mov     dx,000aH
+
+      else if (Power==10)
+ 01b9  eb 10                             jmp     L31
+ 01bb  85 c0             L29             test    ax,ax
+ 01bd  75 0a                             jne     L30
+ 01bf  83 fa 0a                          cmp     dx,000aH
+ 01c2  75 05                             jne     L30
+
+         Power=1;
+ 01c4  ba 01 00                          mov     dx,0001H
+
+      else
+ 01c7  eb 02                             jmp     L31
+
+         Power=0;
+      }
+   return (StrPtr);
+ 01c9  31 d2             L30             xor     dx,dx
+ 01cb  31 c0             L31             xor     ax,ax
+ 01cd  85 c0             L32             test    ax,ax
+ 01cf  0f 85 ef fe                       jne     L15
+ 01d3  85 d2                             test    dx,dx
+ 01d5  0f 85 e9 fe                       jne     L15
+
+}
+
+
+ 01d9  8b 46 fc                          mov     ax,[bp-4H]
+ 01dc  8c c2                             mov     dx,es
+ 01de  89 ec                             mov     sp,bp
+ 01e0  5d                                pop     bp
+ 01e1  5f                                pop     di
+ 01e2  5e                                pop     si
+ 01e3  c2 02 00                          ret     0002H
+ 01e6  89 c0                             mov     ax,ax
+
+static char far *ddprintf_HexWordToASCII(char far *StrPtr, WORD wHexVal, WORD Option) {
+
+   BOOL fNonZero=FALSE;
+   WORD Digit;
+ 01e8                    ddprintf_HexWordToASCII_:
+ 01e8  56                                push    si
+ 01e9  57                                push    di
+ 01ea  55                                push    bp
+ 01eb  89 e5                             mov     bp,sp
+ 01ed  83 ec 04                          sub     sp,0004H
+ 01f0  89 c6                             mov     si,ax
+ 01f2  8e c2                             mov     es,dx
+ 01f4  89 5e fc                          mov     [bp-4H],bx
+ 01f7  89 4e fe                          mov     [bp-2H],cx
+
+   WORD Power=0xF000;
+ 01fa  b8 00 f0                          mov     ax,0f000H
+
+   WORD ShiftVal=12;
+
+   while (Power)
+      {
+ 01fd  ba 0c 00                          mov     dx,000cH
+ 0200  31 ff                             xor     di,di
+
+      Digit=(wHexVal & Power)>>ShiftVal;
+ 0202  8b 5e fc          L33             mov     bx,[bp-4H]
+ 0205  21 c3                             and     bx,ax
+ 0207  88 d1                             mov     cl,dl
+ 0209  d3 eb                             shr     bx,cl
+
+      if (Digit)
+ 020b  85 db                             test    bx,bx
+ 020d  74 03                             je      L34
+
+         fNonZero=TRUE;
+
+ 020f  bf 01 00                          mov     di,0001H
+
+      if (Digit ||
+          fNonZero ||
+          (Option & LEADING_ZEROES) ||
+          ((Power==0x0F) && (fNonZero==FALSE)))
+         //*StrPtr++=(char)('0'+Digit);
+ 0212  75 13             L34             jne     L35
+ 0214  85 ff                             test    di,di
+ 0216  75 0f                             jne     L35
+ 0218  f6 46 ff 80                       test    byte ptr [bp-1H],80H
+ 021c  75 09                             jne     L35
+ 021e  3d 0f 00                          cmp     ax,000fH
+ 0221  75 0d                             jne     L36
+ 0223  85 db                             test    bx,bx
+ 0225  75 09                             jne     L36
+ 0227  46                L35             inc     si
+
+         *StrPtr++=ddhextab[Digit];
+
+ 0228  8a 9f 00 00                       mov     bl,[bx+_ddhextab]
+ 022c  26 88 5c ff                       mov     es:[si-1H],bl
+
+      Power>>=4;
+ 0230  c1 e8 04          L36             shr     ax,04H
+
+      ShiftVal-=4;
+ 0233  83 ea 04                          sub     dx,0004H
+
+      } // end while
+
+   return (StrPtr);
+ 0236  85 c0                             test    ax,ax
+ 0238  75 c8                             jne     L33
+
+}
+
+
+ 023a  89 f0                             mov     ax,si
+ 023c  8c c2                             mov     dx,es
+ 023e  89 ec                             mov     sp,bp
+ 0240  5d                                pop     bp
+ 0241  5f                                pop     di
+ 0242  5e                                pop     si
+ 0243  c3                                ret     
+
+static char far *ddprintf_HexLongToASCII(char far *StrPtr, DWORD wHexVal, WORD Option) {
+
+   BOOL  fNonZero=FALSE;
+   DWORD Digit;
+ 0244                    ddprintf_HexLongToASCII_:
+ 0244  56                                push    si
+ 0245  57                                push    di
+ 0246  55                                push    bp
+ 0247  89 e5                             mov     bp,sp
+ 0249  83 ec 0a                          sub     sp,000aH
+ 024c  89 46 fe                          mov     [bp-2H],ax
+ 024f  8e c2                             mov     es,dx
+ 0251  89 5e f6                          mov     [bp-0aH],bx
+ 0254  89 4e f8                          mov     [bp-8H],cx
+
+   DWORD Power=0xF0000000;
+ 0257  b8 00 f0                          mov     ax,0f000H
+ 025a  31 d2                             xor     dx,dx
+
+   DWORD ShiftVal=28;
+
+   while (Power)
+      {
+ 025c  be 1c 00                          mov     si,001cH
+ 025f  89 56 fc                          mov     [bp-4H],dx
+
+      Digit=(wHexVal & Power)>>ShiftVal;
+ 0262  8b 5e f6          L37             mov     bx,[bp-0aH]
+ 0265  8b 7e f8                          mov     di,[bp-8H]
+ 0268  89 f1                             mov     cx,si
+ 026a  21 c7                             and     di,ax
+ 026c  21 d3                             and     bx,dx
+ 026e  e3 06                             jcxz    L39
+ 0270  d1 ef             L38             shr     di,1
+ 0272  d1 db                             rcr     bx,1
+ 0274  e2 fa                             loop    L38
+ 0276  89 d9             L39             mov     cx,bx
+ 0278  89 7e fa                          mov     [bp-6H],di
+
+      if (Digit)
+ 027b  85 ff                             test    di,di
+ 027d  75 04                             jne     L40
+ 027f  85 db                             test    bx,bx
+ 0281  74 05                             je      L41
+
+         fNonZero=TRUE;
+
+ 0283  c7 46 fc 01 00    L40             mov     word ptr [bp-4H],0001H
+
+      if (Digit ||
+          fNonZero ||
+          (Option & LEADING_ZEROES) ||
+          ((Power==0x0F) && (fNonZero==FALSE)))
+ 0288  83 7e fa 00       L41             cmp     word ptr [bp-6H],0000H
+ 028c  75 1f                             jne     L42
+ 028e  85 c9                             test    cx,cx
+ 0290  75 1b                             jne     L42
+ 0292  83 7e fc 00                       cmp     word ptr [bp-4H],0000H
+ 0296  75 15                             jne     L42
+ 0298  f6 46 09 80                       test    byte ptr [bp+9H],80H
+ 029c  75 0f                             jne     L42
+ 029e  85 c0                             test    ax,ax
+ 02a0  75 1d                             jne     L43
+ 02a2  83 fa 0f                          cmp     dx,000fH
+ 02a5  75 18                             jne     L43
+ 02a7  83 7e fc 00                       cmp     word ptr [bp-4H],0000H
+ 02ab  75 12                             jne     L43
+
+          *StrPtr++=ddhextab[Digit];
+
+ 02ad  89 cb             L42             mov     bx,cx
+ 02af  8b 7e fe                          mov     di,[bp-2H]
+ 02b2  8a 9f 00 00                       mov     bl,[bx+_ddhextab]
+ 02b6  26 88 1d                          mov     es:[di],bl
+ 02b9  8d 5d 01                          lea     bx,[di+1H]
+ 02bc  89 5e fe                          mov     [bp-2H],bx
+
+      if (Power==0xF0000000)                  // 1 billion
+ 02bf  3d 00 f0          L43             cmp     ax,0f000H
+ 02c2  75 0b                             jne     L44
+ 02c4  85 d2                             test    dx,dx
+ 02c6  75 07                             jne     L44
+ 02c8  b8 00 0f                          mov     ax,0f00H
+
+         Power=0xF000000;
+ 02cb  31 d2                             xor     dx,dx
+
+      else if (Power==0xF000000)
+ 02cd  eb 5f                             jmp     L52
+ 02cf  3d 00 0f          L44             cmp     ax,0f00H
+ 02d2  75 0b                             jne     L45
+ 02d4  85 d2                             test    dx,dx
+ 02d6  75 07                             jne     L45
+ 02d8  b8 f0 00                          mov     ax,00f0H
+
+         Power=0xF00000;
+ 02db  31 d2                             xor     dx,dx
+
+      else if (Power==0xF00000)
+ 02dd  eb 4f                             jmp     L52
+ 02df  3d f0 00          L45             cmp     ax,00f0H
+ 02e2  75 0b                             jne     L46
+ 02e4  85 d2                             test    dx,dx
+ 02e6  75 07                             jne     L46
+ 02e8  b8 0f 00                          mov     ax,000fH
+
+         Power=0xF0000;
+ 02eb  31 d2                             xor     dx,dx
+
+      else if (Power==0xF0000)
+ 02ed  eb 3f                             jmp     L52
+ 02ef  3d 0f 00          L46             cmp     ax,000fH
+ 02f2  75 09                             jne     L47
+ 02f4  85 d2                             test    dx,dx
+ 02f6  75 05                             jne     L47
+
+         Power=0xF000;
+ 02f8  ba 00 f0                          mov     dx,0f000H
+
+      else if (Power==0xF000)
+ 02fb  eb 2f                             jmp     L51
+ 02fd  85 c0             L47             test    ax,ax
+ 02ff  75 0b                             jne     L48
+ 0301  81 fa 00 f0                       cmp     dx,0f000H
+ 0305  75 05                             jne     L48
+
+         Power=0xF00;
+ 0307  ba 00 0f                          mov     dx,0f00H
+
+      else if (Power==0xF00)
+ 030a  eb 20                             jmp     L51
+ 030c  85 c0             L48             test    ax,ax
+ 030e  75 0b                             jne     L49
+ 0310  81 fa 00 0f                       cmp     dx,0f00H
+ 0314  75 05                             jne     L49
+
+         Power=0xF0;
+ 0316  ba f0 00                          mov     dx,00f0H
+
+      else if (Power==0xF0)
+ 0319  eb 11                             jmp     L51
+ 031b  85 c0             L49             test    ax,ax
+ 031d  75 0b                             jne     L50
+ 031f  81 fa f0 00                       cmp     dx,00f0H
+ 0323  75 05                             jne     L50
+
+         Power=0xF;
+ 0325  ba 0f 00                          mov     dx,000fH
+
+      else Power=0;
+
+ 0328  eb 02                             jmp     L51
+ 032a  31 d2             L50             xor     dx,dx
+ 032c  31 c0             L51             xor     ax,ax
+
+      ShiftVal-=4;
+ 032e  83 c6 fc          L52             add     si,0fffcH
+
+      } // end while
+
+   return (StrPtr);
+ 0331  85 c0                             test    ax,ax
+ 0333  0f 85 2b ff                       jne     L37
+ 0337  85 d2                             test    dx,dx
+ 0339  0f 85 25 ff                       jne     L37
+
+}
+
+// saveregs is not saving all regs! so have to do it myself to be sure all are really saved
+// esp. es:bx (can't use pusha/popa since need bp)
+// diff between __saveregs and not is just es (probably all that's called for for __cdecl)
+// si/di is already saved
+
+ 033d  8b 46 fe                          mov     ax,[bp-2H]
+ 0340  8c c2                             mov     dx,es
+ 0342  89 ec                             mov     sp,bp
+ 0344  5d                                pop     bp
+ 0345  5f                                pop     di
+ 0346  5e                                pop     si
+ 0347  c2 02 00                          ret     0002H
+ 034a  89 c0                             mov     ax,ax
+
+VOID __cdecl ddprintf (char far *DbgStr , ...) {
+
+   char far *BuildPtr; //=dd_BuildString;
+   char far *pStr;     //=(char far *) DbgStr;
+   char far *SubStr;
+   union {
+    VOID    far *VoidPtr;
+    WORD    far *WordPtr;
+    DWORD   far *LongPtr;
+    DWORD far *StringPtr;
+   } Parm;
+   WORD wBuildOption;
+
+// !!!
+// fast out
+
+#ifdef FAST_OUT
+ if (*DbgStr != '~') return;  // only let strings starting with ~ through
+#endif
+
+ 034c  56                _ddprintf       push    si
+ 034d  57                                push    di
+ 034e  55                                push    bp
+ 034f  89 e5                             mov     bp,sp
+ 0351  83 ec 0a                          sub     sp,000aH
+
+   BuildPtr = dd_BuildString;
+ 0354  be 00 00                          mov     si,offset _dd_BuildString
+
+   pStr = DbgStr;
+
+ 0357  8b 7e 08                          mov     di,[bp+8H]
+ 035a  8b 46 0a                          mov     ax,[bp+0aH]
+
+   Parm.VoidPtr=(VOID far *) &DbgStr;
+ 035d  8d 5e 08                          lea     bx,[bp+8H]
+ 0360  8c 5e fc                          mov     [bp-4H],ds
+ 0363  8c 56 f8                          mov     [bp-8H],ss
+ 0366  89 46 fe                          mov     [bp-2H],ax
+ 0369  89 5e f6                          mov     [bp-0aH],bx
+ 036c  8d 57 04                          lea     dx,[bx+4H]
+ 036f  8e c0                             mov     es,ax
+ 0371  89 fb                             mov     bx,di
+
+   Parm.StringPtr++;                            // skip size of string pointer
+
+   while (*pStr) {
+      
+ 0373  8c 56 f8                          mov     [bp-8H],ss
+ 0376  26 8a 27                          mov     ah,es:[bx]
+ 0379  89 56 f6                          mov     [bp-0aH],dx
+ 037c  84 e4                             test    ah,ah
+ 037e  0f 84 a9 01                       je      L72
+
+      if (BuildPtr >= (char far *) &dd_BuildString[MAX_STR_SIZE-2]) break; // don't overflow target
+
+ 0382  81 fe 02 01       L53             cmp     si,offset _dd_BuildString+102H
+ 0386  0f 83 a1 01                       jae     L72
+
+      switch (*pStr)
+      {
+         case '%':
+            wBuildOption=0;
+            pStr++;
+ 038a  8e 46 fe                          mov     es,[bp-2H]
+ 038d  26 8a 05                          mov     al,es:[di]
+ 0390  8d 55 01                          lea     dx,[di+1H]
+ 0393  3c 0d                             cmp     al,0dH
+ 0395  72 0f                             jb      L54
+ 0397  0f 86 76 01                       jbe     L70
+ 039b  3c 25                             cmp     al,25H
+ 039d  0f 82 70 01                       jb      L70
+ 03a1  76 0c                             jbe     L55
+ 03a3  e9 6b 01                          jmp     L70
+ 03a6  3c 0a             L54             cmp     al,0aH
+ 03a8  0f 84 55 01                       je      L69
+ 03ac  e9 62 01                          jmp     L70
+
+ 03af  89 d3             L55             mov     bx,dx
+ 03b1  26 8a 07                          mov     al,es:[bx]
+
+            if (*pStr=='0')
+               {
+ 03b4  89 d7                             mov     di,dx
+ 03b6  98                                cbw     
+ 03b7  31 c9                             xor     cx,cx
+ 03b9  3d 30 00                          cmp     ax,0030H
+ 03bc  75 04                             jne     L56
+
+               wBuildOption|=LEADING_ZEROES;
+ 03be  b9 00 80                          mov     cx,8000H
+
+               pStr++;
+               }
+
+            //if (*pStr=='u')    // always unsigned
+            //   pStr++;        // this means %u won't work!  buggy crap
+
+ 03c1  47                                inc     di
+
+            switch(*pStr)
+               {
+               case 'x':
+               case 'X':
+ 03c2  8e 46 fe          L56             mov     es,[bp-2H]
+ 03c5  26 8a 05                          mov     al,es:[di]
+ 03c8  3c 6c                             cmp     al,6cH
+ 03ca  72 2a                             jb      L58
+ 03cc  8d 5d 01                          lea     bx,[di+1H]
+ 03cf  8c c2                             mov     dx,es
+ 03d1  89 5e fa                          mov     [bp-6H],bx
+ 03d4  0f 86 c7 00                       jbe     L65
+ 03d8  3c 73                             cmp     al,73H
+ 03da  72 11                             jb      L57
+ 03dc  76 6e                             jbe     L62
+ 03de  3c 75                             cmp     al,75H
+ 03e0  0f 82 2d 01                       jb      L70
+ 03e4  76 46                             jbe     L61
+ 03e6  3c 78                             cmp     al,78H
+ 03e8  74 22                             je      L60
+ 03ea  e9 24 01                          jmp     L70
+ 03ed  3c 70             L57             cmp     al,70H
+ 03ef  0f 84 85 00                       je      L64
+ 03f3  e9 1b 01                          jmp     L70
+ 03f6  3c 58             L58             cmp     al,58H
+ 03f8  72 09                             jb      L59
+ 03fa  76 10                             jbe     L60
+ 03fc  3c 64                             cmp     al,64H
+ 03fe  74 2c                             je      L61
+ 0400  e9 0e 01                          jmp     L70
+ 0403  84 c0             L59             test    al,al
+ 0405  0f 84 17 01                       je      L71
+ 0409  e9 05 01                          jmp     L70
+
+                  BuildPtr=ddprintf_HexWordToASCII(BuildPtr, *Parm.WordPtr++,wBuildOption);
+ 040c  c4 5e f6          L60             les     bx,dword ptr [bp-0aH]
+ 040f  8b 56 f6                          mov     dx,[bp-0aH]
+ 0412  89 f0                             mov     ax,si
+ 0414  83 c2 02                          add     dx,0002H
+ 0417  26 8b 1f                          mov     bx,es:[bx]
+ 041a  89 56 f6                          mov     [bp-0aH],dx
+ 041d  8b 56 fc                          mov     dx,[bp-4H]
+
+                  pStr++;
+ 0420  47                                inc     di
+ 0421  e8 00 00                          call    ddprintf_HexWordToASCII_
+ 0424  89 c6                             mov     si,ax
+ 0426  89 56 fc                          mov     [bp-4H],dx
+
+                  continue;
+
+               case 'u':
+               case 'd':
+ 0429  e9 f4 00                          jmp     L71
+
+                  BuildPtr=ddprintf_DecWordToASCII(BuildPtr, *Parm.WordPtr++,wBuildOption);
+ 042c  c4 5e f6          L61             les     bx,dword ptr [bp-0aH]
+ 042f  83 c3 02                          add     bx,0002H
+ 0432  8b 56 fc                          mov     dx,[bp-4H]
+ 0435  26 8b 47 fe                       mov     ax,es:[bx-2H]
+ 0439  89 5e f6                          mov     [bp-0aH],bx
+ 043c  89 c3                             mov     bx,ax
+ 043e  89 f0                             mov     ax,si
+
+                  pStr++;
+ 0440  47                                inc     di
+ 0441  e8 00 00                          call    ddprintf_DecWordToASCII_
+ 0444  89 c6                             mov     si,ax
+ 0446  89 56 fc                          mov     [bp-4H],dx
+
+                  continue;
+
+               case 's':
+ 0449  e9 d4 00                          jmp     L71
+
+                  SubStr=(char far *)*Parm.StringPtr;
+ 044c  c4 5e f6          L62             les     bx,dword ptr [bp-0aH]
+ 044f  26 8b 17                          mov     dx,es:[bx]
+ 0452  26 8b 4f 02                       mov     cx,es:[bx+2H]
+
+                  while (*BuildPtr++ = *SubStr++);
+ 0456  8e c1             L63             mov     es,cx
+ 0458  89 d3                             mov     bx,dx
+ 045a  46                                inc     si
+ 045b  26 8a 07                          mov     al,es:[bx]
+ 045e  8e 46 fc                          mov     es,[bp-4H]
+ 0461  42                                inc     dx
+ 0462  26 88 44 ff                       mov     es:[si-1H],al
+ 0466  84 c0                             test    al,al
+ 0468  75 ec                             jne     L63
+
+                  Parm.StringPtr++;
+ 046a  8b 5e f6                          mov     bx,[bp-0aH]
+
+                  BuildPtr--;  // remove the \0
+ 046d  4e                                dec     si
+ 046e  83 c3 04                          add     bx,0004H
+
+                  pStr++;
+ 0471  47                                inc     di
+ 0472  89 5e f6                          mov     [bp-0aH],bx
+
+                  continue;
+
+ 0475  e9 a8 00                          jmp     L71
+
+               case 'p':
+ 0478  c4 5e f6          L64             les     bx,dword ptr [bp-0aH]
+ 047b  8b 7e f6                          mov     di,[bp-0aH]
+
+                  BuildPtr=ddprintf_HexLongToASCII(BuildPtr, *Parm.LongPtr++,wBuildOption);
+ 047e  51                                push    cx
+ 047f  89 f0                             mov     ax,si
+ 0481  8d 55 04                          lea     dx,[di+4H]
+ 0484  26 8b 1f                          mov     bx,es:[bx]
+ 0487  26 8b 4d 02                       mov     cx,es:[di+2H]
+ 048b  89 56 f6                          mov     [bp-0aH],dx
+ 048e  8b 56 fc                          mov     dx,[bp-4H]
+
+                  pStr++;
+ 0491  8b 7e fa                          mov     di,[bp-6H]
+ 0494  e8 00 00                          call    ddprintf_HexLongToASCII_
+ 0497  89 c6                             mov     si,ax
+ 0499  89 56 fc                          mov     [bp-4H],dx
+
+                  continue;
+
+               case 'l':
+                  pStr++;
+ 049c  e9 81 00                          jmp     L71
+
+ 049f  26 8a 07          L65             mov     al,es:[bx]
+
+                  switch (*pStr)
+                  {
+                  case 'x':
+ 04a2  89 df                             mov     di,bx
+ 04a4  3c 64                             cmp     al,64H
+ 04a6  72 0e                             jb      L66
+ 04a8  76 33                             jbe     L68
+ 04aa  3c 75                             cmp     al,75H
+ 04ac  72 72                             jb      L71
+ 04ae  76 2d                             jbe     L68
+ 04b0  3c 78                             cmp     al,78H
+ 04b2  74 06                             je      L67
+ 04b4  eb 6a                             jmp     L71
+ 04b6  3c 58             L66             cmp     al,58H
+ 04b8  75 66                             jne     L71
+
+                  case 'X':
+ 04ba  c4 5e f6          L67             les     bx,dword ptr [bp-0aH]
+
+                     BuildPtr=ddprintf_HexLongToASCII(BuildPtr, *Parm.LongPtr++,wBuildOption);
+ 04bd  51                                push    cx
+ 04be  8d 57 04                          lea     dx,[bx+4H]
+ 04c1  26 8b 07                          mov     ax,es:[bx]
+ 04c4  26 8b 4f 02                       mov     cx,es:[bx+2H]
+ 04c8  89 56 f6                          mov     [bp-0aH],dx
+ 04cb  89 c3                             mov     bx,ax
+ 04cd  8b 56 fc                          mov     dx,[bp-4H]
+ 04d0  89 f0                             mov     ax,si
+
+                     pStr++;
+ 04d2  47                                inc     di
+ 04d3  e8 00 00                          call    ddprintf_HexLongToASCII_
+ 04d6  89 c6                             mov     si,ax
+ 04d8  89 56 fc                          mov     [bp-4H],dx
+
+                     continue;
+
+                  case 'u':
+ 04db  eb 43                             jmp     L71
+
+                  case 'd':
+ 04dd  c4 5e f6          L68             les     bx,dword ptr [bp-0aH]
+
+                     BuildPtr=ddprintf_DecLongToASCII(BuildPtr, *Parm.LongPtr++,wBuildOption);
+ 04e0  51                                push    cx
+ 04e1  83 c3 04                          add     bx,0004H
+ 04e4  89 f0                             mov     ax,si
+ 04e6  26 8b 57 fc                       mov     dx,es:[bx-4H]
+ 04ea  26 8b 4f fe                       mov     cx,es:[bx-2H]
+ 04ee  89 5e f6                          mov     [bp-0aH],bx
+ 04f1  89 d3                             mov     bx,dx
+ 04f3  8b 56 fc                          mov     dx,[bp-4H]
+
+                     pStr++;
+ 04f6  47                                inc     di
+ 04f7  e8 00 00                          call    ddprintf_DecLongToASCII_
+ 04fa  89 c6                             mov     si,ax
+ 04fc  89 56 fc                          mov     [bp-4H],dx
+
+                     continue;
+
+                  } // end switch
+                  continue;    // dunno what he wants
+
+               case 0:
+                  continue;
+               } // end switch
+            break;
+
+         case '\\':   // that means a literal '\' is in the stream, not just a '\n' (binary 10)
+         case '\r':   // CR, already is literal (assumed "msg\n" only stores a binary 10)
+            break;
+
+         case '\n':
+ 04ff  eb 1f                             jmp     L71
+
+            *BuildPtr++=13;
+            *BuildPtr++=10;
+ 0501  8e 46 fc          L69             mov     es,[bp-4H]
+ 0504  26 c6 04 0d                       mov     byte ptr es:[si],0dH
+ 0508  46                                inc     si
+
+ 0509  89 d7                             mov     di,dx
+
+            pStr++;
+ 050b  26 88 04                          mov     es:[si],al
+ 050e  46                                inc     si
+
+            continue;
+
+      } // end switch
+
+ 050f  eb 0f                             jmp     L71
+
+      *BuildPtr++=*pStr++;
+ 0511  8e 46 fe          L70             mov     es,[bp-2H]
+ 0514  46                                inc     si
+ 0515  26 8a 05                          mov     al,es:[di]
+ 0518  8e 46 fc                          mov     es,[bp-4H]
+ 051b  47                                inc     di
+ 051c  26 88 44 ff                       mov     es:[si-1H],al
+
+   } // end while
+
+ 0520  8e 46 fe          L71             mov     es,[bp-2H]
+ 0523  26 80 3d 00                       cmp     byte ptr es:[di],00H
+ 0527  0f 85 57 fe                       jne     L53
+
+   *BuildPtr=0;                                 // cauterize the string
+ 052b  8e 46 fc          L72             mov     es,[bp-4H]
+ 052e  26 c6 04 00                       mov     byte ptr es:[si],00H
+ 0532  8c db                             mov     bx,ds
+ 0534  8a 36 00 00                       mov     dh,_dd_BuildString
+
+   ddputstring((char far *) dd_BuildString);    // display
+
+   return;
+ 0538  be 00 00                          mov     si,offset _dd_BuildString
+ 053b  84 f6                             test    dh,dh
+ 053d  74 21                             je      L75
+ 053f  b9 f8 02                          mov     cx,02f8H
+ 0542  8e c3                             mov     es,bx
+ 0544  89 ca             L73             mov     dx,cx
+ 0546  26 8a 24                          mov     ah,es:[si]
+ 0549  83 c2 05                          add     dx,0005H
+ 054c  ec                L74             in      al,dx
+ 054d  a8 20                             test    al,20H
+ 054f  74 fb                             je      L74
+ 0551  83 ea 05                          sub     dx,0005H
+ 0554  88 e0                             mov     al,ah
+ 0556  ee                                out     dx,al
+ 0557  26 8a 44 01                       mov     al,es:[si+1H]
+ 055b  46                                inc     si
+ 055c  84 c0                             test    al,al
+ 055e  75 e4                             jne     L73
+
+}
+
+
+ 0560  89 ec             L75             mov     sp,bp
+ 0562  5d                                pop     bp
+ 0563  5f                                pop     di
+ 0564  5e                                pop     si
+ 0565  c3                                ret     
+
+No disassembly errors
+
+List of external symbols
+
+Symbol
+----------------
+_ddhextab        000002b4 0000022a
+_dd_BuildString  00000539 00000536 00000384 00000355
+ddprintf_HexWordToASCII_ 
+                 00000422
+ddprintf_DecWordToASCII_ 
+                 00000442
+ddprintf_HexLongToASCII_ 
+                 000004d4 00000495
+ddprintf_DecLongToASCII_ 
+                 000004f8
+------------------------------------------------------------
+List of public symbols
+
+SYMBOL          GROUP           SEGMENT          ADDRESS
+---------------------------------------------------------
+_dd_BuildString DGROUP          _BSS             00000000
+_ddhextab       DGROUP          _DATA            00000000
+_ddprintf                       _TEXT            0000034c
+ddprintf_DecLongToASCII_ 
+                                _TEXT            000000a8
+ddprintf_DecWordToASCII_ 
+                                _TEXT            0000002c
+ddprintf_HexLongToASCII_ 
+                                _TEXT            00000244
+ddprintf_HexWordToASCII_ 
+                                _TEXT            000001e8
+ddputstring_                    _TEXT            00000000
+
+------------------------------------------------------------
+

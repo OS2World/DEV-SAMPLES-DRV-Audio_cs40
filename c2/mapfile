@@ -1,0 +1,410 @@
+WATCOM Linker Version 10.0
+Copyright by WATCOM International Corp. 1985, 1994. All rights reserved.
+Created on:       99/09/29 10:22:28
+Executable Image: cs40.sys
+creating an OS/2 16-bit dynamic link library
+
+
+                        +------------+
+                        |   Groups   |
+                        +------------+
+
+Group                           Address              Size
+=====                           =======              ====
+
+DGROUP                          0001:0000            00002bc2
+CGROUP                          0002:0000            000051ed
+
+
+
+                        +--------------+
+                        |   Segments   |
+                        +--------------+
+
+Segment                Class          Group          Address         Size
+=======                =====          =====          =======         ====
+
+_HEADER                DATA           DGROUP         0001:0000       0000001e
+_DATA                  DATA           DGROUP         0001:0020       000002f2
+CONST                  DATA           DGROUP         0001:0320       00000561
+CONST2                 DATA           DGROUP         0001:0890       00000113
+_BSS                   BSS            DGROUP         0001:09b0       000021f0
+_HEMP                  BSS            DGROUP         0001:2ba0       00000000
+_ENDHEMP               BSS            DGROUP         0001:2ba0       00000002
+_ENDDS                 ENDDS          DGROUP         0001:2bb0       00000002
+_INITDATA              ENDDS          DGROUP         0001:2bc0       00000000
+_ENDINITDATA           ENDDS          DGROUP         0001:2bc0       00000002
+_TEXT                  CODE           CGROUP         0002:0000       00003810
+_ENDCS                 CODE           CGROUP         0002:3810       00000002
+RMCODE                 CODE           CGROUP         0002:3820       00000000
+_INITTEXT              CODE           CGROUP         0002:3820       000019cd
+header11_DATA          FAR_DATA                      0003:0000       00000000
+strat11_DATA           FAR_DATA                      0003:0000       00000000
+audiobuf11_DATA        FAR_DATA                      0003:0000       00000000
+audiohw11_DATA         FAR_DATA                      0003:0000       00000000
+dma11_DATA             FAR_DATA                      0003:0000       00000000
+irq11_DATA             FAR_DATA                      0003:0000       00000000
+wavaudio11_DATA        FAR_DATA                      0003:0000       00000000
+wavestrm11_DATA        FAR_DATA                      0003:0000       00000000
+stream11_DATA          FAR_DATA                      0003:0000       00000000
+waveplay11_DATA        FAR_DATA                      0003:0000       00000000
+waverec11_DATA         FAR_DATA                      0003:0000       00000000
+ioctl11_DATA           FAR_DATA                      0003:0000       00000000
+ssm_idc11_DATA         FAR_DATA                      0003:0000       00000000
+chipset11_DATA         FAR_DATA                      0003:0000       00000000
+malloc11_DATA          FAR_DATA                      0003:0000       00000000
+myprintf11_DATA        FAR_DATA                      0003:0000       00000000
+init11_DATA            FAR_DATA                      0003:0000       00000000
+
+
+                        +----------------+
+                        |   Memory Map   |
+                        +----------------+
+
+* = unreferenced symbol
++ = symbol only referenced locally
+
+Address        Symbol
+=======        ======
+
+Module: segsetup.obj(segsetup.asm)
+0001:2bb0      _endData
+0001:2ba0      _endHeap
+0001:2bc0*     _ENDINITDATA
+0002:3810      _endCode
+0002:0000      iodelay_
+0002:000a      __U4M
+0002:000a*     __I4M
+0002:0026      __U4D
+0002:004c*     __I4D
+Module: header.obj(D:\dev\csrc\os2dd\scd\header.c)
+0001:0000*     _header
+Module: strat.obj(D:\dev\csrc\os2dd\scd\strat.c)
+0002:0080      tracePerf_
+0002:011c      traceCalibrate_
+0002:01a8      stratMode2_
+Module: audiobuf.obj(D:\dev\csrc\os2dd\scd\audiobuf.c)
+0002:0358      abReset_
+0002:0374      abSpace_
+0002:03b4      abBytes_
+0002:03c0      abUpdate_
+0002:03e8      abWrite_
+0002:05c0      abRead_
+0002:0798      abFill_
+0002:0850*     abDeinit_
+0001:0040      _Device_Help
+0002:3820      abInit_
+Module: audiohw.obj(D:\dev\csrc\os2dd\scd\audiohw.c)
+0002:0880      hwGetType_
+0002:08b8*     hwSetType_
+0001:0044+     _t2dList
+Module: dma.obj(D:\dev\csrc\os2dd\scd\dma.c)
+0002:0950      dmaQueryDelta_
+0002:09d8      dmaWaitForChannel_
+0002:0a10      dmaStart_
+0002:0a74      dmaStop_
+0002:0a84*     dmaSetModeType_
+0002:0a98      dmaInit_
+0002:0b88*     dmaDeinit_
+Module: irq.obj(D:\dev\csrc\os2dd\scd\irq.c)
+0002:0ba0      irqHandler_
+0002:0c60      irqEnable_
+0002:0ca4      irqDisable_
+Module: wavaudio.obj(D:\dev\csrc\os2dd\scd\wavaudio.c)
+0002:0cf0      waDevCaps_
+0002:0fc0      waConfigDev_
+0002:1148*     waResume_
+0002:1148*     waPause_
+0001:0270+     _sampleRates
+0002:39b0      waSetup_
+Module: wavestrm.obj(D:\dev\csrc\os2dd\scd\wavestrm.c)
+0002:1150      wavestreamProcess_
+0002:11dc      wavestreamGetCurrentTime_
+0002:1284      wavestreamSetCurrentTime_
+0002:128c      wavestreamStart_
+0002:128c      wavestreamResume_
+0002:12c0      wavestreamStop_
+0002:1308      wavestreamPause_
+0002:1350      wavestreamInit_
+0002:1494      wavestreamDeinit_
+Module: stream.obj(D:\dev\csrc\os2dd\scd\stream.c)
+0002:17e0      streamReturnBuffer_
+0002:1878      streamReturnBuffers_
+0002:18e8      streamPauseTime_
+0002:18f4      streamResumeTime_
+0002:1900      streamRegister_
+0002:1964      streamDeregister_
+0002:1980      streamRead_
+0002:19ec      streamWrite_
+0002:1a58      streamInit_
+0002:1aa8      streamDeinit_
+0002:1b58      streamFindActive_
+0002:1b80      streamFindStreamSFN_
+0002:1b98      streamFindStreamHandle_
+0002:1bc0      sbHead_
+0002:1bc8*     sbTail_
+0002:1bd0      sbPushOnHead_
+0002:1bf0      sbPushOnTail_
+0002:1c10      sbPopHead_
+0002:1c30+     sbPopTail_
+0002:1c7c*     sbDestroyElement_
+0002:1c98+     sbPopElement_
+0002:1cf0      sbNotEmpty_
+0002:1d04*     streamHead_
+0002:1d08*     streamTail_
+0002:1d0c*     streamPushOnHead_
+0002:1d2c*     streamPushOnTail_
+0002:1d50*     streamPopHead_
+0002:1d70+     streamPopTail_
+0002:1db8*     streamDestroyElement_
+0002:1dd4+     streamPopElement_
+0002:1e30*     streamNotEmpty_
+0002:1e40*     streamSetNextEvent_
+0002:1e40*     streamDisableEvent_
+0002:1e40*     streamEnableEvent_
+0002:1e40*     streamProcessEvents_
+Module: waveplay.obj(D:\dev\csrc\os2dd\scd\waveplay.c)
+0002:1e50      waveplayStart_
+0002:1fc4      waveplayStop_
+0002:2024*     waveplayEnable_
+0001:09c0      _wap
+0002:3a10      waveplayInit_
+Module: waverec.obj(D:\dev\csrc\os2dd\scd\waverec.c)
+0002:2030      waverecStart_
+0002:21c0      waverecStop_
+0002:2220*     waverecEnable_
+0001:0a20      _war
+0002:3aa0      waverecInit_
+Module: ioctl.obj(D:\dev\csrc\os2dd\scd\ioctl.c)
+0002:241c      ioctlStrat_
+Module: ssm_idc.obj(D:\dev\csrc\os2dd\scd\ssm_idc.c)
+0002:2510      _idcDDCMD
+Module: chipset.obj(D:\dev\csrc\os2dd\scd\chipset.c)
+0001:029c      _gIRQ
+0001:029e      _gBasePort
+0001:02a0      _gCtrlPort
+0001:02a2      _gMode
+0001:02a4      _gDevice
+0001:02a6      _gDMAplay
+0001:02a8      _gDMAplaySize
+0001:02aa      _gDMAplayIPB
+0001:02ac      _gDMAplayMode
+0001:02ae      _gDMArec
+0001:02b0      _gDMArecSize
+0001:02b2      _gDMArecIPB
+0001:02b4      _gDMArecMode
+0001:02b6      _gCLflags
+0002:287c      chipsetGET_
+0002:28dc      chipsetSet_
+0002:2950      chipsetSetDTM_
+0002:298c      chipsetInit_
+0002:2b58      chipsetIntPending_
+0002:2ba0      chipsetIntReset_
+0002:2bdc      chipsetWaitInit_
+0002:2c14      chipsetWaitACI_
+0002:2c6c      chipsetMCE_
+Module: malloc.obj(D:\dev\csrc\os2dd\scd\malloc.c)
+0002:2c90+     dumpheap_
+0002:2f48      malloc_
+0002:3144      free_
+0002:31fc*     _memfree_
+0002:3200*     realloc_
+0002:3b30      HeapInit_
+Module: myprintf.obj(D:\dev\csrc\os2dd\scd\myprintf.c)
+0002:35ec      _ddprintf
+Module: init.obj(D:\dev\csrc\os2dd\scd\init.c)
+0001:0890+     _signOnMsg
+0001:08c0+     _irqMsg
+0001:08cc+     _basePortMsg
+0001:08d8+     _ctrlPortMsg
+0001:08e4+     _modeMsg
+0001:08f0+     _deviceMsg
+0001:08fc+     _playDMAMsg
+0001:0908+     _playSizeMsg
+0001:0914+     _playIPBMsg
+0001:0920+     _playModeMsg
+0001:092c+     _recDMAMsg
+0001:0938+     _recSizeMsg
+0001:0944+     _recIPBMsg
+0001:0950+     _recModeMsg
+0002:3b80      stratMode2Init_
+0002:3d68+     ParseCL_
+0002:5040*     _strtol
+0002:5068*     _strtoul
+0001:095c+     _clFlagsMsg
+0001:0968+     _errorPrepMsg
+0001:0987+     _initExitMsg
+0001:02ea+     _errorMsg
+0001:030a+     _deviceStr
+0002:5150*     __itoa
+0002:518c*     __ltoa
+0002:51c4*     __ultoa
+
+
+                        +---------------------+
+                        |   Module Segments   |
+                        +---------------------+
+
+! = 32-bit segment
+c = initialized communal data
+
+Module          Segment               Class           Address         Size
+======          =======               =====           =======         ====
+
+segsetup.asm    _HEADER               DATA           0001:0000        00000000
+                _DATA                 DATA           0001:0020        00000000
+                CONST                 DATA           0001:0320        00000000
+                CONST2                DATA           0001:0890        00000000
+                _BSS                  BSS            0001:09b0        00000000
+                _HEMP                 BSS            0001:2ba0        00000000
+                _ENDHEMP              BSS            0001:2ba0        00000002
+                _ENDDS                ENDDS          0001:2bb0        00000002
+                _INITDATA             ENDDS          0001:2bc0        00000000
+                _ENDINITDATA          ENDDS          0001:2bc0        00000002
+                _TEXT                 CODE           0002:0000        00000071
+                _ENDCS                CODE           0002:3810        00000002
+                RMCODE                CODE           0002:3820        00000000
+                _INITTEXT             CODE           0002:3820        00000000
+D:\dev\csrc\os2dd\scd\header.c _TEXT  CODE           0002:0080        00000000
+                CONST                 DATA           0001:0320        00000000
+                CONST2                DATA           0001:0890        00000000
+                _DATA                 DATA           0001:0020        00000000
+                _BSS                  BSS            0001:09b0        00000000
+                header11_DATA         FAR_DATA       0003:0000        00000000
+                _HEADER               DATA           0001:0000        0000001e
+                _INITTEXT             CODE           0002:3820        00000000
+D:\dev\csrc\os2dd\scd\strat.c _TEXT   CODE           0002:0080        00000239
+                CONST                 DATA           0001:0320        00000000
+                CONST2                DATA           0001:0890        00000000
+                _DATA                 DATA           0001:0020        0000001c
+                _BSS                  BSS            0001:09b0        00000000
+                strat11_DATA          FAR_DATA       0003:0000        00000000
+D:\dev\csrc\os2dd\scd\audiobuf.c _TEXT CODE          0002:02c0        000005b9
+                CONST                 DATA           0001:0320        00000000
+                CONST2                DATA           0001:0890        00000000
+                _DATA                 DATA           0001:0040        00000004
+                _BSS                  BSS            0001:09b0        00000000
+                audiobuf11_DATA       FAR_DATA       0003:0000        00000000
+                _INITDATA             ENDDS          0001:2bc0        00000000
+                _INITTEXT             CODE           0002:3820        00000187
+D:\dev\csrc\os2dd\scd\audiohw.c _TEXT CODE           0002:0880        000000c5
+                CONST                 DATA           0001:0320        00000000
+                CONST2                DATA           0001:0890        00000000
+                _DATA                 DATA           0001:0044        00000100
+                _BSS                  BSS            0001:09b0        00000000
+                audiohw11_DATA        FAR_DATA       0003:0000        00000000
+D:\dev\csrc\os2dd\scd\dma.c _TEXT     CODE           0002:0950        00000248
+                CONST                 DATA           0001:0320        00000000
+                CONST2                DATA           0001:0890        00000000
+                _DATA                 DATA           0001:0144        000000b0
+                _BSS                  BSS            0001:09b0        00000000
+                dma11_DATA            FAR_DATA       0003:0000        00000000
+D:\dev\csrc\os2dd\scd\irq.c _TEXT     CODE           0002:0ba0        0000014b
+                CONST                 DATA           0001:0320        00000000
+                CONST2                DATA           0001:0890        00000000
+                _DATA                 DATA           0001:01f4        00000004
+                _BSS                  BSS            0001:09b0        00000000
+                irq11_DATA            FAR_DATA       0003:0000        00000000
+D:\dev\csrc\os2dd\scd\wavaudio.c _TEXT CODE          0002:0cf0        0000045c
+                CONST                 DATA           0001:0320        00000075
+                CONST2                DATA           0001:0890        00000000
+                _DATA                 DATA           0001:01f8        00000080
+                _BSS                  BSS            0001:09b0        00000000
+                wavaudio11_DATA       FAR_DATA       0003:0000        00000000
+                _INITDATA             ENDDS          0001:2bc0        00000000
+                _INITTEXT             CODE           0002:39b0        0000005f
+D:\dev\csrc\os2dd\scd\wavestrm.c _TEXT CODE          0002:1150        00000684
+                CONST                 DATA           0001:0396        00000000
+                CONST2                DATA           0001:0890        00000000
+                _DATA                 DATA           0001:0278        00000000
+                _BSS                  BSS            0001:09b0        00000004
+                wavestrm11_DATA       FAR_DATA       0003:0000        00000000
+D:\dev\csrc\os2dd\scd\stream.c _TEXT  CODE           0002:17e0        00000661
+                CONST                 DATA           0001:0396        00000000
+                CONST2                DATA           0001:0890        00000000
+                _DATA                 DATA           0001:0280        0000001c
+                _BSS                  BSS            0001:09c0        00000000
+                stream11_DATA         FAR_DATA       0003:0000        00000000
+D:\dev\csrc\os2dd\scd\waveplay.c _TEXT CODE          0002:1e50        000001d7
+                CONST                 DATA           0001:0396        0000001a
+                CONST2                DATA           0001:0890        00000000
+                _DATA                 DATA           0001:029c        00000000
+                _BSS                  BSS            0001:09c0        00000054
+                waveplay11_DATA       FAR_DATA       0003:0000        00000000
+                _INITDATA             ENDDS          0001:2bc0        00000000
+                _INITTEXT             CODE           0002:3a10        00000087
+D:\dev\csrc\os2dd\scd\waverec.c _TEXT CODE           0002:2030        000001f3
+                CONST                 DATA           0001:03b0        00000019
+                CONST2                DATA           0001:0890        00000000
+                _DATA                 DATA           0001:029c        00000000
+                _BSS                  BSS            0001:0a20        00000054
+                waverec11_DATA        FAR_DATA       0003:0000        00000000
+                _INITDATA             ENDDS          0001:2bc0        00000000
+                _INITTEXT             CODE           0002:3aa0        00000087
+D:\dev\csrc\os2dd\scd\ioctl.c _TEXT   CODE           0002:2230        000002bd
+                CONST                 DATA           0001:03ca        00000017
+                CONST2                DATA           0001:0890        00000000
+                _DATA                 DATA           0001:029c        00000000
+                _BSS                  BSS            0001:0a80        00000000
+                ioctl11_DATA          FAR_DATA       0003:0000        00000000
+D:\dev\csrc\os2dd\scd\ssm_idc.c _TEXT CODE           0002:24f0        000002c0
+                CONST                 DATA           0001:03e2        00000000
+                CONST2                DATA           0001:0890        00000000
+                _DATA                 DATA           0001:029c        00000000
+                _BSS                  BSS            0001:0a80        00000000
+                ssm_idc11_DATA        FAR_DATA       0003:0000        00000000
+D:\dev\csrc\os2dd\scd\chipset.c _TEXT CODE           0002:27b0        000004d7
+                CONST                 DATA           0001:03e2        00000045
+                CONST2                DATA           0001:0890        00000000
+                _DATA                 DATA           0001:029c        00000028
+                _BSS                  BSS            0001:0a80        00000000
+                chipset11_DATA        FAR_DATA       0003:0000        00000000
+D:\dev\csrc\os2dd\scd\malloc.c _TEXT  CODE           0002:2c90        0000060f
+                CONST                 DATA           0001:0428        00000243
+                CONST2                DATA           0001:0890        00000000
+                _DATA                 DATA           0001:02c4        00000014
+                _BSS                  BSS            0001:0a80        00002004
+                malloc11_DATA         FAR_DATA       0003:0000        00000000
+                _INITTEXT             CODE           0002:3b30        00000046
+D:\dev\csrc\os2dd\scd\myprintf.c _TEXT CODE          0002:32a0        00000000
+                CONST                 DATA           0001:066c        00000000
+                CONST2                DATA           0001:0890        00000000
+                _DATA                 DATA           0001:02d8        00000011
+                _BSS                  BSS            0001:2a90        00000104
+                myprintf11_DATA       FAR_DATA       0003:0000        00000000
+                _TEXT                 CODE           0002:32a0        00000566
+D:\dev\csrc\os2dd\scd\init.c _TEXT    CODE           0002:3810        00000000
+                CONST                 DATA           0001:066c        00000215
+                CONST2                DATA           0001:0890        00000113
+                _DATA                 DATA           0001:02ea        00000028
+                _BSS                  BSS            0001:2ba0        00000000
+                init11_DATA           FAR_DATA       0003:0000        00000000
+                _INITDATA             ENDDS          0001:2bc0        00000000
+                _INITTEXT             CODE           0002:3b80        0000166d
+
+
+                        +----------------------+
+                        |   Imported Symbols   |
+                        +----------------------+
+
+Symbol                              Module
+======                              ======
+
+DOSIODELAYCNT                       DOSCALLS
+DOS16SYSTRACE                       DOSCALLS
+DOS16PUTMESSAGE                     MSG
+
+
+                        +--------------------+
+                        |   Libraries Used   |
+                        +--------------------+
+
+d:\dev\ddk\base\lib\os2286.lib
+
+
+                        +-----------------------+
+                        |   Linker Statistics   |
+                        +-----------------------+
+
+Stack size:  0200 (512.)
+Memory size:  7daf (32175.)

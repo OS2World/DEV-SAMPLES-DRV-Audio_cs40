@@ -1,0 +1,27 @@
+                         Upload Information Template for Hobbes.nmsu.edu
+                          ===============================================
+
+        Archive Filename: audiopdd.zip
+       Short Description: up-to-date audio device driver source
+        Long Description: audio device driver source in C with double and
+                          quad duplex, w/gonkulator support
+      Proposed directory
+           for placement: /pub/os2/dev/drivers
+
+               Your name: (the unknown programmer)
+           Email address: (please, no email)
+    Program contact name: (same)
+   Program contact email: (none)
+             Program URL: (none) 
+
+      Would you like the
+   contact email address
+    included in listings? no
+
+Operating System/Version: os/2 warp 3+
+ Additional requirements: requires skilled programmer
+
+                Replaces: (none)
+
+
+

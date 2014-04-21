@@ -1,0 +1,619 @@
+
+Module: D:\dev\csrc\os2dd\scd\strat.c
+Group: 'DGROUP' CONST,CONST2,_DATA,_BSS
+
+Segment: _TEXT  PARA   00000239 bytes  
+
+//
+// strat.c
+// 25-Jan-99
+//
+// VOID __far stratMode2(REQPACK __far *rpPtr);
+
+
+#include "cs40.h"
+
+static VOID stratInitComplete(REQPACK __far *rpPtr);
+static VOID stratOpen(REQPACK __far *rpPtr);
+static VOID stratClose(REQPACK __far *rpPtr);
+static VOID stratDeinstall(REQPACK __far *rpPtr);
+
+static USHORT P5 = 0;          // updated at strat entry (once, set to 1 if can RDTSC)
+static USHORT R3 = 3;          // updated at strat entry (usually once, set to 0 if ring0)
+
+#ifdef TRACE_WANTED // ===================================================
+
+ static ULONG calibrate = -1;
+ static USHORT trace = 1;       // true if should call to trace support
+
+
+ // ----------------------
+ // in: minor event number
+ //out: tPeft.rdtsc.lo (for calibrartion use, right at startup)
+ //nts: needs P5 to get RDTSC, else uses timer0
+ //     if P5 .lo always has bit0=1
+ //     if not P5 .lo always has bit0=0
+ //
+ //     code being traced is surrounded by
+ //
+ //       #ifdef TRACE_XXX
+ //        tracePerf(TRACE_XXX, _IF());
+ //       #endif
+ //
+ //     where this is defined in my_h\os2\traceid.h
+
+ ULONG tracePerf(USHORT minor, ULONG data) {
+
+  USHORT rc = 7734;
+
+  typedef struct _TPERF {
+   ULONG count;
+   RDTSC_COUNT rdtsc;
+   ULONG data;
+  } TPERF;
+
+  static TPERF tPerf = {0,0};
+
+ 0000  56                tracePerf_      push    si
+ 0001  57                                push    di
+ 0002  89 c2                             mov     dx,ax
+
+  if (trace == 0) return 0;
+
+  P5 = 0;  // just simpler to compare with non-p5 times on mytrace.exe reports
+
+ 0004  83 3e 00 00 00                    cmp     word ptr _trace,0000H
+ 0009  75 07                             jne     L1
+ 000b  31 c0                             xor     ax,ax
+ 000d  31 d2                             xor     dx,dx
+ 000f  5f                                pop     di
+ 0010  5e                                pop     si
+ 0011  c3                                ret     
+
+  tPerf.count++;
+  tPerf.data = data;
+
+  if (P5) {
+     rdtsc(&tPerf.rdtsc);
+     tPerf.rdtsc.lo = tPerf.rdtsc.lo | 1;     // bit0=1 always if P5
+  }
+  else {
+     // 838.1  ns per tick
+     // 0.8381 us per tick
+     // 50 ticks = 50 x 0.8381 us = 41.91 us
+
+     tPerf.rdtsc.lo = (ULONG)ReadTimer0();
+     tPerf.rdtsc.lo = tPerf.rdtsc.lo & ~1;    // bit0=0 always if not P5
+  }
+
+ 0012  a1 0c 00          L1              mov     ax,L23
+
+  if (R3) {
+ 0015  8b 36 00 00                       mov     si,_R3
+ 0019  89 1e 18 00                       mov     L27,bx
+ 001d  89 0e 1a 00                       mov     L28,cx
+ 0021  31 ff                             xor     di,di
+ 0023  8b 1e 0e 00                       mov     bx,L24
+ 0027  05 01 00                          add     ax,0001H
+ 002a  a3 0c 00                          mov     L23,ax
+ 002d  11 fb                             adc     bx,di
+ 002f  28 c0                             sub     al,al
+ 0031  51                                push    cx
+ 0032  9c                                pushf   
+ 0033  fa                                cli     
+ 0034  e6 43                             out     43H,al
+ 0036  e4 40                             in      al,40H
+ 0038  88 c4                             mov     ah,al
+ 003a  e4 40                             in      al,40H
+ 003c  9d                                popf    
+ 003d  59                                pop     cx
+ 003e  86 c4                             xchg    al,ah
+ 0040  a3 10 00                          mov     L25,ax
+ 0043  89 3e 00 00                       mov     _P5,di
+ 0047  8a 26 10 00                       mov     ah,L25
+ 004b  89 3e 12 00                       mov     L26,di
+ 004f  80 e4 fe                          and     ah,0feH
+ 0052  89 1e 0e 00                       mov     L24,bx
+ 0056  88 26 10 00                       mov     L25,ah
+ 005a  85 f6                             test    si,si
+ 005c  74 11                             je      L2
+
+     rc = DosSysTrace(255,sizeof(TPERF),minor,(PCHAR)&tPerf);
+  }
+ 005e  68 ff 00                          push    00ffH
+ 0061  6a 10                             push    0010H
+ 0063  52                                push    dx
+ 0064  1e                                push    ds
+ 0065  68 0c 00                          push    offset L23
+ 0068  9a 00 00 00 00                    call    far DOS16SYSTRACE
+
+  else {
+ 006d  eb 22                             jmp     L3
+
+     rc = DevHelp_RAS(255,minor,sizeof(TPERF),(PSZ)&tPerf);
+  }
+
+ 006f  be 0c 00          L2              mov     si,offset L23
+ 0072  bb 10 00                          mov     bx,0010H
+ 0075  8c d8                             mov     ax,ds
+ 0077  89 d1                             mov     cx,dx
+ 0079  8e c0                             mov     es,ax
+ 007b  b8 ff 00                          mov     ax,00ffH
+ 007e  1e                                push    ds
+ 007f  06                                push    es
+ 0080  1f                                pop     ds
+ 0081  07                                pop     es
+ 0082  b2 28                             mov     dl,28H
+ 0084  26 ff 1e 00 00                    call    dword ptr es:_Device_Help
+ 0089  06                                push    es
+ 008a  1f                                pop     ds
+ 008b  b8 00 00                          mov     ax,0000H
+ 008e  83 d8 00                          sbb     ax,0000H
+
+  return tPerf.rdtsc.lo;  // used only just after boot so will always be still in lo, or if not,
+ 0091  a1 10 00          L3              mov     ax,L25
+ 0094  8b 16 12 00                       mov     dx,L26
+
+ }                        // hopefully won't be unlucky enough to straddle lo/hi in split second
+
+
+ // ---------------------
+ // in: n/a
+ //out: n/a
+ //nts: called at strat init complete (and play start when debugging)
+
+ 0098  5f                                pop     di
+ 0099  5e                                pop     si
+ 009a  c3                                ret     
+ 009b  fc                                cld     
+
+ VOID traceCalibrate(VOID) {
+
+  ULONG ti, to;
+
+  _cli_();
+ 009c  53                traceCalibrate_ push    bx
+ 009d  51                                push    cx
+ 009e  52                                push    dx
+ 009f  56                                push    si
+ 00a0  57                                push    di
+ 00a1  b8 01 00                          mov     ax,0001H
+
+ 00a4  31 db                             xor     bx,bx
+ 00a6  31 c9                             xor     cx,cx
+
+  ti = tracePerf(TRACE_CALIBRATE_IN,0);   // results in 50-100 ticks on box2 (timer0)
+ 00a8  9c                                pushf   
+ 00a9  fa                                cli     
+ 00aa  e8 00 00                          call    tracePerf_
+ 00ad  89 c7                             mov     di,ax
+
+  to = tracePerf(TRACE_CALIBRATE_OUT,0);  // ring0
+ 00af  31 db                             xor     bx,bx
+ 00b1  31 c9                             xor     cx,cx
+ 00b3  b8 01 80                          mov     ax,8001H
+ 00b6  89 d6                             mov     si,dx
+ 00b8  e8 00 00                          call    tracePerf_
+
+  _sti_();
+
+ 00bb  9d                                popf    
+
+  if (P5) {
+ 00bc  8b 1e 00 00                       mov     bx,_P5
+ 00c0  85 db                             test    bx,bx
+ 00c2  74 36                             je      L6
+
+     if (to > ti) {
+ 00c4  39 f2                             cmp     dx,si
+ 00c6  77 06                             ja      L4
+ 00c8  75 11                             jne     L5
+ 00ca  39 f8                             cmp     ax,di
+ 00cc  76 0d                             jbe     L5
+
+        calibrate = to - ti;    // usual, means did not wrap to rdtsc.hi
+     }
+ 00ce  29 f8             L4              sub     ax,di
+ 00d0  19 f2                             sbb     dx,si
+ 00d2  a3 00 00                          mov     _calibrate,ax
+ 00d5  89 16 02 00                       mov     _calibrate+2H,dx
+
+     else {
+ 00d9  eb 44                             jmp     L10
+
+        calibrate = (0xFFFFFFFF - ti) + to + 1; // wrapped, so take pre-wrap and add to post wrap
+ 00db  bb ff ff          L5              mov     bx,0ffffH
+ 00de  29 fb                             sub     bx,di
+ 00e0  89 df                             mov     di,bx
+ 00e2  bb ff ff                          mov     bx,0ffffH
+ 00e5  19 f3                             sbb     bx,si
+ 00e7  01 f8                             add     ax,di
+ 00e9  11 da                             adc     dx,bx
+ 00eb  05 01 00                          add     ax,0001H
+ 00ee  83 d2 00                          adc     dx,0000H
+ 00f1  a3 00 00                          mov     _calibrate,ax
+ 00f4  89 16 02 00                       mov     _calibrate+2H,dx
+
+     }
+  }
+  else {
+ 00f8  eb 25                             jmp     L10
+
+     if (ti > to) {          // expected for timer0, unless rollunder (can't be expected to be =)
+ 00fa  39 d6             L6              cmp     si,dx
+ 00fc  77 06                             ja      L7
+ 00fe  75 0a                             jne     L8
+ 0100  39 c7                             cmp     di,ax
+ 0102  76 06                             jbe     L8
+
+        calibrate = ti - to; // ti=40000  to=39950  calibrate=50
+     }
+ 0104  29 c7             L7              sub     di,ax
+ 0106  19 d6                             sbb     si,dx
+
+     else {                  // rollunder (ti=25  to=65530  calibrate=50)
+ 0108  eb 0d                             jmp     L9
+
+        calibrate = ti + (65536-to);
+     }
+  }
+
+  return;
+ 010a  29 c3             L8              sub     bx,ax
+ 010c  89 d8                             mov     ax,bx
+ 010e  bb 01 00                          mov     bx,0001H
+ 0111  19 d3                             sbb     bx,dx
+ 0113  01 c7                             add     di,ax
+ 0115  11 de                             adc     si,bx
+ 0117  89 3e 00 00       L9              mov     _calibrate,di
+ 011b  89 36 02 00                       mov     _calibrate+2H,si
+
+ }
+
+#endif  // #ifdef TRACE_WANTED ===================================================
+
+
+// -------------------------------------
+// in:
+//out:
+//nts: have to remember to think __far for all pointers
+//
+//     be aware that rpPtr and es:bx contents probably aren't the same, even if not calling out
+//     this because compiler sets a local rpPtr (pointer) to es:bx on entry, then uses local ptr
+//
+//     also be aware that watcom __saveregs doesn't do what it says it does (!) so be sure to
+//     look at listing file if __saveregs is used (also check how __interrupt looks)
+
+// need to __loadds?
+
+ 011f  5f                L10             pop     di
+ 0120  5e                                pop     si
+ 0121  5a                                pop     dx
+ 0122  59                                pop     cx
+ 0123  5b                                pop     bx
+ 0124  c3                stratOpen_      ret     
+ 0125  89 c0                             mov     ax,ax
+ 0127  fc                                cld     
+
+VOID __far stratMode2(REQPACK __far *rpPtr) {
+#pragma aux stratMode2 parm [es bx];
+
+// int3();
+// ddprintf("@stratMode2, es:bx=%p\n",rpPtr);
+
+ 0128  51                stratMode2_     push    cx
+ 0129  52                                push    dx
+ 012a  56                                push    si
+ 012b  57                                push    di
+ 012c  89 de                             mov     si,bx
+ 012e  8c c7                             mov     di,es
+
+ if (R3) {
+ 0130  83 3e 00 00 00                    cmp     word ptr _R3,0000H
+ 0135  74 5c                             je      L13
+
+    R3 = IsRing3();                  // inits in ring3, once gets to 0 always 0, even if multi hdrs
+ 0137  0e                                push    cs
+ 0138  58                                pop     ax
+ 0139  83 e0 03                          and     ax,0003H
+ 013c  a3 00 00                          mov     _R3,ax
+
+    if (CanCPUID()) P5 = CanRDTSC(); // also only need to do this once (assumes not a BASEDEV)
+ }
+
+#ifdef TRACE_STRAT
+ 013f  66 53                             push    ebx
+ 0141  66 9c                             pushfd  
+ 0143  66 58                             pop     eax
+ 0145  66 89 c3                          mov     ebx,eax
+ 0148  66 35 00 00 20 00                 xor     eax,00200000H
+ 014e  66 50                             push    eax
+ 0150  66 9d                             popfd   
+ 0152  66 9c                             pushfd  
+ 0154  66 58                             pop     eax
+ 0156  66 39 d8                          cmp     eax,ebx
+ 0159  b8 00 00                          mov     ax,0000H
+ 015c  74 01                             je      L11
+ 015e  40                                inc     ax
+ 015f  66 5b             L11             pop     ebx
+ 0161  85 c0                             test    ax,ax
+ 0163  74 2e                             je      L13
+ 0165  66 53                             push    ebx
+ 0167  66 51                             push    ecx
+ 0169  66 52                             push    edx
+ 016b  66 29 c0                          sub     eax,eax
+ 016e  0f a2                             cpuid   
+ 0170  66 83 f8 01                       cmp     eax,00000001H
+ 0174  b8 00 00                          mov     ax,0000H
+ 0177  72 11                             jb      L12
+ 0179  66 b8 01 00 00 00                 mov     eax,00000001H
+ 017f  0f a2                             cpuid   
+ 0181  f6 c2 10                          test    dl,10H
+ 0184  b8 00 00                          mov     ax,0000H
+ 0187  74 01                             je      L12
+ 0189  40                                inc     ax
+ 018a  66 5a             L12             pop     edx
+ 018c  66 59                             pop     ecx
+ 018e  66 5b                             pop     ebx
+ 0190  a3 00 00                          mov     _P5,ax
+
+ tracePerf(TRACE_STRAT_IN, rpPtr->command);
+#endif
+
+ 0193  8e c7             L13             mov     es,di
+ 0195  b8 45 00                          mov     ax,0045H
+ 0198  26 8a 5c 02                       mov     bl,es:[si+2H]
+ 019c  31 c9                             xor     cx,cx
+ 019e  30 ff                             xor     bh,bh
+ 01a0  e8 00 00                          call    tracePerf_
+
+ rpPtr->status = RPDONE;
+
+ 01a3  8e c7                             mov     es,di
+
+ switch (rpPtr->command) {
+ case STRATEGY_INIT:
+ 01a5  26 8a 44 02                       mov     al,es:[si+2H]
+ 01a9  26 c7 44 03 00 01                 mov     word ptr es:[si+3H],0100H
+ 01af  3c 0e                             cmp     al,0eH
+ 01b1  72 14                             jb      L15
+ 01b3  76 25                             jbe     L17
+ 01b5  3c 14                             cmp     al,14H
+ 01b7  72 08                             jb      L14
+ 01b9  76 4c                             jbe     L21
+ 01bb  3c 1f                             cmp     al,1fH
+ 01bd  74 3b                             je      L19
+ 01bf  eb 3e                             jmp     L20
+ 01c1  3c 10             L14             cmp     al,10H
+ 01c3  74 2a                             je      L18
+ 01c5  eb 38                             jmp     L20
+ 01c7  84 c0             L15             test    al,al
+ 01c9  76 06                             jbe     L16
+ 01cb  3c 0d                             cmp     al,0dH
+ 01cd  74 38                             je      L21
+ 01cf  eb 2e                             jmp     L20
+
+    stratMode2Init(rpPtr);
+ 01d1  89 f0             L16             mov     ax,si
+ 01d3  89 fa                             mov     dx,di
+ 01d5  e8 00 00                          call    stratMode2Init_
+
+    break;
+ case STRATEGY_OPEN:
+    stratOpen(rpPtr);
+    break;
+ case STRATEGY_CLOSE:
+ 01d8  eb 2d                             jmp     L21
+
+    stratClose(rpPtr);
+    break;
+ 01da  26 8b 44 0d       L17             mov     ax,es:[si+0dH]
+ 01de  e8 00 00                          call    streamFindStreamSFN_
+ 01e1  89 c3                             mov     bx,ax
+ 01e3  85 c0                             test    ax,ax
+ 01e5  74 20                             je      L21
+ 01e7  8b 47 24                          mov     ax,[bx+24H]
+ 01ea  e8 00 00                          call    wavestreamDeinit_
+ 01ed  eb 18                             jmp     L21
+
+ case STRATEGY_GENIOCTL:
+ 01ef  89 f0             L18             mov     ax,si
+ 01f1  89 fa                             mov     dx,di
+
+    ioctlStrat(rpPtr, 0);
+ 01f3  31 db                             xor     bx,bx
+ 01f5  e8 00 00                          call    ioctlStrat_
+
+    break;
+ case STRATEGY_DEINSTALL:
+    stratDeinstall(rpPtr);
+    break;
+ case STRATEGY_INITCOMPLETE:
+ 01f8  eb 0d                             jmp     L21
+
+    stratInitComplete(rpPtr);
+ 01fa  e8 00 00          L19             call    traceCalibrate_
+
+    break;
+ default:
+ 01fd  eb 08                             jmp     L21
+
+    rpPtr->status = RPDONE | RPERR | RPGENFAIL;
+ 01ff  8e c7             L20             mov     es,di
+ 0201  26 c7 44 03 0c 81                 mov     word ptr es:[si+3H],810cH
+
+ }
+
+#ifdef TRACE_STRAT
+ 0207  b8 45 80          L21             mov     ax,8045H
+
+ tracePerf(TRACE_STRAT_OUT, rpPtr->status);
+#endif
+
+ return;
+ 020a  8e c7                             mov     es,di
+ 020c  31 c9                             xor     cx,cx
+ 020e  26 8b 5c 03                       mov     bx,es:[si+3H]
+ 0212  e8 00 00                          call    tracePerf_
+
+}
+
+// ---------
+// in:
+//out:
+//nts: resets timer0 to max, and count-by-1 (mode2), so only do once, and then really only when testing
+//     does a trace calibrate (always), also done at play start
+//     seems like clock01.sys already sets to mode2, so can probably skip (am)
+
+static VOID stratInitComplete(REQPACK __far *rpPtr) {
+
+#ifdef TRACE_CALIBRATE
+ // ResetTimer0();
+ traceCalibrate();
+#endif
+
+ return;
+ rpPtr;
+}
+
+
+// ---------
+// in:
+//out:
+//nts: resources not allocated until ioctlAudioInit()
+
+static VOID stratOpen(REQPACK __far *rpPtr) {
+
+ // check if VDD has hardware and if so return busy, as in:
+ // rpPtr->status = RPDONE | RPERR | RPBUSY;
+ // if not, then inc inUseCounter to prevent a VDD from getting it
+
+ return;
+ rpPtr;
+}
+
+
+// ---------
+// in:
+//out:
+//nts: may want to verify pid?
+
+extern void dumpheap(void);
+
+ 0215  5f                                pop     di
+ 0216  5e                                pop     si
+ 0217  5a                                pop     dx
+ 0218  59                                pop     cx
+ 0219  cb                                retf    
+ 021a  89 c0                             mov     ax,ax
+
+static VOID stratClose(REQPACK __far *rpPtr) {
+
+ STREAM *streamPtr;
+
+ 021c  53                stratClose_     push    bx
+ 021d  89 c3                             mov     bx,ax
+ 021f  8e c2                             mov     es,dx
+
+ streamPtr = streamFindStreamSFN(rpPtr->open.SFN);
+ 0221  26 8b 47 0d                       mov     ax,es:[bx+0dH]
+ 0225  e8 00 00                          call    streamFindStreamSFN_
+ 0228  89 c3                             mov     bx,ax
+
+ if (streamPtr) {
+ 022a  85 c0                             test    ax,ax
+ 022c  74 06                             je      L22
+
+    wavestreamDeinit(streamPtr->wsParentPtr);  // this frees streamPtr and wsPtr (wsParentPtr)
+
+    // dec inUseCounter
+ }
+
+// !!!
+// dump heap
+
+// dumpheap();
+
+ return;
+ rpPtr;
+ 022e  8b 47 24                          mov     ax,[bx+24H]
+ 0231  e8 00 00                          call    wavestreamDeinit_
+
+}
+
+
+// ---------
+// in:
+//out:
+//nts:
+
+static VOID stratDeinstall(REQPACK __far *rpPtr) {
+
+ // org code:
+ //  while (pAudioHWList->IsElements())
+ //     pAudioHWList->DestroyElement(pAudioHWList->PopHead());
+
+ return;
+ rpPtr;
+}
+
+
+ 0234  5b                L22             pop     bx
+ 0235  89 c0                             mov     ax,ax
+ 0237  fc                                cld     
+ 0238  c3                stratDeinstall_ ret     
+
+No disassembly errors
+
+List of external symbols
+
+Symbol
+----------------
+_trace           00000006
+_R3              0000013d 00000132 00000017
+_P5              00000191 000000be 00000045
+DOS16SYSTRACE    00000069
+_Device_Help     00000087
+tracePerf_       00000213 000001a1 000000b9 000000ab
+_calibrate       0000011d 00000119 000000f6 000000f2 000000d7 000000d3
+stratMode2Init_  000001d6
+streamFindStreamSFN_ 
+                 00000226 000001df
+wavestreamDeinit_ 
+                 00000232 000001eb
+ioctlStrat_      000001f6
+traceCalibrate_  000001fb
+------------------------------------------------------------
+
+Segment: _DATA  PARA   0000001c bytes  
+ 0000  00 00                   _P5             - ..
+ 0002  03 00                   _R3             - ..
+ 0004  ff ff ff ff             _calibrate      - ....
+ 0008  01 00 00 00             _trace          - ....
+ 000c  00 00                   L23             - ..
+ 000e  00 00                   L24             - ..
+ 0010  00 00                   L25             - ..
+ 0012  00 00 00 00 00 00       L26             - ......
+ 0018  00 00                   L27             - ..
+ 001a  00 00                   L28             - ..
+
+No disassembly errors
+
+------------------------------------------------------------
+List of public symbols
+
+SYMBOL          GROUP           SEGMENT          ADDRESS
+---------------------------------------------------------
+_calibrate      DGROUP          _DATA            00000004
+_P5             DGROUP          _DATA            00000000
+_R3             DGROUP          _DATA            00000002
+_trace          DGROUP          _DATA            00000008
+stratClose_                     _TEXT            0000021c
+stratDeinstall_                 _TEXT            00000238
+stratMode2_                     _TEXT            00000128
+stratOpen_                      _TEXT            00000124
+traceCalibrate_                 _TEXT            0000009c
+tracePerf_                      _TEXT            00000000
+
+------------------------------------------------------------
+
